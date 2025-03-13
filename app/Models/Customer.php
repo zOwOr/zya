@@ -12,17 +12,44 @@ class Customer extends Model
     use HasFactory, Sortable;
 
     protected $fillable = [
-        'name',
-        'email',
-        'phone',
-        'address',
-        'shopname',
-        'photo',
-        'account_holder',
-        'account_number',
-        'bank_name',
-        'bank_branch',
-        'city',
+        'tit_name',
+        'tit_email',
+        'tit_phone',
+        'tit_address',
+        'tit_photo',
+        'tit_photo_ine_f',
+        'tit_photo_ine_b',
+        'tit_facebook',
+        'tit_photo_home',
+        'tit_link_location',
+        'tit_photo_proof_address',
+        'tit_work',
+        'tit_city',
+
+        'ref1_name',
+        'ref1_phone',
+        'ref1_address',
+
+        'ref2_name',
+        'ref2_phone',
+        'ref2_address',
+
+        'ref3_name',
+        'ref3_phone',
+        'ref3_address',
+
+        'aval_name',
+        'aval_phone',
+        'aval_address',
+        'aval_photo_ine_f',
+        'aval_photo_ine_b',
+        'aval_photo_home',
+
+
+
+
+
+
     ];
     public $sortable = [
         'name',

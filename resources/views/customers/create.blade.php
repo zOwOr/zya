@@ -14,6 +14,10 @@
                 <div class="card-body">
                     <form action="{{ route('customers.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
+
+                    <h5 class="py-3 text-center bg-primary">Datos del Titular</h5>
+                    <hr>
+
                         <!-- begin: Input Image -->
                         <div class="image-container">
                             <div class="form-group row align-items-center">
@@ -210,6 +214,218 @@
                                 @enderror
                             </div>
                         </div>
+
+
+                        <h5 class="py-3 mt-4 text-center bg-success">Datos de Referencia 1</h5>
+                        <hr>
+
+                        <div class=" row align-items-center">
+                            <div class="form-group col-md-6">
+                                <label for="name">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('ref1_name') is-invalid @enderror" id="ref1_name" name="ref1_name" value="{{ old('ref1_name') }}" required>
+                                @error('ref1_name')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="ref1_phone">Teléfono <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('ref1_phone') is-invalid @enderror" id="ref1_phone" name="ref1_phone" value="{{ old('ref1_phone') }}" required>
+                                @error('ref1_phone')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label for="ref1_address">Dirección <span class="text-danger">*</span></label>
+                                <textarea class="form-control @error('ref1_address') is-invalid @enderror" name="ref1_address" required>{{ old('ref1_address') }}</textarea>
+                                @error('ref1_address')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        
+
+                        <h5 class="py-3 text-center bg-success">Datos de Referencia 2</h5>
+                        <hr>
+
+                        <div class=" row align-items-center">
+                            <div class="form-group col-md-6">
+                                <label for="name">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('ref2_name') is-invalid @enderror" id="ref2_name" name="ref2_name" value="{{ old('ref2_name') }}" required>
+                                @error('ref2_name')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="ref2_phone">Teléfono <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('ref2_phone') is-invalid @enderror" id="ref2_phone" name="ref2_phone" value="{{ old('ref2_phone') }}" required>
+                                @error('ref2_phone')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label for="ref2_address">Dirección <span class="text-danger">*</span></label>
+                                <textarea class="form-control @error('ref2_address') is-invalid @enderror" name="ref2_address" required>{{ old('ref2_address') }}</textarea>
+                                @error('ref2_address')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                        </div>
+
+
+                        <h5 class="py-3 text-center bg-success">Datos de Referencia 3</h5>
+                        <hr>
+
+                        <div class=" row align-items-center">
+                            <div class="form-group col-md-6">
+                                <label for="name">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('ref3_name') is-invalid @enderror" id="ref3_name" name="ref3_name" value="{{ old('ref3_name') }}" required>
+                                @error('ref3_name')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="ref3_phone">Teléfono <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('ref3_phone') is-invalid @enderror" id="ref3_phone" name="ref3_phone" value="{{ old('ref3_phone') }}" required>
+                                @error('ref3_phone')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label for="ref3_address">Dirección <span class="text-danger">*</span></label>
+                                <textarea class="form-control @error('ref3_address') is-invalid @enderror" name="ref3_address" required>{{ old('ref3_address') }}</textarea>
+                                @error('ref3_address')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        
+                        <h5 class="py-3 text-center bg-warning">Datos de Aval</h5>
+                        <hr>
+
+                        <div class=" row align-items-center">
+                            <div class="form-group col-md-6">
+                                <label for="aval_name">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('aval_name') is-invalid @enderror" id="aval_name" name="aval_name" value="{{ old('aval_name') }}" required>
+                                @error('aval_name')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="aval_phone">Teléfono <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('aval_phone') is-invalid @enderror" id="aval_phone" name="aval_phone" value="{{ old('aval_phone') }}" required>
+                                @error('aval_phone')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label for="aval_address">Dirección <span class="text-danger">*</span></label>
+                                <textarea class="form-control @error('aval_address') is-invalid @enderror" name="aval_address" required>{{ old('aval_address') }}</textarea>
+                                @error('aval_address')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+
+                            <div class="form-group row align-items-center col-md-6 image-container">
+                                <div class="col-md-2">
+                                    <div class="profile-img-edit">
+                                        <div class="crm-profile-img-edit">
+                                            <img class="crm-profile-pic  avatar-100 image-preview" id="aval_photo_ine_f" src="{{ asset('assets/images/user/id_card_f.png') }}" alt="profile-pic">
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="col-md-10">
+                                    <label for="aval_photo_ine_f">Foto INE parte frontal</label>
+
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input @error('aval_photo_ine_f') is-invalid @enderror" id="aval_photo_ine_f" name="aval_photo_ine_f" accept="image/*" onchange="previewImage(this)">
+                                        <label class="custom-file-label" for="aval_photo_ine_f">Elegir Imagen</label>
+                                    </div>
+                                    @error('aval_photo_ine_f')
+                                    <div class="invalid-feedback">
+                                        {{ $message }}
+                                    </div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                            <div class="form-group row align-items-center col-md-6 image-container">
+                                <div class="col-md-2">
+                                    <div class="profile-img-edit">
+                                        <div class="crm-profile-img-edit">
+                                            <img class="crm-profile-pic  avatar-100 image-preview" id="aval_photo_ine_b" src="{{ asset('assets/images/user/id_card_b.png') }}" alt="profile-pic">
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="col-md-10">
+                                    <label for="aval_photo_ine_b">Foto INE parte trasera</label>
+
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input @error('aval_photo_ine_b') is-invalid @enderror" id="aval_photo_ine_b" name="aval_photo_ine_b" accept="image/*" onchange="previewImage(this)">
+                                        <label class="custom-file-label" for="aval_photo_ine_b">Elegir Imagen</label>
+                                    </div>
+                                    @error('aval_photo_ine_b')
+                                    <div class="invalid-feedback">
+                                        {{ $message }}
+                                    </div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="form-group row align-items-center col-md-6 image-container">
+                                <div class="col-md-2">
+                                    <div class="profile-img-edit">
+                                        <div class="crm-profile-img-edit">
+                                            <img class="crm-profile-pic  avatar-100 image-preview" id="aval_photo_home" src="{{ asset('assets/images/user/home.jpg') }}" alt="profile-pic">
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="col-md-10">
+                                    <label for="aval_photo_home">Foto fachada de la casa</label>
+
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input @error('aval_photo_home') is-invalid @enderror" id="aval_photo_home" name="aval_photo_home" accept="image/*" onchange="previewImage(this)">
+                                        <label class="custom-file-label" for="aval_photo_home">Elegir Imagen</label>
+                                    </div>
+                                    @error('aval_photo_home')
+                                    <div class="invalid-feedback">
+                                        {{ $message }}
+                                    </div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                        </div>
+
+
                         <!-- end: Input Data -->
                         <div class="mt-2">
                             <button type="submit" class="btn btn-primary mr-2">Guardar</button>

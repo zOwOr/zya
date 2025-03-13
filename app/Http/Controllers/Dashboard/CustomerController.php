@@ -82,13 +82,41 @@ class CustomerController extends Controller
         /**
          * Handle upload image with Storage.
          */
-        if ($file = $request->file('tit_photo')) {
-            $fileName = hexdec(uniqid()).'.'.$file->getClientOriginalExtension();
-            $path = 'public/customers/';
 
-            $file->storeAs($path, $fileName);
-            $validatedData['tit_photo'] = $fileName;
+
+        if ($request->hasFile('tit_photo')) {
+            $validatedData['tit_photo'] = $this->storeImage($request->file('tit_photo'), 'customers');
         }
+    
+        if ($request->hasFile('tit_photo_ine_f')) {
+            $validatedData['tit_photo_ine_f'] = $this->storeImage($request->file('tit_photo_ine_f'), 'customers');
+        }
+    
+        if ($request->hasFile('tit_photo_ine_b')) {
+            $validatedData['tit_photo_ine_b'] = $this->storeImage($request->file('tit_photo_ine_b'), 'customers');
+        }
+    
+        if ($request->hasFile('tit_photo_home')) {
+            $validatedData['tit_photo_home'] = $this->storeImage($request->file('tit_photo_home'), 'customers');
+        }
+    
+        if ($request->hasFile('tit_photo_proof_address')) {
+            $validatedData['tit_photo_proof_address'] = $this->storeImage($request->file('tit_photo_proof_address'), 'customers');
+        }
+    
+        if ($request->hasFile('aval_photo_ine_f')) {
+            $validatedData['aval_photo_ine_f'] = $this->storeImage($request->file('aval_photo_ine_f'), 'customers');
+        }
+    
+        if ($request->hasFile('aval_photo_ine_b')) {
+            $validatedData['aval_photo_ine_b'] = $this->storeImage($request->file('aval_photo_ine_b'), 'customers');
+        }
+    
+        if ($request->hasFile('aval_photo_home')) {
+            $validatedData['aval_photo_home'] = $this->storeImage($request->file('aval_photo_home'), 'customers');
+        }
+
+
 
         Customer::create($validatedData);
 
@@ -175,4 +203,15 @@ class CustomerController extends Controller
 
         return Redirect::route('customers.index')->with('success', 'Customer has been deleted!');
     }
+        private function storeImage($file, $directory)
+    {
+        $fileName = hexdec(uniqid()) . '.' . $file->getClientOriginalExtension();
+        $filePath = 'public/' . $directory . '/';
+
+        // Guarda la imagen en el almacenamiento público
+        $file->storeAs($filePath, $fileName);
+
+        return $fileName; // Retorna el nombre del archivo guardado
+    }
+
 }

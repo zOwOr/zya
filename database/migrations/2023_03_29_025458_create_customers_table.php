@@ -44,7 +44,7 @@ return new class extends Migration
             $table->string('aval_address')->nullable();
             $table->string('aval_photo_ine_f')->nullable();
             $table->string('aval_photo_ine_b')->nullable();
-            $table->string('aval_photo_proof_address')->nullable();
+            $table->string('aval_photo_home')->nullable();
 
 
 
