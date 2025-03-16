@@ -120,7 +120,7 @@ class CustomerController extends Controller
 
         Customer::create($validatedData);
 
-        return Redirect::route('customers.index')->with('success', 'Customer has been created!');
+        return Redirect::route('customers.index')->with('success', 'El cliente se ha creado exitosamente!');
     }
 
     /**
@@ -149,17 +149,42 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer)
     {
         $rules = [
-            'photo' => 'image|file|max:1024',
-            'name' => 'required|string|max:50',
-            'email' => 'required|email|max:50|unique:customers,email,'.$customer->id,
-            'phone' => 'required|string|max:15|unique:customers,phone,'.$customer->id,
-            'shopname' => 'required|string|max:50',
-            'account_holder' => 'max:50',
-            'account_number' => 'max:25',
-            'bank_name' => 'max:25',
-            'bank_branch' => 'max:50',
-            'city' => 'required|string|max:50',
-            'address' => 'required|string|max:100',
+
+            'tit_name' => 'required|string|max:50',
+            'tit_email' => 'required|email|max:50|unique:customers,tit_email,'.$customer->id,
+            'tit_phone' => 'required|string|max:15|unique:customers,tit_phone, '.$customer->id,
+            'tit_address' => 'required|string|max:100',
+            'tit_photo' => 'image|file|max:3000',
+            'tit_photo_ine_f' => 'image|file|max:3000',
+            'tit_photo_ine_b' => 'image|file|max:3000',
+            'tit_facebook' => 'required|string|max:50',
+            'tit_photo_home' => 'image|file|max:3000',
+            'tit_link_location' => 'max:100',
+            'tit_photo_proof_address' => 'image|file|max:3000',
+            'tit_work' => 'max:50',
+            'tit_city' => 'required|string|max:50',
+
+            'ref1_name' => 'max:50',
+            'ref1_phone' => 'max:15',
+            'ref1_address' => 'max:100',
+
+            'ref2_name' => 'max:50',
+            'ref2_phone' => 'max:15',
+            'ref2_address' => 'max:100',
+            
+            'ref3_name' => 'max:50',
+            'ref3_phone' => 'max:15',
+            'ref3_address' => 'max:100',
+
+            'aval_name' => 'max:50',
+            'aval_phone' => 'max:15',
+            'aval_address' => 'max:100',
+            'aval_photo_ine_f' => 'image|file|max:3000',
+            'aval_photo_ine_b' => 'image|file|max:3000',
+            'aval_photo_proof_address' => 'image|file|max:3000',
+
+
+
         ];
 
         $validatedData = $request->validate($rules);
@@ -167,24 +192,44 @@ class CustomerController extends Controller
         /**
          * Handle upload image with Storage.
          */
-        if ($file = $request->file('photo')) {
-            $fileName = hexdec(uniqid()).'.'.$file->getClientOriginalExtension();
-            $path = 'public/customers/';
 
-            /**
-             * Delete photo if exists.
-             */
-            if($customer->photo){
-                Storage::delete($path . $customer->photo);
-            }
 
-            $file->storeAs($path, $fileName);
-            $validatedData['photo'] = $fileName;
+        
+        if ($request->hasFile('tit_photo')) {
+            $validatedData['tit_photo'] = $this->storeImage($request->file('tit_photo'), 'customers');
+        }
+    
+        if ($request->hasFile('tit_photo_ine_f')) {
+            $validatedData['tit_photo_ine_f'] = $this->storeImage($request->file('tit_photo_ine_f'), 'customers');
+        }
+    
+        if ($request->hasFile('tit_photo_ine_b')) {
+            $validatedData['tit_photo_ine_b'] = $this->storeImage($request->file('tit_photo_ine_b'), 'customers');
+        }
+    
+        if ($request->hasFile('tit_photo_home')) {
+            $validatedData['tit_photo_home'] = $this->storeImage($request->file('tit_photo_home'), 'customers');
+        }
+    
+        if ($request->hasFile('tit_photo_proof_address')) {
+            $validatedData['tit_photo_proof_address'] = $this->storeImage($request->file('tit_photo_proof_address'), 'customers');
+        }
+    
+        if ($request->hasFile('aval_photo_ine_f')) {
+            $validatedData['aval_photo_ine_f'] = $this->storeImage($request->file('aval_photo_ine_f'), 'customers');
+        }
+    
+        if ($request->hasFile('aval_photo_ine_b')) {
+            $validatedData['aval_photo_ine_b'] = $this->storeImage($request->file('aval_photo_ine_b'), 'customers');
+        }
+    
+        if ($request->hasFile('aval_photo_home')) {
+            $validatedData['aval_photo_home'] = $this->storeImage($request->file('aval_photo_home'), 'customers');
         }
 
         Customer::where('id', $customer->id)->update($validatedData);
 
-        return Redirect::route('customers.index')->with('success', 'Customer has been updated!');
+        return Redirect::route('customers.index')->with('success', 'La información del cliente se ha actualizado exitosamente!');
     }
 
     /**
@@ -201,7 +246,7 @@ class CustomerController extends Controller
 
         Customer::destroy($customer->id);
 
-        return Redirect::route('customers.index')->with('success', 'Customer has been deleted!');
+        return Redirect::route('customers.index')->with('success', 'El cliente se ha eliminado exitosamente!');
     }
         private function storeImage($file, $directory)
     {

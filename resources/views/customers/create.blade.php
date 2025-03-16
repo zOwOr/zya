@@ -88,7 +88,7 @@
                                 <div class="col-md-2">
                                     <div class="profile-img-edit">
                                         <div class="crm-profile-img-edit">
-                                            <img class="crm-profile-pic  avatar-100 image-preview" id="tit_photo_proof_address" src="{{ asset('assets/images/user/proof.png') }}" alt="profile-pic">
+                                            <img class="crm-profile-pic avatar-100 image-preview" id="tit_photo_proof_address" src="{{ asset('assets/images/user/proof.png') }}" alt="profile-pic">
                                         </div>
                                     </div>
 

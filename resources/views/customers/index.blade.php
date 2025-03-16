@@ -65,7 +65,7 @@
                             <th>@sortablelink('Nombre')</th>
                             <th>@sortablelink('Email')</th>
                             <th>@sortablelink('Teléfono')</th>
-                            <th>@sortablelink('shopname')</th>
+                            <th>@sortablelink('Facebook')</th>
                             <th>Accion</th>
                         </tr>
                     </thead>
@@ -74,12 +74,12 @@
                         <tr>
                             <td>{{ (($customers->currentPage() * 10) - 10) + $loop->iteration  }}</td>
                             <td>
-                                <img class="avatar-60 rounded" src="{{ $customer->photo ? asset('storage/customers/'.$customer->photo) : asset('assets/images/user/1.png') }}">
+                                <img class="avatar-50 rounded" src="{{ $customer->tit_photo ? asset('storage/customers/'.$customer->tit_photo) : asset('assets/images/user/1.png') }}">
                             </td>
-                            <td>{{ $customer->name }}</td>
-                            <td>{{ $customer->email }}</td>
-                            <td>{{ $customer->phone }}</td>
-                            <td>{{ $customer->shopname }}</td>
+                            <td>{{ $customer->tit_name }}</td>
+                            <td>{{ $customer->tit_email }}</td>
+                            <td>{{ $customer->tit_phone }}</td>
+                            <td>{{ $customer->tit_facebook }}</td>
                             <td>
                                 <div class="d-flex align-items-center list-action">
                                     <a class="badge badge-info mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="View"
@@ -91,7 +91,7 @@
                                     <form action="{{ route('customers.destroy', $customer->id) }}" method="POST" style="margin-bottom: 5px">
                                         @method('delete')
                                         @csrf
-                                        <button type="submit" class="badge bg-warning mr-2 border-none" onclick="return confirm('Are you sure you want to delete this record?')" data-toggle="tooltip" data-placement="top" title="" data-original-title="Delete"><i class="ri-delete-bin-line mr-0"></i></button>
+                                        <button type="submit" class="badge bg-warning mr-2 border-none" onclick="return confirm('Estas seguro de eliminar este registro?')" data-toggle="tooltip" data-placement="top" title="" data-original-title="Delete"><i class="ri-delete-bin-line mr-0"></i></button>
                                     </form>
                                 </div>
                             </td>
