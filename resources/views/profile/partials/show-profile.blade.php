@@ -9,7 +9,7 @@
 
 <div class="card-header d-flex justify-content-between">
     <div class="iq-header-title">
-        <h4 class="card-title">Profile</h4>
+        <h4 class="card-title">Perfil</h4>
     </div>
 </div>
 <div class="card-body">
@@ -20,11 +20,11 @@
     </div>
     <div class=" row align-items-center">
         <div class="form-group col-md-12">
-            <label for="fname">Full Name</label>
+            <label for="fname">Nombre</label>
             <input type="text" class="form-control bg-white" id="fname" value="{{  auth()->user()->name }}" readonly>
         </div>
         <div class="form-group col-md-6">
-            <label for="uname">Username</label>
+            <label for="uname">Usuario</label>
             <input type="text" class="form-control bg-white" id="uname" value="{{  auth()->user()->username }}" readonly>
         </div>
         <div class="form-group col-md-6">
