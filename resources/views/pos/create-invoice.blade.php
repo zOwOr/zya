@@ -23,7 +23,7 @@
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
                                     <div class="modal-header bg-white">
-                                        <h3 class="modal-title text-center mx-auto">Nota de Venta de {{ $customer->name }}<br/>Total Amount ${{ Cart::total() }}</h3>
+                                        <h3 class="modal-title text-center mx-auto">Nota de Venta de {{ $customer->tit_name }}<br/>Total Amount ${{ Cart::total() }}</h3>
                                     </div>
                                     <form action="{{ route('pos.storeOrder') }}" method="post">
                                         @csrf
@@ -73,7 +73,7 @@
                     <div class="row">
                         <div class="col-sm-12">
                             <img src="{{ asset('assets/images/logo.png') }}" class="logo-invoice img-fluid mb-3">
-                            <h5 class="mb-3">Hola, {{ $customer->name }}</h5>
+                            <h5 class="mb-3">Hola, {{ $customer->tit_name }}</h5>
                         </div>
                     </div>
 
@@ -93,10 +93,10 @@
                                             <td>{{ Carbon\Carbon::now()->format('M d, Y') }}</td>
                                             <td><span class="badge badge-danger">Unpaid</span></td>
                                             <td>
-                                                <p class="mb-0">{{ $customer->address }}<br>
-                                                    Shop Name: {{ $customer->shopname ? $customer->shopname : '-' }}<br>
-                                                    Telefono: {{ $customer->phone }}<br>
-                                                    Email: {{ $customer->email }}<br>
+                                                <p class="mb-0">{{ $customer->tit_address }}<br>
+                                                    Facebook: {{ $customer->tit_facebook ? $customer->tit_facebook : '-' }}<br>
+                                                    Telefono: {{ $customer->tit_phone }}<br>
+                                                    Email: {{ $customer->tit_email }}<br>
                                                 </p>
                                             </td>
                                         </tr>

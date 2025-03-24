@@ -72,7 +72,7 @@
                         <tr>
                             <td>{{ (($orders->currentPage() * 10) - 10) + $loop->iteration  }}</td>
                             <td>{{ $order->invoice_no }}</td>
-                            <td>{{ $order->customer->name }}</td>
+                            <td>{{ $order->customer ? $order->customer->tit_name : 'El cliente ha sido eliminado' }}</td>
                             <td>{{ $order->order_date }}</td>
                             <td>{{ $order->payment_status }}</td>
                             <td>{{ $order->total }}</td>

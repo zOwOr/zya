@@ -52,11 +52,11 @@ class Customer extends Model
 
     ];
     public $sortable = [
-        'name',
-        'email',
-        'phone',
-        'shopname',
-        'city',
+        'tit_name',
+        'tit_email',
+        'tit_phone',
+        'tit_facebook',
+        'tit_city',
     ];
 
     protected $guarded = [
@@ -66,7 +66,7 @@ class Customer extends Model
     public function scopeFilter($query, array $filters)
     {
         $query->when($filters['search'] ?? false, function ($query, $search) {
-            return $query->where('name', 'like', '%' . $search . '%')->orWhere('shopname', 'like', '%' . $search . '%');
+            return $query->where('tit_name', 'like', '%' . $search . '%')->orWhere('tit_facebook', 'like', '%' . $search . '%');
         });
     }
 }

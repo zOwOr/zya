@@ -18,7 +18,7 @@
                         <div class="col-md-12">
                             <div class="profile-img-edit">
                                 <div class="crm-profile-img-edit">
-                                    <img class="crm-profile-pic rounded-circle avatar-100" id="image-preview" src="{{ $order->customer->photo ? asset('storage/customers/'.$order->customer->photo) : asset('storage/customers/default.png') }}" alt="profile-pic">
+                                    <img class="crm-profile-pic rounded-circle avatar-100" id="image-preview" src="{{ $order->customer && $order->customer->tit_photo ? asset('storage/customers/'.$order->customer->tit_photo) : asset('storage/customers/default.png') }}" alt="profile-pic">
                                 </div>
                             </div>
                         </div>
@@ -27,15 +27,15 @@
                     <div class="row align-items-center">
                         <div class="form-group col-md-12">
                             <label>Nombre</label>
-                            <input type="text" class="form-control bg-white" value="{{ $order->customer->name }}" readonly>
+                            <input type="text" class="form-control bg-white" value="{{ $order->customer ? $order->customer->tit_name : 'El cliente ha sido eliminado'}}" readonly>
                         </div>
                         <div class="form-group col-md-6">
                             <label>Email</label>
-                            <input type="text" class="form-control bg-white" value="{{ $order->customer->email }}" readonly>
+                            <input type="text" class="form-control bg-white" value="{{ $order->customer ? $order->customer->tit_email : 'El cliente ha sido eliminado'}}" readonly>
                         </div>
                         <div class="form-group col-md-6">
                             <label>Teléfono</label>
-                            <input type="text" class="form-control bg-white" value="{{ $order->customer->phone }}" readonly>
+                            <input type="text" class="form-control bg-white" value="{{ $order->customer ? $order->customer->tit_phone : 'El cliente ha sido eliminado' }}" readonly>
                         </div>
                         <div class="form-group col-md-6">
                             <label>Fecha de la Orden</label>
@@ -101,7 +101,7 @@
                         <tr>
                             <td>{{ $loop->iteration  }}</td>
                             <td>
-                                <img class="avatar-60 rounded" src="{{ $item->product && $item->product->product_image ? asset('storage/products/'.$item->product->product_image) : asset('storage/products/default.webp') }}">
+                                <img class="avatar-60 rounded" src="{{ $item->product && $item->product->product_image ? asset('storage/product/'.$item->product->product_image) : asset('assets/images/product/default.webp') }}">
 
                             </td>
                             <td>{{ $item->product->product_name ?? "El Producto ha sido eliminado" }}</td>
