@@ -57,6 +57,16 @@
                                 </div>
                                 @enderror
                             </div>
+                            <div class="form-group col-md-12" id="extraFieldContainer" style="display: none;">
+                                <label for="imei">IMEI <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('imei') is-invalid @enderror" id="imei" name="imei" value="{{ old('product_name', $product->imei) }}" required>
+                                @error('imei')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            
                             <div class="form-group col-md-6">
                                 <label for="category_id">Categoria <span class="text-danger">*</span></label>
                                 <select class="form-control" name="category_id" required>
@@ -166,5 +176,25 @@
     });
 </script>
 
+<script>
+$(document).ready(function () {
+    var categorySelect = $('select[name="category_id"]');
+    
+    if (categorySelect.length) { // Solo ejecuta si el select existe
+        categorySelect.change(function () {
+            var selectedText = $(this).find("option:selected").text().trim(); // Obtiene el texto seleccionado
+            var categoryToShow = "Teléfonos"; // Reemplázalo con el nombre real de la categoría
+    
+            if (selectedText === categoryToShow) {
+                $('#extraFieldContainer').show();
+            } else {
+                $('#extraFieldContainer').hide();
+            }
+        });
+    }
+});
+
+    
+    </script>
 @include('components.preview-img-form')
 @endsection

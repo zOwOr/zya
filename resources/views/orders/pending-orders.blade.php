@@ -41,7 +41,7 @@
                         <label class="control-label col-sm-3 align-self-center" for="search">Buscar:</label>
                         <div class="col-sm-8">
                             <div class="input-group">
-                                <input type="text" id="search" class="form-control" name="search" placeholder="Search order" value="{{ request('search') }}">
+                                <input type="text" id="search" class="form-control" name="search" placeholder="Buscar" value="{{ request('search') }}">
                                 <div class="input-group-append">
                                     <button type="submit" class="input-group-text bg-primary"><i class="fa-solid fa-magnifying-glass font-size-20"></i></button>
                                 </div>
@@ -59,8 +59,8 @@
                         <tr class="ligth ligth-data">
                             <th>No.</th>
                             <th>Nota de Venta No</th>
-                            <th>@sortablelink('customer.name', 'name')</th>
-                            <th>@sortablelink('order_date', 'order date')</th>
+                            <th>@sortablelink('customer.name', 'Nombre')</th>
+                            <th>@sortablelink('order_date', 'Fecha')</th>
                             <th>Metodo de Pago</th>
                             <th>@sortablelink('total')</th>
                             <th>Status</th>
@@ -81,7 +81,7 @@
                             </td>
                             <td>
                                 <div class="d-flex align-items-center list-action">
-                                    <a class="btn btn-info mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="Details"
+                                    <a class="btn btn-info mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="Detalles"
                                         href="{{ route('order.orderDetails', $order->id) }}">Detalles
                                     </a>
                                 </div>

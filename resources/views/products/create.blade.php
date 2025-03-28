@@ -56,6 +56,11 @@
                                 </div>
                                 @enderror
                             </div>
+                            <div class="form-group col-md-6" id="extraFieldContainer" style="display: none;">
+                                <label for="extra_field">IMEI</label>
+                                <input type="text" class="form-control" id="imei" name="imei" value="{{ old('extra_field') }}">
+                            </div>
+
                             <div class="form-group col-md-6">
                                 <label for="category_id">Categoria <span class="text-danger">*</span></label>
                                 <select class="form-control" name="category_id" required>
@@ -163,6 +168,23 @@
         format: 'yyyy-mm-dd'
         // https://gijgo.com/datetimepicker/configuration/format
     });
+</script>
+
+<script>
+$(document).ready(function () {
+    $('select[name="category_id"]').change(function () {
+        var selectedText = $(this).find("option:selected").text().trim(); // Obtiene el texto seleccionado
+        var categoryToShow = "Teléfonos"; // Reemplázalo con el nombre real de la categoría
+
+        if (selectedText === categoryToShow) {
+            $('#extraFieldContainer').show();
+        } else {
+            $('#extraFieldContainer').hide();
+        }
+    });
+});
+
+
 </script>
 
 @include('components.preview-img-form')

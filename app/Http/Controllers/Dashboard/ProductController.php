@@ -66,6 +66,7 @@ class ProductController extends Controller
         $rules = [
             'product_image' => 'image|file|max:1024',
             'product_name' => 'required|string',
+            'imei' => 'string|nullable',
             'category_id' => 'required|integer',
             'supplier_id' => 'required|integer',
             'product_garage' => 'string|nullable',
@@ -94,7 +95,7 @@ class ProductController extends Controller
 
         Product::create($validatedData);
 
-        return Redirect::route('products.index')->with('success', 'Product has been created!');
+        return Redirect::route('products.index')->with('success', 'El producto ha sido creado!');
     }
 
     /**

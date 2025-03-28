@@ -161,24 +161,5 @@ function confirmDelete(productName, productId) {
 
 </script>
 
-@if (session()->has('success'))
-<script>
-    const Toast = Swal.mixin({
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: 3000,
-    timerProgressBar: true,
-    didOpen: (toast) => {
-        toast.onmouseenter = Swal.stopTimer;
-        toast.onmouseleave = Swal.resumeTimer;
-    }
-    });
-    Toast.fire({
-    icon: "success",
-    title: "El registro se ha eliminado correctamente"
-    });
-</script>
-@endif
 
 @endsection

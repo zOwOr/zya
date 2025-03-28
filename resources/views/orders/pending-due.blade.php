@@ -77,17 +77,17 @@
                             <td>{{ $order->payment_status }}</td>
                             <td>
                                 <span class="btn btn-warning text-white">
-                                    {{ $order->pay }}
+                                    ${{ $order->pay }}
                                 </span>
                             </td>
                             <td>
                                 <span class="btn btn-danger text-white">
-                                    {{ $order->due }}
+                                    ${{ $order->due }}
                                 </span>
                             </td>
                             <td>
                                 <div class="d-flex align-items-center list-action">
-                                    <a class="btn btn-info mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="Details" href="{{ route('order.orderDetails', $order->id) }}">
+                                    <a class="btn btn-info mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="Detalles" href="{{ route('order.orderDetails', $order->id) }}">
                                         Detalles
                                     </a>
                                     <button type="button" class="btn btn-primary-dark mr-2" data-toggle="modal" data-target=".bd-example-modal-lg" id="{{ $order->id }}" onclick="payDue(this.id)">Abonar Pago</button>
@@ -115,12 +115,16 @@
                     <div class="col-md-12">
                         <div class="form-group">
                             <label for="due">Pagar ahora</label>
-                            <input type="text" class="form-control bg-white @error('due') is-invalid @enderror" id="due" name="due">
-                            @error('due')
-                            <div class="invalid-feedback">
-                                {{ $message }}
+                            <div class="input-group mb-3">
+                                <span class="input-group-text">$</span>
+                                <input type="text" class="form-control bg-white @error('due') is-invalid @enderror" id="due" name="due">
+                                @error('due')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
                             </div>
-                            @enderror
+                            
                         </div>
                     </div>
                 </div>

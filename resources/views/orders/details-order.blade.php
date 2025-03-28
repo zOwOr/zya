@@ -107,8 +107,8 @@
                             <td>{{ $item->product->product_name ?? "El Producto ha sido eliminado" }}</td>
                             <td>{{ $item->product->product_code ?? "El Producto ha sido eliminado" }}</td>
                             <td>{{ $item->quantity }}</td>
-                            <td>{{ $item->unitcost }}</td>
-                            <td>{{ $item->total }}</td>
+                            <td>${{ $item->unitcost }}</td>
+                            <td>${{ $item->total }}</td>
                         </tr>
                         @endforeach
                     </tbody>
