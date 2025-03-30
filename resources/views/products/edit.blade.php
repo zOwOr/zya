@@ -59,7 +59,7 @@
                             </div>
                             <div class="form-group col-md-12" id="extraFieldContainer" style="display: none;">
                                 <label for="imei">IMEI <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('imei') is-invalid @enderror" id="imei" name="imei" value="{{ old('product_name', $product->imei) }}" required>
+                                <input type="text" class="form-control @error('imei') is-invalid @enderror" id="imei" name="imei" value="{{ old('imei', $product->imei) }}">
                                 @error('imei')
                                 <div class="invalid-feedback">
                                     {{ $message }}
@@ -167,34 +167,40 @@
     $('#buying_date').datepicker({
         uiLibrary: 'bootstrap4',
         format: 'yyyy-mm-dd'
-        // https://gijgo.com/datetimepicker/configuration/format
     });
     $('#expire_date').datepicker({
         uiLibrary: 'bootstrap4',
         format: 'yyyy-mm-dd'
-        // https://gijgo.com/datetimepicker/configuration/format
     });
-</script>
 
-<script>
 $(document).ready(function () {
     var categorySelect = $('select[name="category_id"]');
     
-    if (categorySelect.length) { // Solo ejecuta si el select existe
+    if (categorySelect.length) {
+        var categoryToShow = "Teléfonos"; // Cambia según el nombre exacto de la categoría
+
         categorySelect.change(function () {
-            var selectedText = $(this).find("option:selected").text().trim(); // Obtiene el texto seleccionado
-            var categoryToShow = "Teléfonos"; // Reemplázalo con el nombre real de la categoría
-    
+            var selectedText = $(this).find("option:selected").text().trim();
+            
             if (selectedText === categoryToShow) {
                 $('#extraFieldContainer').show();
             } else {
                 $('#extraFieldContainer').hide();
+                $('#imei').val(''); // Limpia el campo IMEI si no es "Teléfonos"
             }
         });
+
+        // Verifica la categoría al cargar la página para el caso de edición de producto
+        var selectedCategory = categorySelect.find(":selected").text().trim();
+        if (selectedCategory === categoryToShow) {
+            $('#extraFieldContainer').show();
+        } else {
+            $('#extraFieldContainer').hide();
+            $('#imei').val('');
+        }
     }
 });
 
-    
-    </script>
+</script>
 @include('components.preview-img-form')
 @endsection

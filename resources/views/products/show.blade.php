@@ -58,10 +58,11 @@
                             <label>Nombre del Producto</label>
                             <input type="text" class="form-control bg-white" value="{{  $product->product_name }}" readonly>
                         </div>
-                        <div class="form-group col-md-6">
+                        <div class="form-group col-md-6" id="imeiField" style="display: none;">
                             <label>IMEI</label>
                             <input type="text" class="form-control bg-white" value="{{  $product->imei }}" readonly>
                         </div>
+                        
                         <div class="form-group col-md-6">
                             <label>Categoria</label>
                             <input type="text" class="form-control bg-white" value="{{  $product->category->name }}" readonly>
@@ -115,21 +116,37 @@
         // https://gijgo.com/datetimepicker/configuration/format
     });
 </script>
+@if($product->category->name === "Teléfonos")
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById("imeiField").style.display = "block";
+        });
+    </script>
+@endif
+
 <script>
     $(document).ready(function () {
-        $('select[name="category_id"]').change(function () {
-            var selectedText = $(this).find("option:selected").text().trim(); // Obtiene el texto seleccionado
-            var categoryToShow = "Teléfonos"; // Reemplázalo con el nombre real de la categoría
-    
-            if (selectedText === categoryToShow) {
-                $('#extraFieldContainer').show();
-            } else {
-                $('#extraFieldContainer').hide();
-            }
-        });
+    var categoryField = $('input[value="{{ $product->category->name }}"]');
+    var imeiField = $('#imeiField');
+
+    // Mostrar el campo IMEI si la categoría actual es "Teléfonos"
+    if (categoryField.val().trim() === "Teléfonos") {
+        imeiField.show();
+    }
+
+    $('select[name="category_id"]').change(function () {
+        var selectedText = $(this).find("option:selected").text().trim();
+        
+        if (selectedText === "Teléfonos") {
+            imeiField.show();
+        } else {
+            imeiField.hide();
+        }
     });
-    
-    
-    </script>
+});
+
+</script>
+
+
 @include('components.preview-img-form')
 @endsection

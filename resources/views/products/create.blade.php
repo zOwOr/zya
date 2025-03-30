@@ -180,6 +180,7 @@ $(document).ready(function () {
             $('#extraFieldContainer').show();
         } else {
             $('#extraFieldContainer').hide();
+            $('#imei').val('');
         }
     });
 });
