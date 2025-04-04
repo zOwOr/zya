@@ -54,6 +54,8 @@ class SupplierController extends Controller
             'bank_branch' => 'max:50',
             'city' => 'required|string|max:50',
             'address' => 'required|string|max:100',
+            'rfc' => 'required|string|max:100',
+
         ];
 
         $validatedData = $request->validate($rules);
@@ -112,6 +114,7 @@ class SupplierController extends Controller
             'bank_branch' => 'max:50',
             'city' => 'required|string|max:50',
             'address' => 'required|string|max:100',
+            'rfc' => 'required|string|max:100',
         ];
 
         $validatedData = $request->validate($rules);

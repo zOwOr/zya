@@ -51,6 +51,15 @@
                                 @enderror
                             </div>
                             <div class="form-group col-md-6">
+                                <label for="name">RFC<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('rfc') is-invalid @enderror" id="rfc" name="rfc" value="{{ old('rfc') }}" required>
+                                @error('rfc')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-6">
                                 <label for="shopname">Shop Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('shopname') is-invalid @enderror" id="shopname" name="shopname" value="{{ old('shopname') }}" required>
                                 @error('shopname')

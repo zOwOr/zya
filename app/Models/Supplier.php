@@ -14,6 +14,7 @@ class Supplier extends Model
         'name',
         'email',
         'phone',
+        'rfc',
         'address',
         'shopname',
         'photo',

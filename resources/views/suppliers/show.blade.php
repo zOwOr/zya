@@ -25,6 +25,7 @@
                         </div>
                         <div class="ml-3">
                             <h4 class="mb-1">{{ $supplier->name }}</h4>
+                            <h4 class="mb-1">{{ $supplier->rfc }}</h4>
                             <p class="mb-2">{{ $supplier->shopname }}</p>
                             <a href="{{ route('suppliers.edit', $supplier->id) }}" class="btn btn-primary font-size-14">Edit</a>
                             <a href="{{ route('suppliers.index') }}" class="btn btn-danger font-size-14">Back</a>
@@ -79,6 +80,16 @@
                                 </div>
                                 <div class="col-sm-9 col-8">
                                     <input type="text" class="form-control bg-white" value="{{ $supplier->name }}" readonly>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="col-lg-12">
+                            <div class="form-group row">
+                                <div class="col-sm-3 col-4">
+                                    <label class="col-form-label">RFC</label>
+                                </div>
+                                <div class="col-sm-9 col-8">
+                                    <input type="text" class="form-control bg-white" value="{{ $supplier->rfc }}" readonly>
                                 </div>
                             </div>
                         </li>
