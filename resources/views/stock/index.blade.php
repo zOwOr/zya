@@ -69,7 +69,8 @@
                             <th>@sortablelink('category.name', 'Categoria')</th>
                             <th>@sortablelink('supplier.name', 'Proveedor')</th>
                             <th>@sortablelink('selling_price', 'Precio')</th>
-                            <th>Stock</th>
+                            <th>@sortablelink('stock_quantity', 'Stock')</th>
+                            <th>Tienda </th>
                         </tr>
                     </thead>
                     <tbody class="ligth-body">
@@ -83,6 +84,7 @@
                             <td>{{ $product->category->name }}</td>
                             <td>{{ $product->supplier->name }}</td>
                             <td>${{ $product->selling_price }}</td>
+                            <td>{{ $product->stock_quantity }}</td>
                             <td>
                                 <span class="btn btn-warning text-white mr-2">{{ $product->product_store }}</span>
                             </td>

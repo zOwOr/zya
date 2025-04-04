@@ -34,6 +34,36 @@ class OrderController extends Controller
         ]);
     }
 
+    public function destroy($id)
+    {
+        // Buscar la orden
+        $order = Order::findOrFail($id);
+        
+        // Obtener los detalles de la orden
+        $orderDetails = OrderDetails::where('order_id', $id)->get();
+    
+        // Recorrer cada detalle de la orden y devolver el stock de los productos
+        foreach ($orderDetails as $detail) {
+            $product = Product::find($detail->product_id);
+            
+            if ($product) {
+                // Incrementar el stock del producto según la cantidad de la orden
+                $product->stock_quantity += $detail->quantity;
+                $product->save();
+            }
+        }
+        
+        // Eliminar los detalles de la orden
+        OrderDetails::where('order_id', $id)->delete();
+        
+        // Eliminar la orden
+        $order->delete();
+    
+        // Redirigir con mensaje de éxito
+        return redirect()->route('order.pendingOrders')->with('success', 'La orden ha sido cancelada y el stock ha sido actualizado.');
+    }
+    
+
     public function completeOrders()
     {
         $row = (int) request('row', 10);
@@ -96,6 +126,16 @@ class OrderController extends Controller
         $validatedData['due'] = Cart::total() - $validatedData['pay'];
         $validatedData['created_at'] = Carbon::now();
 
+            // Verificar si el stock es suficiente
+        $contents = Cart::content();
+        foreach ($contents as $content) {
+            $product = Product::find($content->id);
+            if ($product && $product->stock_quantity < $content->qty) {
+                // Si el stock es insuficiente, redirige con un mensaje de error
+                return redirect()->back()->with('error', 'No hay suficiente stock para el producto: ' . $product->name);
+            }
+        }
+
         $order_id = Order::insertGetId($validatedData);
 
         // Create Order Details
@@ -113,6 +153,13 @@ class OrderController extends Controller
             OrderDetails::insert($oDetails);
         }
 
+        foreach ($contents as $content) {
+            $product = Product::find($content->id);
+            if ($product) {
+                $product->stock_quantity -= $content->qty;
+                $product->save();
+            }
+        }
         // Delete Cart Sopping History
         Cart::destroy();
 
@@ -148,7 +195,7 @@ class OrderController extends Controller
 
         foreach ($products as $product) {
             Product::where('id', $product->product_id)
-                    ->update(['product_store' => DB::raw('product_store-'.$product->quantity)]);
+                    ->update(['stock_quantity' => DB::raw('stock_quantity-'.$product->quantity)]);
         }
 
         Order::findOrFail($order_id)->update(['order_status' => 'complete']);

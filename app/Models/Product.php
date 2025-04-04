@@ -23,11 +23,13 @@ class Product extends Model
         'expire_date',
         'buying_price',
         'selling_price',
+        'stock_quantity',
     ];
 
     public $sortable = [
         'product_name',
         'selling_price',
+        'stock_quantity',
     ];
 
     protected $guarded = [

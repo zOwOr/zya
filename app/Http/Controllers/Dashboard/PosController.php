@@ -49,7 +49,7 @@ class PosController extends Controller
             'options' => ['size' => 'large']
         ]);
 
-        return Redirect::back()->with('success', 'Product has been added!');
+        return Redirect::back()->with('success', 'El carrito se ha actualizado!');
     }
 
     public function updateCart(Request $request, $rowId)
@@ -62,14 +62,14 @@ class PosController extends Controller
 
         Cart::update($rowId, $validatedData['qty']);
 
-        return Redirect::back()->with('success', 'Cart has been updated!');
+        return Redirect::back()->with('success', 'El carrito se ha actualizado!');
     }
 
     public function deleteCart(String $rowId)
     {
         Cart::remove($rowId);
 
-        return Redirect::back()->with('success', 'Cart has been deleted!');
+        return Redirect::back()->with('success', 'El carrito se ha actualizado!');
     }
 
     public function createInvoice(Request $request)
@@ -82,6 +82,16 @@ class PosController extends Controller
         $customer = Customer::where('id', $validatedData['customer_id'])->first();
         $content = Cart::content();
 
+    // Verificación del stock para cada producto
+        foreach ($content as $item) {
+            $product = Product::find($item->id);
+            if ($product && $product->stock_quantity < $item->qty) {
+                // Si no hay suficiente stock, redirigir con un mensaje de error
+                
+                return Redirect::back()->with(['warning' => 'No hay suficiente stock para el producto: ' . $product->product_name]);
+            }
+        }
+        // Si todo está bien con el stock, proceder a mostrar la vista de la factura
         return view('pos.create-invoice', [
             'customer' => $customer,
             'content' => $content

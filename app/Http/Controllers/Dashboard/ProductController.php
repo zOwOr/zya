@@ -75,6 +75,7 @@ class ProductController extends Controller
             'expire_date' => 'date_format:Y-m-d|max:10|nullable',
             'buying_price' => 'required|integer',
             'selling_price' => 'required|integer',
+            'stock_quantity' => 'required|integer',
         ];
 
         $validatedData = $request->validate($rules);
@@ -142,6 +143,7 @@ class ProductController extends Controller
             'expire_date' => 'date_format:Y-m-d|max:10|nullable',
             'buying_price' => 'required|integer',
             'selling_price' => 'required|integer',
+            'stock_quantity' => 'required|integer',
         ];
 
         $validatedData = $request->validate($rules);
@@ -224,6 +226,7 @@ class ProductController extends Controller
                     'expire_date' =>$sheet->getCell( 'I' . $row )->getValue(),
                     'buying_price' =>$sheet->getCell( 'J' . $row )->getValue(),
                     'selling_price' =>$sheet->getCell( 'K' . $row )->getValue(),
+                    'stock_quantity' =>$sheet->getCell( 'L' . $row )->getValue(),
                 ];
                 $startcount++;
             }
@@ -276,6 +279,7 @@ class ProductController extends Controller
             'Expire Date',
             'Buying Price',
             'Selling Price',
+            'Stock',
         );
 
         foreach($products as $product)
@@ -292,6 +296,7 @@ class ProductController extends Controller
                 'Expire Date' =>$product->expire_date,
                 'Buying Price' =>$product->buying_price,
                 'Selling Price' =>$product->selling_price,
+                'Stock ' =>$product->stock_quantity,
             );
         }
 

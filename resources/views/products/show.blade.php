@@ -58,6 +58,10 @@
                             <label>Nombre del Producto</label>
                             <input type="text" class="form-control bg-white" value="{{  $product->product_name }}" readonly>
                         </div>
+                        <div class="form-group col-md-6">
+                            <label>Stock</label>
+                            <input type="text" class="form-control bg-white" value="{{  $product->stock_quantity }}" readonly>
+                        </div>
                         <div class="form-group col-md-6" id="imeiField" style="display: none;">
                             <label>IMEI</label>
                             <input type="text" class="form-control bg-white" value="{{  $product->imei }}" readonly>

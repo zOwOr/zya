@@ -57,6 +57,15 @@
                                 </div>
                                 @enderror
                             </div>
+                            <div class="form-group col-md-6">
+                                <label for="stock_quantity">Stock<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('stock_quantity') is-invalid @enderror" id="stock_quantity" name="stock_quantity" value="{{ old('stock_quantity', $product->stock_quantity) }}" required>
+                                @error('stock_quantity')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
                             <div class="form-group col-md-12" id="extraFieldContainer" style="display: none;">
                                 <label for="imei">IMEI <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('imei') is-invalid @enderror" id="imei" name="imei" value="{{ old('imei', $product->imei) }}">

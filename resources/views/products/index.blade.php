@@ -74,6 +74,7 @@
                             <th>@sortablelink('category.name', 'Categoria')</th>
                             <th>@sortablelink('supplier.name', 'Proveedor')</th>
                             <th>@sortablelink('selling_price', 'Precio')</th>
+                            <th>@sortablelink('stock_quantity', 'Stock')</th>
                             <th>Estatus</th>
                             <th>Accion</th>
                         </tr>
@@ -89,6 +90,7 @@
                             <td>{{ $product->category->name }}</td>
                             <td>{{ $product->supplier->name }}</td>
                             <td>{{ $product->selling_price }}</td>
+                            <td>{{ $product->stock_quantity }}</td>
                             <td>
                                 @if ($product->expire_date > Carbon\Carbon::now()->format('Y-m-d'))
                                     <span class="badge rounded-pill bg-success">Valido</span>

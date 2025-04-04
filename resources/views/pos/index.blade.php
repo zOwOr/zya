@@ -13,6 +13,14 @@
                     </button>
                 </div>
             @endif
+            @if (session()->has('warning'))
+                <div class="alert text-white bg-warning" role="alert">
+                    <div class="iq-alert-text">{{ session('warning') }}</div>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <i class="ri-close-line"></i>
+                    </button>
+                </div>
+            @endif
             <div>
                 <h4 class="mb-3">Punto de Venta</h4>
             </div>
@@ -93,6 +101,16 @@
                             <button type="submit" class="btn btn-success add-list mx-1">Crear Nota de Venta</button>
                         </div>
                     </div>
+                    @if($errors->any())
+                        <div class="alert alert-danger">
+                            <ul>
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                 </div>
             </form>
         </div>
@@ -178,3 +196,4 @@
     </div>
 </div>
 @endsection
+

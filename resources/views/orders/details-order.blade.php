@@ -70,8 +70,14 @@
                                         <input type="hidden" name="id" value="{{ $order->id }}">
                                         <button type="submit" class="btn btn-success mr-2 border-none" data-toggle="tooltip" data-placement="top" title="" data-original-title="Complete">Aprobar Orden</button>
 
-                                        <a class="btn btn-danger mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="Cancel" href="{{ route('order.pendingOrders') }}">Cancelar</a>
+                                        <a class="btn btn-danger mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="Cancel" href="#" onclick="event.preventDefault(); document.getElementById('cancel-form').submit();">Cancelar</a>
+
                                     </form>
+                                    <form id="cancel-form" action="{{ route('order.delete', $order->id) }}" method="POST" style="display: none;">
+                                        @method('DELETE')
+                                        @csrf
+                                    </form>
+                                    
                                 </div>
                             </div>
                         </div>
