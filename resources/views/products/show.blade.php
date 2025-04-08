@@ -73,7 +73,7 @@
                         </div>
                         <div class="form-group col-md-6">
                             <label>Proveedor</label>
-                            <input type="text" class="form-control bg-white" value="{{  $product->supplier->name }}" readonly>
+                            <input type="text" class="form-control bg-white" value="{{  $product->supplier->name ?? "Sin proveedor" }}" readonly>
                         </div>
                         <div class="form-group col-md-6">
                             <label>Almacen del Producto</label>

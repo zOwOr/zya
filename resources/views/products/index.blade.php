@@ -88,7 +88,7 @@
                             </td>
                             <td>{{ $product->product_name }}</td>
                             <td>{{ $product->category->name }}</td>
-                            <td>{{ $product->supplier->name }}</td>
+                            <td>{{ $product->supplier->name ?? 'Sin proveedor' }}</td>
                             <td>{{ $product->selling_price }}</td>
                             <td>{{ $product->stock_quantity }}</td>
                             <td>
