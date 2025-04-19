@@ -26,4 +26,8 @@ class OrderDetails extends Model
     {
         return $this->belongsTo(Product::class, 'product_id', 'id');
     }
+    public function movements()
+    {
+        return $this->hasMany(Movement::class);
+    }
 }

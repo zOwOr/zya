@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\OrderDetails;
+use App\Models\Movement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -182,7 +183,27 @@ class OrderController extends Controller
             'orderDetails' => $orderDetails,
         ]);
     }
+    public function updateAmount(Request $request)
+    {
+        $order = Order::findOrFail($request->order_id);
 
+        // Actualizar las cantidades
+        $order->pay = $request->pay;
+        $order->due = $request->due;
+        $order->save();
+
+        // Guardar movimiento en el historial
+        Movement::create([
+            'order_id' => $order->id,
+            'movement_type' => 'Actualización de pago',
+            'amount' => $request->due - $request->pay,
+            'justification' => $request->justification,
+            'user_id' => auth()->id(), // Asegúrate de que se esté asignando el valor correcto
+        ]);
+        
+
+        return back()->with('success', 'Las cantidades se han actualizado correctamente.');
+    }
     /**
      * Update the specified resource in storage.
      */

@@ -92,4 +92,8 @@ class User extends Authenticatable
             return $hasPermission;
         }
     }
+    public function movements()
+    {
+        return $this->hasMany(Movement::class);
+    }
 }
