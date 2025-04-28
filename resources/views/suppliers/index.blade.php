@@ -65,8 +65,7 @@
                             <th>@sortablelink('Nombre')</th>
                             <th>@sortablelink('Email')</th>
                             <th>@sortablelink('Teléfono')</th>
-                            <th>@sortablelink('shopname')</th>
-                            <th>@sortablelink('Tipo')</th>
+                            <th>@sortablelink('Nombre Empresa')</th>
                             <th>Accion</th>
                         </tr>
                     </thead>
@@ -81,7 +80,6 @@
                             <td>{{ $supplier->email }}</td>
                             <td>{{ $supplier->phone }}</td>
                             <td>{{ $supplier->shopname }}</td>
-                            <td>{{ $supplier->type }}</td>
                             <td>
                                 <div class="d-flex align-items-center list-action">
                                     <a class="badge badge-info mr-2" data-toggle="tooltip" data-placement="top" title="" data-original-title="View"

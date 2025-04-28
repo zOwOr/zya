@@ -15,23 +15,18 @@ class Supplier extends Model
         'email',
         'phone',
         'rfc',
+        'curp',
         'address',
         'shopname',
         'photo',
-        'type',
-        'account_holder',
-        'account_number',
-        'bank_name',
-        'bank_branch',
-        'city',
+        
     ];
     public $sortable = [
         'name',
         'email',
         'phone',
         'shopname',
-        'type',
-        'city',
+
     ];
 
     protected $guarded = [

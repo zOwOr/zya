@@ -22,8 +22,9 @@
                     <div class="card card-block">
                         <div class="card-header d-flex justify-content-center bg-primary">
                             <div class="iq-header-title text-center">
-                                <h4 class="card-title mb-0">ZYA <br> CELULARES , ACCESORIOS Y REPARACIONES</h4>
                                 <img src="{{ asset('assets/images/logo.png') }}" class="logo-invoice img-fluid mb-3">
+
+                                <h4 class="card-title mb-0">ZYA <br> CELULARES , ACCESORIOS Y REPARACIONES</h4>
                             </div>
                         </div>
                         <div class="card-body">

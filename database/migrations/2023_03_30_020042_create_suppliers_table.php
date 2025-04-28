@@ -18,14 +18,9 @@ return new class extends Migration
             $table->string('phone')->unique();
             $table->text('address')->nullable();
             $table->text('rfc')->nullable();
+            $table->text('curp')->nullable();
             $table->string('shopname')->nullable();
             $table->string('photo')->nullable();
-            $table->string('type')->nullable();
-            $table->string('account_holder')->nullable();
-            $table->string('account_number')->nullable();
-            $table->string('bank_name')->nullable();
-            $table->string('bank_branch')->nullable();
-            $table->string('city')->nullable();
             $table->timestamps();
         });
     }

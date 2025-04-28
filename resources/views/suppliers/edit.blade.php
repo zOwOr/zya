@@ -61,7 +61,16 @@
                                 @enderror
                             </div>
                             <div class="form-group col-md-6">
-                                <label for="shopname">Shop Name <span class="text-danger">*</span></label>
+                                <label for="curp">CURP<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('curp') is-invalid @enderror" id="curp" name="curp" value="{{ old('name', $supplier->curp) }}" required>
+                                @error('curp')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="shopname">Nombre Empresa <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('shopname') is-invalid @enderror" id="shopname" name="shopname" value="{{ old('shopname', $supplier->shopname) }}" required>
                                 @error('shopname')
                                 <div class="invalid-feedback">
@@ -87,71 +96,7 @@
                                 </div>
                                 @enderror
                             </div>
-                            <div class="form-group col-md-6">
-                                <label for="account_holder">Account Holder</label>
-                                <input type="text" class="form-control @error('account_holder') is-invalid @enderror" id="account_holder" name="account_holder" value="{{ old('account_holder', $supplier->account_holder) }}">
-                                @error('account_holder')
-                                <div class="invalid-feedback">
-                                    {{ $message }}
-                                </div>
-                                @enderror
-                            </div>
-                            <div class="form-group col-md-6">
-                                <label for="bank_name">Bank Name</label>
-                                <select class="form-control @error('bank_name') is-invalid @enderror" name="bank_name">
-                                    <option value="">Select Year..</option>
-                                    <option value="BRI" @if(old('bank_name', $supplier->bank_name) == 'BRI')selected="selected"@endif>BRI</option>
-                                    <option value="BNI" @if(old('bank_name', $supplier->bank_name) == 'BNI')selected="selected"@endif>BNI</option>
-                                    <option value="BCA" @if(old('bank_name', $supplier->bank_name) == 'BCA')selected="selected"@endif>BCA</option>
-                                    <option value="BSI" @if(old('bank_name', $supplier->bank_name) == 'BSI')selected="selected"@endif>BSI</option>
-                                    <option value="Mandiri" @if(old('bank_name', $supplier->bank_name) == 'Mandiri')selected="selected"@endif>Mandiri</option>
-                                </select>
-                                @error('bank_name')
-                                <div class="invalid-feedback">
-                                    {{ $message }}
-                                </div>
-                                @enderror
-                            </div>
-                            <div class="form-group col-md-6">
-                                <label for="account_number">Account Number</label>
-                                <input type="text" class="form-control @error('account_number') is-invalid @enderror" id="account_number" name="account_number" value="{{ old('account_number', $supplier->account_number) }}">
-                                @error('account_number')
-                                <div class="invalid-feedback">
-                                    {{ $message }}
-                                </div>
-                                @enderror
-                            </div>
-                            <div class="form-group col-md-6">
-                                <label for="bank_branch">Bank Branch</label>
-                                <input type="text" class="form-control @error('bank_branch') is-invalid @enderror" id="bank_branch" name="bank_branch" value="{{ old('bank_branch', $supplier->bank_branch) }}">
-                                @error('bank_branch')
-                                <div class="invalid-feedback">
-                                    {{ $message }}
-                                </div>
-                                @enderror
-                            </div>
-                            <div class="form-group col-md-6">
-                                <label for="city">Ciudad <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('city') is-invalid @enderror" id="city" name="city" value="{{ old('city', $supplier->city) }}" required>
-                                @error('city')
-                                <div class="invalid-feedback">
-                                    {{ $message }}
-                                </div>
-                                @enderror
-                            </div>
-                            <div class="form-group col-md-6">
-                                <label for="type">Type of Supplier <span class="text-danger">*</span></label>
-                                <select class="form-control @error('type') is-invalid @enderror" name="type" required>
-                                    <option value="">Select Type..</option>
-                                    <option value="Distributor" @if(old('type', $supplier->type) == 'Distributor')selected="selected"@endif>Distributor</option>
-                                    <option value="Whole Seller" @if(old('type', $supplier->type) == 'Whole Seller')selected="selected"@endif>Whole Seller</option>
-                                </select>
-                                @error('type')
-                                <div class="invalid-feedback">
-                                    {{ $message }}
-                                </div>
-                                @enderror
-                            </div>
+                            
                             <div class="form-group col-md-12">
                                 <label for="address">Dirección <span class="text-danger">*</span></label>
                                 <textarea class="form-control @error('address') is-invalid @enderror" name="address" required>{{ old('address', $supplier->address) }}</textarea>

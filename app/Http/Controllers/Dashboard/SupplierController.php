@@ -47,14 +47,9 @@ class SupplierController extends Controller
             'email' => 'required|email|max:50|unique:suppliers,email',
             'phone' => 'required|string|max:15|unique:suppliers,phone',
             'shopname' => 'required|string|max:50',
-            'type' => 'required|string|max:25',
-            'account_holder' => 'max:50',
-            'account_number' => 'max:25',
-            'bank_name' => 'max:25',
-            'bank_branch' => 'max:50',
-            'city' => 'required|string|max:50',
             'address' => 'required|string|max:100',
             'rfc' => 'required|string|max:100',
+            'curp' => 'string|max:100',
 
         ];
 
@@ -73,7 +68,7 @@ class SupplierController extends Controller
 
         Supplier::create($validatedData);
 
-        return Redirect::route('suppliers.index')->with('success', 'Supplier has been created!');
+        return Redirect::route('suppliers.index')->with('success', 'El proveedor ha sido creado!');
     }
 
     /**
@@ -107,14 +102,9 @@ class SupplierController extends Controller
             'email' => 'required|email|max:50|unique:suppliers,email,'.$supplier->id,
             'phone' => 'required|string|max:15|unique:suppliers,phone,'.$supplier->id,
             'shopname' => 'required|string|max:50',
-            'type' => 'required|string|max:25',
-            'account_holder' => 'max:50',
-            'account_number' => 'max:25',
-            'bank_name' => 'max:25',
-            'bank_branch' => 'max:50',
-            'city' => 'required|string|max:50',
             'address' => 'required|string|max:100',
             'rfc' => 'required|string|max:100',
+            'curp' => 'string|max:100',
         ];
 
         $validatedData = $request->validate($rules);
@@ -139,7 +129,7 @@ class SupplierController extends Controller
 
         Supplier::where('id', $supplier->id)->update($validatedData);
 
-        return Redirect::route('suppliers.index')->with('success', 'Supplier has been updated!');
+        return Redirect::route('suppliers.index')->with('success', 'El proveedor ha sido actualizado!');
     }
 
     /**
@@ -156,6 +146,6 @@ class SupplierController extends Controller
 
         Supplier::destroy($supplier->id);
 
-        return Redirect::route('suppliers.index')->with('success', 'Supplier has been deleted!');
+        return Redirect::route('suppliers.index')->with('success', 'El proveedor ha sido eliminado!');
     }
 }
