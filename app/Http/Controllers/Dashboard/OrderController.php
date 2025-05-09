@@ -1,11 +1,13 @@
 <?php
 
 namespace App\Http\Controllers\Dashboard;
+use Illuminate\Support\Facades\Storage;
 
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\OrderDetails;
 use App\Models\Movement;
+use App\Models\OrderDetailsVideo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -178,9 +180,12 @@ class OrderController extends Controller
                         ->orderBy('id', 'DESC')
                         ->get();
 
+        $orderDetailVideo = OrderDetailsVideo::where('order_id', $order->id)->first();
+
         return view('orders.details-order', [
             'order' => $order,
             'orderDetails' => $orderDetails,
+            'orderDetailVideo' => $orderDetailVideo,
         ]);
     }
     public function updateAmount(Request $request)
@@ -204,6 +209,44 @@ class OrderController extends Controller
 
         return back()->with('success', 'Las cantidades se han actualizado correctamente.');
     }
+    public function uploadVideo(Request $request)
+    {
+        $request->validate([
+            'video' => 'required|mimes:mp4,avi,mov|max:51200', // 50MB
+        ]);
+    
+        // Encuentra la orden y si ya existe un video, actualízalo
+        $orderDetailVideo = OrderDetailsVideo::where('order_id', $request->order_id)->first();
+    
+        if ($request->hasFile('video')) {
+            $file = $request->file('video');
+            $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('videos', $filename, 'public');
+    
+            // Si ya existe un video, lo actualizamos
+            if ($orderDetailVideo) {
+                // Elimina el video anterior si existe
+                Storage::disk('public')->delete('videos/' . $orderDetailVideo->video);
+                // Actualiza el video
+                $orderDetailVideo->update([
+                    'video' => $filename,
+                ]);
+            } else {
+                // Si no existe video, creamos uno nuevo
+                OrderDetailsVideo::create([
+                    'order_id' => $request->order_id,
+                    'video' => $filename,
+                    'user_id' => auth()->id(),
+                ]);
+            }
+    
+            return back()->with('success', 'Video actualizado correctamente.');
+        }
+    
+        return back()->withErrors(['video' => 'No se pudo subir el video.']);
+    }
+    
+    
     /**
      * Update the specified resource in storage.
      */

@@ -26,6 +26,73 @@
                             </div>
                         </div>
 
+                        <table class="table mb-0">
+                            <tbody class="ligth-body">
+                                @foreach ($orderDetails as $item)
+                                    <tr>
+                                        <td>
+                                            @php
+                                                $productName = $item->product->product_name ?? 'El Producto ha sido eliminado';
+                                                $isPrestamo = stripos($productName, 'Prestamo') !== false;
+                                            @endphp
+                        
+                                            @if ($isPrestamo)
+                                                <form action="{{ route('video.upload') }}" method="POST" enctype="multipart/form-data">
+                                                    @csrf
+                                                    <input type="hidden" name="order_id" value="{{ $order->id }}">
+                        
+                                                    @if ($orderDetailVideo)
+                                                        <!-- Si ya existe un video, mostramos el video guardado y opción para actualizarlo -->
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Video guardado</label><br>
+                                                            <video width="400" controls>
+                                                                <source src="{{ asset('storage/videos/' . $orderDetailVideo->video) }}" type="video/mp4">
+                                                                Tu navegador no soporta el elemento de video.
+                                                            </video>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="video" class="form-label">Actualizar video</label>
+                                                            <input type="file" name="video" id="video"
+                                                                class="form-control" accept="video/*"
+                                                                onchange="previewVideo()">
+                                                            @error('video')
+                                                                <div class="text-danger">{{ $message }}</div>
+                                                            @enderror
+                                                        </div>
+                                                    @else
+                                                        <!-- Si no existe un video, mostramos el formulario para subir uno nuevo -->
+                                                        <div class="mb-3">
+                                                            <label for="video" class="form-label">Seleccionar video</label>
+                                                            <input type="file" name="video" id="video"
+                                                                class="form-control" accept="video/*" required
+                                                                onchange="previewVideo()">
+                                                            @error('video')
+                                                                <div class="text-danger">{{ $message }}</div>
+                                                            @enderror
+                                                        </div>
+                                                    @endif
+                        
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Vista previa del video</label><br>
+                                                        <video id="videoPreview" width="400" controls style="display: none;"></video>
+                                                    </div>
+                        
+                                                    <button type="submit" class="btn btn-primary">
+                                                        {{ $orderDetailVideo ? 'Actualizar Video' : 'Subir Video' }}
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        
+
+
+
+
+
                         <div class="row align-items-center">
                             <div class="form-group col-md-12">
                                 <label>Nombre</label>
@@ -63,26 +130,29 @@
                             <form action="{{ route('order.updateAmount') }}" method="POST">
                                 @csrf
                                 <input type="hidden" name="order_id" value="{{ $order->id }}">
-                            
+
                                 <div class="row align-items-center">
                                     <div class="form-group col-md-6">
                                         <label>Cantidad Pagada</label>
-                                        <input type="number" class="form-control" name="pay" value="{{ $order->pay }}">
+                                        <input type="number" class="form-control" name="pay"
+                                            value="{{ $order->pay }}">
                                     </div>
                                     <div class="form-group col-md-6">
                                         <label>Cantidad Debida</label>
-                                        <input type="number" class="form-control" name="due" value="{{ $order->due }}">
+                                        <input type="number" class="form-control" name="due"
+                                            value="{{ $order->due }}">
                                     </div>
                                 </div>
-                            
+
                                 <div class="form-group">
                                     <label>Justificación</label>
-                                    <textarea class="form-control" name="justification" rows="3" required placeholder="Ingrese una justificación para el movimiento..."></textarea>
+                                    <textarea class="form-control" name="justification" rows="3" required
+                                        placeholder="Ingrese una justificación para el movimiento..."></textarea>
                                 </div>
-                            
+
                                 <button type="submit" class="btn btn-primary">Actualizar Cantidades</button>
                             </form>
-                            
+
 
                         </div>
                         <!-- end: Show Data -->
@@ -145,7 +215,7 @@
                                     </tr>
                                 @endforeach
                             </tbody>
-                            
+
                         </table>
                     </div>
                 </div>

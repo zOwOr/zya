@@ -115,6 +115,7 @@ Route::middleware(['permission:orders.menu'])->group(function () {
     Route::get('/orders/invoice/download/{order_id}', [OrderController::class, 'invoiceDownload'])->name('order.invoiceDownload');
     Route::delete('order/{id}', [OrderController::class, 'destroy'])->name('order.delete');
     Route::post('/order/updateAmount', [OrderController::class, 'updateAmount'])->name('order.updateAmount');
+    Route::post('/video-upload', [OrderController::class, 'uploadVideo'])->name('video.upload');
 
 
     // Pending Due
