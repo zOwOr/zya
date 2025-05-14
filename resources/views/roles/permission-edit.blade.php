@@ -13,6 +13,10 @@
             'name' => 'Empleado'
         ],
         [
+            'slug' => 'repairs',
+            'name' => 'Reparaciones'
+        ],
+        [
             'slug' => 'customer',
             'name' => 'Cliente'
         ],

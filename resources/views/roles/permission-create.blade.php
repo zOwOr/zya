@@ -8,6 +8,10 @@
             'name' => 'Punto de Venta'
         ],
         [
+            'slug' => 'repairs',
+            'name' => 'Reparaciones'
+        ],
+        [
             'slug' => 'employee',
             'name' => 'Empleado'
         ],

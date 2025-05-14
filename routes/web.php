@@ -16,6 +16,7 @@ use App\Http\Controllers\Dashboard\OrderController;
 use App\Http\Controllers\Dashboard\PosController;
 use App\Http\Controllers\Dashboard\RoleController;
 use App\Http\Controllers\Dashboard\UserController;
+use App\Http\Controllers\Dashboard\RepairsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,6 +105,10 @@ Route::middleware(['permission:pos.menu'])->group(function () {
 
     // Create Order
     Route::post('/pos/order', [OrderController::class, 'storeOrder'])->name('pos.storeOrder');
+});
+
+Route::middleware(['permission:repairs.menu'])->group(function () {
+    Route::get('/repairs', [RepairsController::class,'index'])->name('repairs.index');
 });
 
 // ====== ORDERS ======
