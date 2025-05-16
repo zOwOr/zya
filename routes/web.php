@@ -108,7 +108,9 @@ Route::middleware(['permission:pos.menu'])->group(function () {
 });
 
 Route::middleware(['permission:repairs.menu'])->group(function () {
-    Route::get('/repairs', [RepairsController::class,'index'])->name('repairs.index');
+
+    Route::resource('repairs', RepairsController::class);
+    Route::get('/buscar-opciones', [RepairsController::class, 'buscarOpciones'])->name('buscar.opciones');
 });
 
 // ====== ORDERS ======
