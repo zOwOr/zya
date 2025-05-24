@@ -15,6 +15,13 @@
     <link rel="stylesheet" href="{{ asset('assets/vendor/remixicon/fonts/remixicon.css') }}">
    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
+<style>
+  .iq-sidebar {
+    max-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+</style>
 
     @yield('specificpagestyles')
 </head>

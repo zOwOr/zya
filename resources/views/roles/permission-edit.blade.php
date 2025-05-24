@@ -17,6 +17,10 @@
             'name' => 'Reparaciones'
         ],
         [
+            'slug' => 'tandas',
+            'name' => 'Tandas'
+        ],
+        [
             'slug' => 'customer',
             'name' => 'Cliente'
         ],

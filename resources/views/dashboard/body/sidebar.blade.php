@@ -105,6 +105,16 @@
                 </li>
                 @endif
 
+                
+                @if (auth()->user()->can('tandas.menu'))
+                <li class="{{ Request::is('employees*') ? 'active' : '' }}">
+                    <a href="{{ route('tandas.index') }}" class="svg-icon">
+                        <i class="fa-solid fa-users"></i>
+                        <span class="ml-3">Tandas</span>
+                    </a>
+                </li>
+                @endif
+
                 <hr>
 
                 @if (auth()->user()->can('employee.menu'))

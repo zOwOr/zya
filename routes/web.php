@@ -17,6 +17,8 @@ use App\Http\Controllers\Dashboard\PosController;
 use App\Http\Controllers\Dashboard\RoleController;
 use App\Http\Controllers\Dashboard\UserController;
 use App\Http\Controllers\Dashboard\RepairsController;
+use App\Http\Controllers\Dashboard\TandaController;
+use App\Http\Controllers\Dashboard\TandaPeriodController;
 
 /*
 |--------------------------------------------------------------------------
@@ -111,6 +113,17 @@ Route::middleware(['permission:repairs.menu'])->group(function () {
 
     Route::resource('repairs', RepairsController::class);
     Route::get('/buscar-opciones', [RepairsController::class, 'buscarOpciones'])->name('buscar.opciones');
+});
+
+
+Route::middleware(['permission:tandas.menu'])->group(function () {
+
+    Route::resource('tandas', TandaController::class);
+    Route::patch('/tanda-periods/{period}', [TandaPeriodController::class, 'updatePayment'])->name('tanda-periods.updatePayment');
+    Route::post('/tandas/{tanda}/payments', [TandaController::class, 'updatePayments'])->name('tandas.payments.update');
+
+
+
 });
 
 // ====== ORDERS ======

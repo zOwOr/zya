@@ -12,6 +12,10 @@
             'name' => 'Reparaciones'
         ],
         [
+            'slug' => 'tandas',
+            'name' => 'Tandas'
+        ],
+        [
             'slug' => 'employee',
             'name' => 'Empleado'
         ],

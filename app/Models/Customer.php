@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\Tanda;
 use Kyslik\ColumnSortable\Sortable;
 
 class Customer extends Model
@@ -68,5 +68,11 @@ class Customer extends Model
         $query->when($filters['search'] ?? false, function ($query, $search) {
             return $query->where('tit_name', 'like', '%' . $search . '%')->orWhere('tit_facebook', 'like', '%' . $search . '%');
         });
+    }
+    public function tandas()
+    {
+        return $this->belongsToMany(Tanda::class, 'tanda_clients')
+                    ->withPivot('position')
+                    ->withTimestamps();
     }
 }

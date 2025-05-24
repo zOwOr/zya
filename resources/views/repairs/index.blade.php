@@ -15,7 +15,7 @@
                 <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
                     <div class="mb-3">
                         <h4 class="mb-3">Lista de reparaciónes</h4>
-                        <p class="mb-0">Un Dashboard de roles le permite recopilar y visualizar fácilmente datos de
+                        <p class="mb-0">Un Dashboard de reparaciónes le permite recopilar y visualizar fácilmente datos de
                             reparaciónes de equipos. </p>
                     </div>
 
