@@ -15,6 +15,7 @@ class Customer extends Model
         'tit_name',
         'tit_email',
         'tit_phone',
+        'tit_status',
         'tit_address',
         'tit_photo',
         'tit_photo_ine_f',

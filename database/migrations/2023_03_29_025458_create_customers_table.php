@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('tit_photo_proof_address')->nullable();
             $table->string('tit_work')->nullable();
             $table->string('tit_city')->nullable();
+            $table->string('tit_status')->nullable();
 
             $table->string('ref1_name')->nullable();
             $table->string('ref1_phone')->nullable();
