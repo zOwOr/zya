@@ -107,6 +107,8 @@ Route::middleware(['permission:pos.menu'])->group(function () {
 
     // Create Order
     Route::post('/pos/order', [OrderController::class, 'storeOrder'])->name('pos.storeOrder');
+    Route::post('/pos/scan-barcode', [PosController::class, 'scanBarcode'])->name('pos.scanBarcode');
+
 });
 
 Route::middleware(['permission:repairs.menu'])->group(function () {

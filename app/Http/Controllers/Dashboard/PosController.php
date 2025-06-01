@@ -113,4 +113,32 @@ class PosController extends Controller
             'content' => $content
         ]);
     }
+    public function scanBarcode(Request $request)
+    {
+        $request->validate([
+            'barcode' => 'required|string',
+        ]);
+
+        $barcode = $request->input('barcode');
+
+        // Buscar producto por código de barras (ajustar columna si es necesario)
+        $product = Product::where('product_code', $barcode)->first();
+
+        if (!$product) {
+            return redirect()->back()->with('warning', 'Producto no encontrado.');
+        }
+
+        // Añadir producto al carrito
+        Cart::add([
+            'id' => $product->id,
+            'name' => $product->product_name,
+            'qty' => 1,
+            'price' => $product->selling_price,
+            'options' => ['image' => $product->product_image]
+        ]);
+
+        return redirect()->back()->with('success', 'Producto añadido correctamente.');
+    }
+
+
 }

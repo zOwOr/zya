@@ -25,6 +25,20 @@
                     <h4 class="mb-3">Punto de Venta</h4>
                 </div>
             </div>
+            <div class="col-lg-12">
+                <form action="{{ route('pos.scanBarcode') }}" method="POST" id="scanForm" autocomplete="off">
+                    @csrf
+                    <div class="input-group mb-3">
+                        <input type="text" name="barcode" id="barcodeInput" class="form-control"
+                            placeholder="Escanea el código de barras" autofocus>
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="submit">Añadir</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+
 
             <div class="col-lg-6 col-md-12 mb-3">
                 <table class="table">
@@ -225,41 +239,51 @@
 
 @section('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('createInvoiceForm');
-    if(form){
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('createInvoiceForm');
+            if (form) {
+                form.addEventListener('submit', function(event) {
+                    event.preventDefault();
 
-            const selectCliente = document.getElementById('customer_id');
-            const selectedOption = selectCliente.options[selectCliente.selectedIndex];
+                    const selectCliente = document.getElementById('customer_id');
+                    const selectedOption = selectCliente.options[selectCliente.selectedIndex];
 
-            if (!selectedOption.value) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Oops...',
-                    text: 'Por favor selecciona un cliente.'
+                    if (!selectedOption.value) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Oops...',
+                            text: 'Por favor selecciona un cliente.'
+                        });
+                        return;
+                    }
+
+                    const clienteStatus = (selectedOption.getAttribute('data-status') || 'desconocido')
+                        .toUpperCase();
+
+                    Swal.fire({
+                        title: '¿Desea confirmar la creación de la nota de venta?',
+                        html: `<p>Status del cliente: <strong>${clienteStatus}</strong></p>`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, confirmar',
+                        cancelButtonText: 'Cancelar',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+
                 });
-                return;
             }
-
-            const clienteStatus = (selectedOption.getAttribute('data-status') || 'desconocido').toUpperCase();
-
-            Swal.fire({
-                title: '¿Desea confirmar la creación de la nota de venta?',
-                html: `<p>Status del cliente: <strong>${clienteStatus}</strong></p>`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, confirmar',
-                cancelButtonText: 'Cancelar',
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    form.submit();
-                }
-            });
-
         });
-    }
-});
-</script>
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('barcodeInput');
+            if (input) {
+                input.focus();
+                input.addEventListener('blur', () => input.focus());
+            }
+        });
+    </script>
