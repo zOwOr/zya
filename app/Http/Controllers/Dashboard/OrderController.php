@@ -16,6 +16,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Redirect;
 use Gloudemans\Shoppingcart\Facades\Cart;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
+use App\Services\CashFlowService;
+use App\Models\DailyCut;
 
 class OrderController extends Controller
 {
@@ -308,6 +310,14 @@ class OrderController extends Controller
 
     public function updateDue(Request $request)
     {
+            // ✅ Validar si el corte del día ya fue aplicado
+        if (DailyCut::where('date', Carbon::today())->exists()) {
+            return redirect()->route('order.pendingDue')->with('error', 'No se puede registrar el pago. El corte diario ya fue aplicado.');
+        }
+
+
+
+
         $rules = [
             'order_id' => 'required|numeric',
             'due' => 'required|numeric',
@@ -316,6 +326,15 @@ class OrderController extends Controller
         $validatedData = $request->validate($rules);
 
         $order = Order::findOrFail($request->order_id);
+
+        if ($validatedData['due'] > $order->due) {
+            return redirect()->route('order.pendingDue')->with('error', 'El monto ingresado excede la cantidad debida.');
+        }
+        if ($validatedData['due'] <= 0) {
+            return redirect()->route('order.pendingDue')->with('error', 'El monto a pagar debe ser mayor que cero.');
+        }
+
+
         $mainPay = $order->pay;
         $mainDue = $order->due;
 
@@ -327,6 +346,36 @@ class OrderController extends Controller
             'pay' => $paid_pay,
         ]);
 
-        return Redirect::route('order.pendingDue')->with('success', 'Due Amount Updated Successfully!');
+
+    $paidAmount = $paid_pay - $mainPay;
+
+    // Registrar en caja solo si pagó algo
+    if ($paidAmount > 0) {
+        CashFlowService::register(
+            'income',
+            $paidAmount,  // Registrar solo lo pagado en esta operación
+            'Pago parcial de orden #' . $order->id,
+            $order->id,
+            'Orden'
+        );
     }
+
+    return Redirect::route('order.pendingDue')->with('success', 'Due Amount Updated Successfully!');
+}
+
+    public function markAsPaid($orderId)
+{
+    $order = Order::findOrFail($orderId);
+    $order->update(['order_status' => 'paid']);
+
+    CashFlowService::register(
+        'income',
+        $order->total_amount,
+        'Pago de orden #' . $order->id,
+        $order->id,
+        'ventas'
+    );
+
+    return redirect()->back()->with('success', 'Orden pagada y registrada en caja.');
+}
 }

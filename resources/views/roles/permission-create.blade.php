@@ -20,6 +20,10 @@
             'name' => 'Empleado'
         ],
         [
+            'slug' => 'cash',
+            'name' => 'Caja y Corte'
+        ],
+        [
             'slug' => 'customer',
             'name' => 'Cliente'
         ],
