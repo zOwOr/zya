@@ -84,6 +84,31 @@
                 <textarea name="diagnostico" class="form-control"></textarea>
             </div>
 
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label for="tipo_garantia" class="form-label">Tipo de Garantía</label>
+                    <select name="tipo_garantia" id="tipo_garantia" class="form-control" required>
+                        <option value="">Selecciona una opción</option>
+                        <option value="Payjoy">Payjoy</option>
+                        <option value="KrediYa">KrediYa</option>
+                        <option value="Propia">Propia</option>
+                        <option value="sin garantia">Sin garantía</option>
+                    </select>
+                </div>
+
+                <div class="mb-3 col-md-6">
+                    <label for="log_descripcion" class="form-label">Observaciones iniciales</label>
+                    <textarea name="log_descripcion" id="log_descripcion" class="form-control" rows="3"
+                        placeholder="Ej: equipo rayado, sin batería, etc."></textarea>
+                </div>
+
+            </div>
+
+
+
+
+
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
                     <label>Precio </label>

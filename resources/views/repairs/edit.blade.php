@@ -52,178 +52,215 @@
 
 
 
-    <div class="row g-3 mb-3">
-        <div class="col-md-6">
-            <label class="form-label">IMEI</label>
-            <input type="text" name="imei" class="form-control" value="{{ $repair->imei }}">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Estado</label>
-            <select name="estado" class="form-control" required>
-                <option value="pendiente" {{ $repair->estado == 'pendiente' ? 'selected' : '' }}>Pendiente</option>
-                <option value="en reparación" {{ $repair->estado == 'en reparación' ? 'selected' : '' }}>En
-                    reparación</option>
-                <option value="reparado" {{ $repair->estado == 'reparado' ? 'selected' : '' }}>Reparado</option>
-                <option value="entregado" {{ $repair->estado == 'entregado' ? 'selected' : '' }}>Entregado</option>
-            </select>
-        </div>
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">IMEI</label>
+                    <input type="text" name="imei" class="form-control" value="{{ $repair->imei }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-control" required>
+                        <option value="pendiente" {{ $repair->estado == 'pendiente' ? 'selected' : '' }}>Pendiente</option>
+                        <option value="en reparación" {{ $repair->estado == 'en reparación' ? 'selected' : '' }}>En
+                            reparación</option>
+                        <option value="reparado" {{ $repair->estado == 'reparado' ? 'selected' : '' }}>Reparado</option>
+                        <option value="entregado" {{ $repair->estado == 'entregado' ? 'selected' : '' }}>Entregado</option>
+                    </select>
+                </div>
 
-    </div>
-
-    <div class="row g-3 mb-3">
-        <div class="col-md-6">
-            <label class="form-label">Marca</label>
-            <input type="text" name="marca" class="form-control" value="{{ $repair->marca }}">
-        </div>
-        <div class="col-md-6">
-            <label class="form-label">Modelo</label>
-            <input type="text" name="modelo" class="form-control" value="{{ $repair->modelo }}">
-        </div>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Problema Reportado</label>
-        <textarea class="form-control" name="problema_reportado">{{ $repair->problema_reportado }}</textarea>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Diagnóstico</label>
-        <textarea class="form-control" name="diagnostico">{{ $repair->diagnostico }}</textarea>
-    </div>
-
-    <div class="row g-3 mb-3">
-        <div class="col-md-4">
-            <label class="form-label">Precio</label>
-            <input type="number" name="precio" class="form-control" value="{{ $repair->precio }}">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Fecha de Ingreso</label>
-            <input type="date" name="fecha_ingreso" class="form-control" value="{{ $repair->fecha_ingreso }}">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Fecha de Ingreso</label>
-            <input type="date" name="fecha_entrega" class="form-control" value="{{ $repair->fecha_entrega }}">
-        </div>
-
-    </div>
-
-    <hr>
-    <h5>Evidencia Fotográfica - Al Recibir</h5>
-    <div class="row g-3 mb-3">
-        <div class="col-md-6 text-center">
-
-            <label class="form-label fw-bold">Foto Frontal</label>
-
-            <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
-
-                <!-- Input de archivo -->
-                <input type="file" name="foto_recibido_frontal" class="form-control visually-hidden"
-                    onchange="previewImage(this)">
-
-                <!-- Área interactiva -->
-                <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-
-                    <!-- Preview de imagen -->
-                    <div class="profile-img-edit">
-                        <div class="crm-profile-img-edit">
-                            <img class="crm-profile-pic  avatar-155 image-preview" id="foto_recibido_frontal"
-                                src="{{ asset('storage/' . $repair->foto_recibido_frontal) }}" alt="profile-pic">
-                        </div>
-                    </div>
-
-                </label>
-            </div>
-        </div>
-        <div class="col-md-6 text-center">
-            <label class="form-label fw-bold">Foto Trasera</label>
-
-            <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
-
-                <!-- Input de archivo -->
-                <input type="file" name="foto_recibido_trasera" class="form-control visually-hidden"
-                    onchange="previewImage(this)">
-
-                <!-- Área interactiva -->
-                <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-
-                    <!-- Preview de imagen -->
-                    <div class="profile-img-edit">
-                        <div class="crm-profile-img-edit">
-                            <img class="crm-profile-pic  avatar-155 image-preview" id="foto_recibido_trasera"
-                                src="{{ asset('storage/' . $repair->foto_recibido_trasera) }}" alt="profile-pic">
-                        </div>
-                    </div>
-
-                </label>
-            </div>
-        </div>
-    </div>
-    <hr>
-    <br>
-    <br>
-    <br>
-
-    <hr>
-    <h5>Evidencia Fotográfica - Al Entregar</h5>
-    <div class="row g-3 mb-3">
-        <div class="col-md-6 text-center">
-            <label class="form-label fw-bold">Foto Frontal</label>
-
-            <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
-
-                <!-- Input de archivo -->
-                <input type="file" name="foto_entregado_frontal" class="form-control visually-hidden"
-                    onchange="previewImage(this)">
-
-                <!-- Área interactiva -->
-                <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-
-                    <!-- Preview de imagen -->
-                    <div class="profile-img-edit">
-                        <div class="crm-profile-img-edit">
-                            <img class="crm-profile-pic  avatar-155 image-preview" id="foto_entregado_frontal"
-                                src="{{ asset('storage/' . $repair->foto_entregado_frontal) }}" alt="profile-pic">
-                        </div>
-                    </div>
-
-                </label>
             </div>
 
-        </div>
-        <div class="col-md-6 text-center">
-            <label class="form-label fw-bold">Foto Trasera</label>
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Marca</label>
+                    <input type="text" name="marca" class="form-control" value="{{ $repair->marca }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Modelo</label>
+                    <input type="text" name="modelo" class="form-control" value="{{ $repair->modelo }}">
+                </div>
+            </div>
 
-            <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
+            <div class="mb-3">
+                <label class="form-label">Problema Reportado</label>
+                <textarea class="form-control" name="problema_reportado">{{ $repair->problema_reportado }}</textarea>
+            </div>
 
-                <!-- Input de archivo -->
-                <input type="file" name="foto_entregado_trasera" class="form-control visually-hidden"
-                    onchange="previewImage(this)">
+            <div class="mb-3">
+                <label class="form-label">Diagnóstico</label>
+                <textarea class="form-control" name="diagnostico">{{ $repair->diagnostico }}</textarea>
+            </div>
 
-                <!-- Área interactiva -->
-                <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
+            <div class="mb-3 row">
+                <div class="col-md-6">
+                    <label for="tipo_garantia" class="form-label">Tipo de Garantía</label>
+                    <select name="tipo_garantia" id="tipo_garantia" class="form-control" required>
+                        <option value="">Selecciona una opción</option>
+                        <option value="Payjoy"
+                            {{ old('tipo_garantia', $ultimoHistorial->tipo_garantia ?? '') == 'Payjoy' ? 'selected' : '' }}>
+                            Payjoy
+                        </option>
+                        <option value="KrediYa"
+                            {{ old('tipo_garantia', $ultimoHistorial->tipo_garantia ?? '') == 'KrediYa' ? 'selected' : '' }}>
+                            KrediYa</option>
+                        <option value="Propia"
+                            {{ old('tipo_garantia', $ultimoHistorial->tipo_garantia ?? '') == 'Propia' ? 'selected' : '' }}>
+                            Propia
+                        </option>
+                        <option value="sin garantia"
+                            {{ old('tipo_garantia', $ultimoHistorial->tipo_garantia ?? '') == 'sin garantia' ? 'selected' : '' }}>
+                            Sin garantía</option>
+                    </select>
+                </div>
 
-                    <!-- Preview de imagen -->
-                    <div class="profile-img-edit">
-                        <div class="crm-profile-img-edit">
-                            <img class="crm-profile-pic  avatar-155 image-preview" id="foto_entregado_trasera"
-                                src="{{ asset('storage/' . $repair->foto_entregado_trasera) }}" alt="profile-pic">
-                        </div>
+                <div class="mb-3 col-6">
+                    <label for="log_descripcion" class="form-label">Observaciones</label>
+                    <textarea name="log_descripcion" id="log_descripcion" class="form-control" rows="3"
+                        placeholder="Ej: equipo rayado, sin batería, etc.">{{ old('log_descripcion') }}</textarea>
+                </div>
+
+            </div>
+
+
+
+
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Precio</label>
+                    <input type="number" name="precio" class="form-control" value="{{ $repair->precio }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fecha de Ingreso</label>
+                    <input type="date" name="fecha_ingreso" class="form-control" value="{{ $repair->fecha_ingreso }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fecha de Ingreso</label>
+                    <input type="date" name="fecha_entrega" class="form-control"
+                        value="{{ $repair->fecha_entrega }}">
+                </div>
+
+            </div>
+
+            <hr>
+            <h5>Evidencia Fotográfica - Al Recibir</h5>
+            <div class="row g-3 mb-3">
+                <div class="col-md-6 text-center">
+
+                    <label class="form-label fw-bold">Foto Frontal</label>
+
+                    <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
+
+                        <!-- Input de archivo -->
+                        <input type="file" name="foto_recibido_frontal" class="form-control visually-hidden"
+                            onchange="previewImage(this)">
+
+                        <!-- Área interactiva -->
+                        <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
+
+                            <!-- Preview de imagen -->
+                            <div class="profile-img-edit">
+                                <div class="crm-profile-img-edit">
+                                    <img class="crm-profile-pic  avatar-155 image-preview" id="foto_recibido_frontal"
+                                        src="{{ asset('storage/' . $repair->foto_recibido_frontal) }}" alt="profile-pic">
+                                </div>
+                            </div>
+
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6 text-center">
+                    <label class="form-label fw-bold">Foto Trasera</label>
+
+                    <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
+
+                        <!-- Input de archivo -->
+                        <input type="file" name="foto_recibido_trasera" class="form-control visually-hidden"
+                            onchange="previewImage(this)">
+
+                        <!-- Área interactiva -->
+                        <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
+
+                            <!-- Preview de imagen -->
+                            <div class="profile-img-edit">
+                                <div class="crm-profile-img-edit">
+                                    <img class="crm-profile-pic  avatar-155 image-preview" id="foto_recibido_trasera"
+                                        src="{{ asset('storage/' . $repair->foto_recibido_trasera) }}" alt="profile-pic">
+                                </div>
+                            </div>
+
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <br>
+            <br>
+            <br>
+
+            <hr>
+            <h5>Evidencia Fotográfica - Al Entregar</h5>
+            <div class="row g-3 mb-3">
+                <div class="col-md-6 text-center">
+                    <label class="form-label fw-bold">Foto Frontal</label>
+
+                    <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
+
+                        <!-- Input de archivo -->
+                        <input type="file" name="foto_entregado_frontal" class="form-control visually-hidden"
+                            onchange="previewImage(this)">
+
+                        <!-- Área interactiva -->
+                        <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
+
+                            <!-- Preview de imagen -->
+                            <div class="profile-img-edit">
+                                <div class="crm-profile-img-edit">
+                                    <img class="crm-profile-pic  avatar-155 image-preview" id="foto_entregado_frontal"
+                                        src="{{ asset('storage/' . $repair->foto_entregado_frontal) }}"
+                                        alt="profile-pic">
+                                </div>
+                            </div>
+
+                        </label>
                     </div>
 
-                </label>
+                </div>
+                <div class="col-md-6 text-center">
+                    <label class="form-label fw-bold">Foto Trasera</label>
+
+                    <div class="image-container text-center " style="border-style: dashed; min-height: 200px;">
+
+                        <!-- Input de archivo -->
+                        <input type="file" name="foto_entregado_trasera" class="form-control visually-hidden"
+                            onchange="previewImage(this)">
+
+                        <!-- Área interactiva -->
+                        <label class="w-100 h-100 d-flex flex-column justify-content-center align-items-center">
+
+                            <!-- Preview de imagen -->
+                            <div class="profile-img-edit">
+                                <div class="crm-profile-img-edit">
+                                    <img class="crm-profile-pic  avatar-155 image-preview" id="foto_entregado_trasera"
+                                        src="{{ asset('storage/' . $repair->foto_entregado_trasera) }}"
+                                        alt="profile-pic">
+                                </div>
+                            </div>
+
+                        </label>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <hr>
-    <br>
-    <br>
-    <br>
+            <hr>
+            <br>
+            <br>
+            <br>
 
-    <a href="{{ route('repairs.index') }}" class="btn btn-secondary mt-3">Volver</a>
-    <button type="submit" class="btn btn-primary mt-3">Guardar cambios</button>
+            <a href="{{ route('repairs.index') }}" class="btn btn-secondary mt-3">Volver</a>
+            <button type="submit" class="btn btn-primary mt-3">Guardar cambios</button>
 
-    </form>
+        </form>
 
     </div>
 @endsection

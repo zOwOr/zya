@@ -34,10 +34,13 @@ class RepairsController extends Controller
 
     }
 
-public function show(Repairs $repair) // <-- No uses Repairs con "s"
+public function show(Repairs $repair)
 {
+    $historial = $repair->warrantyLogs()->with('user')->latest()->get();
+
     return view('repairs.show', [
         'repair' => $repair,
+        'historial' => $historial,
     ]);
 }
 
@@ -70,14 +73,28 @@ public function show(Repairs $repair) // <-- No uses Repairs con "s"
             }
         }
 
-        Repairs::create($data);
+
+        $repair = Repairs::create($data);
+
+        \App\Models\WarrantyLog::create([
+            'repairs_id' => $repair->id,
+            'accion' => 'Creación',
+            'descripcion' => $request->input('log_descripcion'),
+            'tipo_garantia' => $request->input('tipo_garantia'),
+            'user_id' => auth()->id(),
+        ]);
+
+
+
 
         return redirect()->route('repairs.index')->with('success', 'Reparación registrada correctamente.');
     }
 
     public function edit(Repairs $repair) {
         $clientes = Customer::all();
-        return view('repairs.edit', compact('repair','clientes'));
+        $historial = $repair->warrantyLogs()->with('user')->latest()->get();
+$ultimoHistorial = $historial->first();
+        return view('repairs.edit', compact('repair','clientes','ultimoHistorial'));
     }
 
 public function update(Request $request, Repairs $repair)
@@ -114,6 +131,15 @@ public function update(Request $request, Repairs $repair)
         }
 
         $repair->update($data);
+
+        \App\Models\WarrantyLog::create([
+            'repairs_id' => $repair->id,
+            'accion' => 'Actualización',
+            'descripcion' => $request->input('log_descripcion'),
+            'tipo_garantia' => $request->input('tipo_garantia'),
+            'user_id' => auth()->id(),
+        ]);
+
 
         return redirect()->route('repairs.index')->with('success', 'Reparación actualizada correctamente.');
     }

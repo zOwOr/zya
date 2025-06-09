@@ -60,25 +60,25 @@
                 <label class="form-label">Fecha de Entrega</label>
                 <input type="date" class="form-control" value="{{ $repair->fecha_entrega }}" readonly>
             </div>
-            
+
         </div>
 
         <hr>
         <h5>Evidencia Fotográfica - Al Recibir</h5>
         <div class="row g-3 mb-3">
             <div class="col-md-6 text-center">
-                
+
                 <label class="form-label fw-bold">Foto Frontal</label>
                 <div class="border p-2">
-                    <img src="{{ asset('storage/' . $repair->foto_recibido_frontal) }}" class="img-fluid" style="max-width: 300px; max-height: 200px; object-fit: cover;"
-                        alt="Frontal Recibido">
+                    <img src="{{ asset('storage/' . $repair->foto_recibido_frontal) }}" class="img-fluid"
+                        style="max-width: 300px; max-height: 200px; object-fit: cover;" alt="Frontal Recibido">
                 </div>
             </div>
             <div class="col-md-6 text-center">
                 <label class="form-label fw-bold">Foto Trasera</label>
                 <div class="border p-2">
-                    <img src="{{ asset('storage/' . $repair->foto_recibido_trasera) }}" class="img-fluid " style="max-width: 300px; max-height: 200px; object-fit: cover;"
-                        alt="Trasera Recibido">
+                    <img src="{{ asset('storage/' . $repair->foto_recibido_trasera) }}" class="img-fluid "
+                        style="max-width: 300px; max-height: 200px; object-fit: cover;" alt="Trasera Recibido">
                 </div>
             </div>
         </div>
@@ -101,6 +101,33 @@
                 </div>
             </div>
         </div>
+
+
+        <h5>Seguimiento de Garantía</h5>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Tipo Garantía</th>
+                    <th>Descripción</th>
+                    <th>Usuario</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($repair->warrantyLogs as $log)
+                    <tr>
+                        <td>{{ $log->created_at->format('d/m/Y H:i') }}</td>
+                        <td>{{ $log->accion }}</td>
+                        <td>{{ $log->tipo_garantia }}</td>
+                        <td>{{ $log->descripcion }}</td>
+                        <td>{{ optional($log->user)->name ?? 'N/A' }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+
 
         <a href="{{ route('repairs.index') }}" class="btn btn-secondary mt-3">Volver</a>
     </div>

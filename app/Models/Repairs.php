@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\WarrantyLog;
 class Repairs extends Model
 {
     use HasFactory;
@@ -30,4 +30,10 @@ class Repairs extends Model
         'precio' ,
         'estado' ,
         ];
+
+    public function warrantyLogs()
+    {
+        return $this->hasMany(WarrantyLog::class);
+    }
+
 }
