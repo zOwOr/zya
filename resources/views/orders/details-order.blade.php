@@ -3,6 +3,11 @@
 @section('container')
     <div class="container-fluid">
         <div class="row">
+            @if (session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                </div>
+            @endif
 
             <div class="col-lg-12">
                 <div class="card">
@@ -32,26 +37,31 @@
                                     <tr>
                                         <td>
                                             @php
-                                                $productName = $item->product->product_name ?? 'El Producto ha sido eliminado';
+                                                $productName =
+                                                    $item->product->product_name ?? 'El Producto ha sido eliminado';
                                                 $isPrestamo = stripos($productName, 'Prestamo') !== false;
                                             @endphp
-                        
+
                                             @if ($isPrestamo)
-                                                <form action="{{ route('video.upload') }}" method="POST" enctype="multipart/form-data">
+                                                <form action="{{ route('video.upload') }}" method="POST"
+                                                    enctype="multipart/form-data">
                                                     @csrf
                                                     <input type="hidden" name="order_id" value="{{ $order->id }}">
-                        
+
                                                     @if ($orderDetailVideo)
                                                         <!-- Si ya existe un video, mostramos el video guardado y opción para actualizarlo -->
                                                         <div class="mb-3">
                                                             <label class="form-label">Video guardado</label><br>
                                                             <video width="400" controls>
-                                                                <source src="{{ asset('storage/videos/' . $orderDetailVideo->video) }}" type="video/mp4">
+                                                                <source
+                                                                    src="{{ asset('storage/videos/' . $orderDetailVideo->video) }}"
+                                                                    type="video/mp4">
                                                                 Tu navegador no soporta el elemento de video.
                                                             </video>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label for="video" class="form-label">Actualizar video</label>
+                                                            <label for="video" class="form-label">Actualizar
+                                                                video</label>
                                                             <input type="file" name="video" id="video"
                                                                 class="form-control" accept="video/*"
                                                                 onchange="previewVideo()">
@@ -62,7 +72,8 @@
                                                     @else
                                                         <!-- Si no existe un video, mostramos el formulario para subir uno nuevo -->
                                                         <div class="mb-3">
-                                                            <label for="video" class="form-label">Seleccionar video</label>
+                                                            <label for="video" class="form-label">Seleccionar
+                                                                video</label>
                                                             <input type="file" name="video" id="video"
                                                                 class="form-control" accept="video/*" required
                                                                 onchange="previewVideo()">
@@ -71,12 +82,13 @@
                                                             @enderror
                                                         </div>
                                                     @endif
-                        
+
                                                     <div class="mb-3">
                                                         <label class="form-label">Vista previa del video</label><br>
-                                                        <video id="videoPreview" width="400" controls style="display: none;"></video>
+                                                        <video id="videoPreview" width="400" controls
+                                                            style="display: none;"></video>
                                                     </div>
-                        
+
                                                     <button type="submit" class="btn btn-primary">
                                                         {{ $orderDetailVideo ? 'Actualizar Video' : 'Subir Video' }}
                                                     </button>
@@ -87,7 +99,7 @@
                                 @endforeach
                             </tbody>
                         </table>
-                        
+
 
 
 
@@ -122,36 +134,60 @@
                                 <input class="form-control bg-white" id="buying_date" value="{{ $order->invoice_no }}"
                                     readonly />
                             </div>
+
+                            <div class="form-group  col-md-6">
+                                <form action="{{ route('order.updateDeviceId') }}" method="POST" class="mb-3">
+                                    @csrf
+                                    <input type="hidden" name="order_id" value="{{ $order->id }}">
+
+                                    <div class="">
+                                        <label for="device_id">Device ID</label>
+                                        <input type="text" name="device_id" id="device_id" class="form-control mb-2"
+                                            value="{{ old('device_id', $order->device_id ?? '') }}" required>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-warning">Actualizar Device ID</button>
+                                </form>
+                            </div>
+
+
+
+
                             <div class="form-group col-md-6">
                                 <label>Status del Pago</label>
                                 <input class="form-control bg-white" id="expire_date" value="{{ $order->payment_status }}"
                                     readonly />
                             </div>
-                            <form action="{{ route('order.updateAmount') }}" method="POST">
-                                @csrf
-                                <input type="hidden" name="order_id" value="{{ $order->id }}">
 
-                                <div class="row align-items-center">
-                                    <div class="form-group col-md-6">
-                                        <label>Cantidad Pagada</label>
-                                        <input type="number" class="form-control" name="pay"
-                                            value="{{ $order->pay }}">
+
+                            <div class="form-group col-md-6">
+                                <form action="{{ route('order.updateAmount') }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="order_id" value="{{ $order->id }}">
+
+                                    <div class="row align-items-center ">
+                                        <div class="form-group col-md-6">
+                                            <label>Cantidad Pagada</label>
+                                            <input type="number" class="form-control" name="pay"
+                                                value="{{ $order->pay }}">
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label>Cantidad Debida</label>
+                                            <input type="number" class="form-control" name="due"
+                                                value="{{ $order->due }}">
+                                        </div>
                                     </div>
-                                    <div class="form-group col-md-6">
-                                        <label>Cantidad Debida</label>
-                                        <input type="number" class="form-control" name="due"
-                                            value="{{ $order->due }}">
+
+                                    <div class="form-group">
+                                        <label>Justificación</label>
+                                        <textarea class="form-control" name="justification" rows="3" required
+                                            placeholder="Ingrese una justificación para el movimiento..."></textarea>
                                     </div>
-                                </div>
 
-                                <div class="form-group">
-                                    <label>Justificación</label>
-                                    <textarea class="form-control" name="justification" rows="3" required
-                                        placeholder="Ingrese una justificación para el movimiento..."></textarea>
-                                </div>
+                                    <button type="submit" class="btn btn-primary">Actualizar Cantidades</button>
+                                </form>
+                            </div>
 
-                                <button type="submit" class="btn btn-primary">Actualizar Cantidades</button>
-                            </form>
 
 
                         </div>

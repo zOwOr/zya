@@ -164,6 +164,10 @@ Route::middleware(['permission:orders.menu'])->group(function () {
 
     // Stock Management
     Route::get('/stock', [OrderController::class, 'stockManage'])->name('order.stockManage');
+
+    Route::post('/order/update-device-id', [OrderController::class, 'updateDeviceId'])->name('order.updateDeviceId');
+
+
 });
 
 // ====== DATABASE BACKUP ======

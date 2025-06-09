@@ -24,6 +24,8 @@ return new class extends Migration
             $table->string('payment_status')->nullable();
             $table->integer('pay')->nullable();
             $table->integer('due')->nullable();
+            $table->string('device_id')->nullable(); // Agrega esta línea en tu esquema
+
             $table->timestamps();
         });
     }

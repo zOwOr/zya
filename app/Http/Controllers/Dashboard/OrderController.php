@@ -378,4 +378,18 @@ class OrderController extends Controller
 
     return redirect()->back()->with('success', 'Orden pagada y registrada en caja.');
 }
+public function updateDeviceId(Request $request)
+{
+    $request->validate([
+        'order_id' => 'required|exists:orders,id',
+        'device_id' => 'required|string|max:255',
+    ]);
+
+    $order = Order::findOrFail($request->order_id);
+    $order->device_id = $request->device_id;
+    $order->save();
+
+    return back()->with('success', 'Device ID actualizado correctamente.');
+}
+
 }
