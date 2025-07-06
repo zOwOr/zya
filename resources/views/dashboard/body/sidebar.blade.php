@@ -285,14 +285,6 @@
                     </li>
                 @endif
 
-                @if (auth()->user()->can('database.menu'))
-                    <li class="{{ Request::is('database/backup*') ? 'active' : '' }}">
-                        <a href="{{ route('backup.index') }}" class="svg-icon">
-                            <i class="fa-solid fa-database"></i>
-                            <span class="ml-3">Copia de seguridad</span>
-                        </a>
-                    </li>
-                @endif
             </ul>
         </nav>
         <div class="p-3"></div>
