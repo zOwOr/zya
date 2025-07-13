@@ -1,7 +1,8 @@
 @extends('dashboard.body.main')
 
 @section('container')
-<div class="container-fluid">
+@if (auth()->user()->hasRole('Super Administrador'))
+    <div class="container-fluid">
     <div class="row">
         <div class="col-lg-12">
         @if (session()->has('success'))
@@ -208,6 +209,17 @@
     </div>
     <!-- Page end  -->
 </div>
+@else
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-8 text-center">
+                <h1>¡Bienvenido {{ auth()->user()->name }}!</h1>
+                <p class="lead">No tienes permiso para acceder al dashboard.</p>
+                <p>Si crees que es un error, por favor contacta con el administrador.</p>
+            </div>
+        </div>
+@endif
+
+
 @endsection
 
 @section('specificpagescripts')

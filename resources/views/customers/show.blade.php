@@ -28,8 +28,7 @@
                             <div class="ml-3">
                                 <h4 class="mb-1">{{ $customer->tit_name }}</h4>
                                 <p class="mb-2">{{ $customer->tit_facebook }}</p>
-                                <a href="{{ route('customers.edit', $customer->id) }}"
-                                    class="btn btn-primary font-size-14">Editar</a>
+                                
                                 <a href="{{ route('customers.index') }}" class="btn btn-danger font-size-14">Regresar</a>
                             </div>
                         </div>
