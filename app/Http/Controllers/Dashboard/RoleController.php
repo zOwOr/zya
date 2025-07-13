@@ -84,7 +84,7 @@ class RoleController extends Controller
 
     public function roleCreate()
     {
-        return view('roles.role-create');
+        return view('role.create');
     }
 
     public function roleStore(Request $request)
@@ -97,7 +97,7 @@ class RoleController extends Controller
 
         Role::create($validatedData);
 
-        return Redirect::route('roles.role-index')->with('success', 'Role has been created!');
+        return Redirect::route('role.index')->with('success', 'Role has been created!');
     }
 
     public function roleEdit(Int $id)
@@ -119,14 +119,14 @@ class RoleController extends Controller
 
         Role::findOrFail($id)->update($validatedData);
 
-        return Redirect::route('roles.role-index')->with('success', 'Role has been updated!');
+        return Redirect::route('role.index')->with('success', 'Role has been updated!');
     }
 
     public function roleDestroy(Int $id)
     {
         Role::destroy($id);
 
-        return Redirect::route('roles.role-index')->with('success', 'Role has been deleted!');
+        return Redirect::route('role.index')->with('success', 'Role has been deleted!');
     }
 
     public function rolePermissionIndex()

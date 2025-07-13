@@ -42,7 +42,7 @@
                     <li class="{{ Request::is('employees*') ? 'active' : '' }}">
                         <a href="{{ route('cash.index') }}" class="svg-icon">
                             <i class="fa-solid fa-users"></i>
-                            <span class="ml-3">Corte  y Caja</span>
+                            <span class="ml-3">Corte y Caja</span>
                         </a>
                     </li>
                 @endif
@@ -167,7 +167,7 @@
                     </li>
                 @endif
 
-                @if (auth()->user()->can('salary.menu'))
+                {{-- @if (auth()->user()->can('salary.menu'))
                     <li>
                         <a href="#advance-salary" class="collapsed" data-toggle="collapse" aria-expanded="false">
                             <i class="fa-solid fa-cash-register"></i>
@@ -237,7 +237,7 @@
                         </ul>
                     </li>
                 @endif
-
+ --}}
                 <hr>
 
 
