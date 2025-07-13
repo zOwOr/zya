@@ -1,17 +1,20 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <title>Zya</title>
 
-        <!-- Favicon -->
-        <link rel="shortcut icon" href="{{ asset('assets/images/favicon.ico') }}"/>
-        <link rel="stylesheet" href="{{ asset('assets/css/backend-plugin.min.css') }}">
-        <link rel="stylesheet" href="{{ asset('assets/css/backend.css?v=1.0.0') }}">
-        <link href="https://cdn.jsdelivr.net/gh/hung1001/font-awesome-pro@4cac1a6/css/all.css" rel="stylesheet" type="text/css" />
-        <link rel="stylesheet" href="{{ asset('assets/vendor/remixicon/fonts/remixicon.css') }}">
-    </head>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Zya</title>
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{{ asset('assets/images/favicon.ico') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/css/backend-plugin.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/backend.css?v=1.0.0') }}">
+    <link href="https://cdn.jsdelivr.net/gh/hung1001/font-awesome-pro@4cac1a6/css/all.css" rel="stylesheet"
+        type="text/css" />
+    <link rel="stylesheet" href="{{ asset('assets/vendor/remixicon/fonts/remixicon.css') }}">
+</head>
+
 <body>
 
     <!-- Wrapper Start -->
@@ -30,7 +33,7 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-sm-12">
-                                    
+
                                     <h5 class="mb-3">Hola, {{ $customer->tit_name }}</h5>
                                 </div>
                             </div>
@@ -53,7 +56,8 @@
                                                     <td>250028</td>
                                                     <td>
                                                         <p class="mb-0">{{ $customer->tit_address }}<br>
-                                                            Facebook: {{ $customer->tit_facebook ? $customer->tit_facebook : '-' }}<br>
+                                                            Facebook:
+                                                            {{ $customer->tit_facebook ? $customer->tit_facebook : '-' }}<br>
                                                             Teléfono: {{ $customer->tit_phone }}<br>
                                                             Email: {{ $customer->tit_email }}<br>
                                                         </p>
@@ -80,16 +84,16 @@
                                             </thead>
                                             <tbody>
                                                 @foreach ($content as $item)
-                                                <tr>
-                                                    <th class="text-center" scope="row">{{ $loop->iteration }}</th>
-                                                    <td>
-                                                        <h6 class="mb-0">{{ $item->name }}</h6>
-                                                    </td>
-                                                    <td class="text-center">{{ $item->qty }}</td>
-                                                    <td class="text-center">{{ $item->price }}</td>
-                                                    <td class="text-center"><b>{{ $item->subtotal }}</b></td>
-                                                </tr>
-
+                                                    <tr>
+                                                        <th class="text-center" scope="row">{{ $loop->iteration }}
+                                                        </th>
+                                                        <td>
+                                                            <h6 class="mb-0">{{ $item->name }}</h6>
+                                                        </td>
+                                                        <td class="text-center">{{ $item->qty }}</td>
+                                                        <td class="text-center">{{ $item->price }}</td>
+                                                        <td class="text-center"><b>{{ $item->subtotal }}</b></td>
+                                                    </tr>
                                                 @endforeach
                                             </tbody>
                                         </table>
@@ -99,18 +103,19 @@
                             <div class="row">
                                 <div class="col-sm-12">
                                     <b class="text-danger">Notas:</b>
-                                    <p class="mb-0">It is a long established fact that a reader will be distracted by the readable content of a page
-                                        when looking
-                                        at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters,
-                                        as opposed to using 'Content here, content here', making it look like readable English.</p>
+                                    <p class="mb-0">¡Gracias por elegir Zya Celulares y Accesorios! Estamos seguros de
+                                        que nuestro producto cumplirá con tus expectativas y será de gran utilidad. Si
+                                        tienes alguna duda o necesitas ayuda, estamos aquí para apoyarte. ¡Esperamos
+                                        verte pronto!</p>
                                 </div>
                             </div>
                             <div class="row mt-4 mb-3">
                                 <div class="offset-lg-8 col-lg-4">
                                     <div class="or-detail rounded">
-                                        <div class="ttl-amt py-2 px-3 d-flex justify-content-between align-items-center">
+                                        <div
+                                            class="ttl-amt py-2 px-3 d-flex justify-content-between align-items-center">
                                             <h6>Total</h6>
-                                            <h3 class="text-primary font-weight-700">${{ Cart::total()}} MXN. </h3>
+                                            <h3 class="text-primary font-weight-700">${{ Cart::total() }} MXN. </h3>
                                         </div>
                                     </div>
                                 </div>
@@ -124,9 +129,10 @@
     <!-- Wrapper End-->
 
     <script>
-    window.addEventListener("load", (event) => {
-        window.print();
-    });
+        window.addEventListener("load", (event) => {
+            window.print();
+        });
     </script>
 </body>
+
 </html>

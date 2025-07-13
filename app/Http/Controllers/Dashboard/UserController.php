@@ -36,6 +36,7 @@ class UserController extends Controller
     {
         return view('users.create', [
             'roles' => Role::all(),
+            'branches' => \App\Models\Branch::all(),  // Agregado para mostrar sucursales
         ]);
     }
 
@@ -51,16 +52,15 @@ class UserController extends Controller
             'username' => 'required|min:4|max:25|alpha_dash:ascii|unique:users,username',
             'password' => 'min:6|required_with:password_confirmation',
             'password_confirmation' => 'min:6|same:password',
+            'branch_id' => 'required|exists:branches,id',
         ];
 
         $validatedData = $request->validate($rules);
         $validatedData['password'] = Hash::make($request->password);
 
-        /**
-         * Handle upload image with Storage.
-         */
+        // Manejo de la imagen de perfil
         if ($file = $request->file('photo')) {
-            $fileName = hexdec(uniqid()).'.'.$file->getClientOriginalExtension();
+            $fileName = hexdec(uniqid()) . '.' . $file->getClientOriginalExtension();
             $path = 'public/profile/';
 
             $file->storeAs($path, $fileName);
@@ -69,7 +69,7 @@ class UserController extends Controller
 
         $user = User::create($validatedData);
 
-        if($request->role) {
+        if ($request->role) {
             $user->assignRole($request->role);
         }
 
@@ -92,6 +92,7 @@ class UserController extends Controller
         return view('users.edit', [
             'userData' => $user,
             'roles' => Role::all(),
+            'branches' => \App\Models\Branch::all(), // Agregado para mostrar sucursales
         ]);
     }
 
@@ -103,29 +104,32 @@ class UserController extends Controller
         $rules = [
             'name' => 'required|max:50',
             'photo' => 'image|file',
-            'email' => 'required|email|max:50|unique:users,email,'.$user->id,
-            'username' => 'required|min:4|max:25|alpha_dash:ascii|unique:users,username,'.$user->id,
+            'email' => 'required|email|max:50|unique:users,email,' . $user->id,
+            'username' => 'required|min:4|max:25|alpha_dash:ascii|unique:users,username,' . $user->id,
+            'branch_id' => 'required|exists:branches,id',
         ];
 
-        if($request->password || $request->confirm_password) {
+        if ($request->password || $request->confirm_password) {
             $rules['password'] = 'min:6|required_with:password_confirmation';
             $rules['password_confirmation'] = 'min:6|same:password';
         }
 
         $validatedData = $request->validate($rules);
-        $validatedData['password'] = Hash::make($request->password);
 
-        /**
-         * Handle upload image with Storage.
-         */
+        // Solo en caso de que se envíe nueva contraseña
+        if ($request->filled('password')) {
+            $validatedData['password'] = Hash::make($request->password);
+        } else {
+            unset($validatedData['password']);
+        }
+
+        // Manejo de la imagen de perfil
         if ($file = $request->file('photo')) {
-            $fileName = hexdec(uniqid()).'.'.$file->getClientOriginalExtension();
+            $fileName = hexdec(uniqid()) . '.' . $file->getClientOriginalExtension();
             $path = 'public/profile/';
 
-            /**
-             * Delete photo if exists.
-             */
-            if($user->photo){
+            // Eliminar foto previa si existe
+            if ($user->photo) {
                 Storage::delete($path . $user->photo);
             }
 
@@ -133,11 +137,10 @@ class UserController extends Controller
             $validatedData['photo'] = $fileName;
         }
 
-        $userData = User::findOrFail($user->id);
-        $userData->update($validatedData);
+        $user->update($validatedData);
 
-        if($request->role) {
-            $userData->syncRoles($request->role);
+        if ($request->role) {
+            $user->syncRoles($request->role);
         }
 
         return Redirect::route('users.index')->with('success', 'User has been updated!');
@@ -148,14 +151,11 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        /**
-         * Delete photo if exists.
-         */
-        if($user->photo){
+        if ($user->photo) {
             Storage::delete('public/profile/' . $user->photo);
         }
 
-        User::destroy($user->id);
+        $user->delete();
 
         return Redirect::route('users.index')->with('success', 'User has been deleted!');
     }

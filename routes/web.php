@@ -20,6 +20,7 @@ use App\Http\Controllers\Dashboard\RepairsController;
 use App\Http\Controllers\Dashboard\TandaController;
 use App\Http\Controllers\Dashboard\TandaPeriodController;
 use App\Http\Controllers\Dashboard\CashController;
+use App\Http\Controllers\Dashboard\BranchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,6 +51,8 @@ Route::middleware('auth')->group(function () {
 // ====== USERS ======
 Route::middleware(['permission:user.menu'])->group(function () {
     Route::resource('/users', UserController::class)->except(['show']);
+    Route::resource('branches', BranchController::class)->names('branches');
+
 });
 
 // ====== CUSTOMERS ======

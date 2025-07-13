@@ -185,6 +185,8 @@
                                         <th>Foto</th>
                                         <th>@sortablelink('product_name', 'Nombre')</th>
                                         <th>@sortablelink('selling_price', 'Precio')</th>
+                                        <th>@sortablelink('stock_quantity', 'Stock')</th>
+
                                         <th>Accion</th>
                                     </tr>
                                 </thead>
@@ -198,6 +200,8 @@
                                             </td>
                                             <td>{{ $product->product_name }}</td>
                                             <td>{{ $product->selling_price }}</td>
+                                            <td>{{ $product->stock_quantity }}</td>
+
                                             <td>
                                                 <form action="{{ route('pos.addCart') }}" method="POST"
                                                     style="margin-bottom: 5px">
@@ -283,7 +287,6 @@
             const input = document.getElementById('barcodeInput');
             if (input) {
                 input.focus();
-                input.addEventListener('blur', () => input.focus());
             }
         });
     </script>

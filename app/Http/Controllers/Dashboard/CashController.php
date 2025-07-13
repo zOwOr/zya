@@ -16,92 +16,95 @@ class CashController extends Controller
 {
     // Mostrar todos los movimientos de caja
 
-    public function index(Request $request)
-    {
-        // Cuántas filas por página (default 20, editable con ?row=…)
-        $perPage = 5;
+public function index(Request $request)
+{
+    $perPage = 5;
+    $date = $request->input('date');
+    $branchId = auth()->user()->branch_id;
 
+    $cashFlows = CashFlow::where('branch_id', $branchId)
+        ->when($date, fn($q) => $q->whereDate('created_at', $date))
+        ->orderByDesc('created_at')
+        ->paginate($perPage)
+        ->withQueryString();
 
-        // Filtro de fecha opcional
-        $date = $request->input('date');
+    $totalIncome = CashFlow::where('branch_id', $branchId)
+        ->when($date, fn($q) => $q->whereDate('created_at', $date))
+        ->where('type', 'income')->sum('amount');
 
-        $cashFlows = CashFlow::when($date,                     // si viene ?date=YYYY-MM-DD
-                            fn($q) => $q->whereDate('created_at', $date))
-                        ->orderByDesc('created_at')
-                        ->paginate($perPage)                  // 👉 ¡paginado!
-                        ->withQueryString();                  // conserva filtros en links()
+    $totalExpense = CashFlow::where('branch_id', $branchId)
+        ->when($date, fn($q) => $q->whereDate('created_at', $date))
+        ->where('type', 'expense')->sum('amount');
 
-        // Totales (se reutilizan en la vista)
-        $totalIncome  = CashFlow::when($date, fn($q)=>$q->whereDate('created_at',$date))
-                                ->where('type','income')->sum('amount');
-        $totalExpense = CashFlow::when($date, fn($q)=>$q->whereDate('created_at',$date))
-                                ->where('type','expense')->sum('amount');
-        $balance = $totalIncome - $totalExpense;
+    $balance = $totalIncome - $totalExpense;
 
-        return view('cash.index',
-            compact('cashFlows','date','totalIncome','totalExpense','balance','perPage'));
-    }
+    return view('cash.index', compact('cashFlows', 'date', 'totalIncome', 'totalExpense', 'balance', 'perPage'));
+}
+
 
 
     // Mostrar los movimientos del día (corte diario)
 public function dailyCut()
 {
     $today = Carbon::today();
+    $branchId = auth()->user()->branch_id;
 
-    // Paginar los resultados (ej. 10 por página)
-    $cashFlows = CashFlow::whereDate('created_at', $today)
+    $cashFlows = CashFlow::where('branch_id', $branchId)
+        ->whereDate('created_at', $today)
         ->orderByDesc('created_at')
-        ->paginate(perPage: 5 );
+        ->paginate(5);
 
-    // Calcular totales con los datos completos del día (sin paginación)
-    $allDailyCashFlows = CashFlow::whereDate('created_at', $today)->get();
+    $allDailyCashFlows = CashFlow::where('branch_id', $branchId)
+        ->whereDate('created_at', $today)
+        ->get();
 
     $totalIncome = $allDailyCashFlows->where('type', 'income')->sum('amount');
     $totalExpense = $allDailyCashFlows->where('type', 'expense')->sum('amount');
     $balance = $totalIncome - $totalExpense;
 
-    return view('cash.daily-cut', [
-        'cashFlows' => $cashFlows,
-        'totalIncome' => $totalIncome,
-        'totalExpense' => $totalExpense,
-        'balance' => $balance,
-    ]);
+    return view('cash.daily-cut', compact('cashFlows', 'totalIncome', 'totalExpense', 'balance'));
 }
+
 
     
     // Registrar un nuevo movimiento manual (opcional)
-    public function store(Request $request)
-    {
-        $request->validate([
-            'type' => 'required|in:income,expense',
-            'amount' => 'required|numeric|min:0.01',
-            'description' => 'nullable|string|max:255',
-            'reference' => 'nullable|string|max:100',
-            'module' => 'nullable|string|max:100',
-        ]);
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'type' => 'required|in:income,expense',
+        'amount' => 'required|numeric|min:0.01',
+        'description' => 'nullable|string|max:255',
+        'reference' => 'nullable|string|max:100',
+        'module' => 'nullable|string|max:100',
+    ]);
 
-        CashFlow::create($request->all());
+    $validated['branch_id'] = auth()->user()->branch_id;
 
-        return redirect()->route('cash.index')->with('success', 'Movimiento registrado correctamente.');
-    }
-    public function applyCut()
+    CashFlow::create($validated);
+
+    return redirect()->route('cash.index')->with('success', 'Movimiento registrado correctamente.');
+}
+
+public function applyCut()
 {
     $today = Carbon::today();
+    $branchId = auth()->user()->branch_id;
 
-    // Verifica si ya existe un corte para hoy
-    if (DailyCut::where('date', $today)->exists()) {
-        return redirect()->route('cash.daily-cut')->with('error', 'El corte del día ya fue aplicado.');
+    // Verificar si ya existe un corte para esta sucursal hoy
+    if (DailyCut::where('branch_id', $branchId)->where('date', $today)->exists()) {
+        return redirect()->route('cash.daily-cut')->with('error', 'El corte del día ya fue aplicado para esta sucursal.');
     }
 
-    // Obtener todos los movimientos del día
-    $cashFlows = CashFlow::whereDate('created_at', $today)->get();
+    $cashFlows = CashFlow::where('branch_id', $branchId)
+        ->whereDate('created_at', $today)
+        ->get();
 
     $totalIncome = $cashFlows->where('type', 'income')->sum('amount');
     $totalExpense = $cashFlows->where('type', 'expense')->sum('amount');
     $balance = $totalIncome - $totalExpense;
 
-    // Guardar el corte
     DailyCut::create([
+        'branch_id' => $branchId,
         'date' => $today,
         'total_income' => $totalIncome,
         'total_expense' => $totalExpense,
@@ -115,8 +118,10 @@ public function dailyCut()
 public function filterByDate(Request $request)
 {
     $date = $request->input('date', Carbon::today()->toDateString());
+    $branchId = auth()->user()->branch_id;
 
-    $cashFlows = CashFlow::whereDate('created_at', $date)
+    $cashFlows = CashFlow::where('branch_id', $branchId)
+        ->whereDate('created_at', $date)
         ->orderByDesc('created_at')
         ->paginate(5)
         ->withQueryString();

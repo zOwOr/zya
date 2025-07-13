@@ -27,9 +27,10 @@ class User extends Authenticatable
         'password',
         'photo',
         'email_verified_at',
-        'last_login_at', // ✅ Añadido
-
+        'last_login_at',
+        'branch_id',  // <-- agregar aquí para asignación masiva
     ];
+
 
     /**
      * The attributes that should be hidden for serialization.
@@ -100,4 +101,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Movement::class);
     }
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
 }

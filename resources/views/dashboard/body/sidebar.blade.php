@@ -283,6 +283,12 @@
                             <span class="ml-3">Usuarios</span>
                         </a>
                     </li>
+                    <li class="{{ Request::is('users*') ? 'active' : '' }}">
+                        <a href="{{ route('branches.index') }}" class="svg-icon">
+                            <i class="fa-solid fa-users"></i>
+                            <span class="ml-3">Sucursales</span>
+                        </a>
+                    </li>
                 @endif
 
             </ul>

@@ -73,8 +73,8 @@ class ProductController extends Controller
             'product_store' => 'string|nullable',
             'buying_date' => 'date_format:Y-m-d|max:10|nullable',
             'expire_date' => 'date_format:Y-m-d|max:10|nullable',
-            'buying_price' => 'required|integer',
-            'selling_price' => 'required|integer',
+            'buying_price' => 'required',
+            'selling_price' => 'required',
             'stock_quantity' => 'required|integer',
         ];
 
@@ -141,8 +141,8 @@ class ProductController extends Controller
             'product_store' => 'string|nullable',
             'buying_date' => 'date_format:Y-m-d|max:10|nullable',
             'expire_date' => 'date_format:Y-m-d|max:10|nullable',
-            'buying_price' => 'required|integer',
-            'selling_price' => 'required|integer',
+            'buying_price' => 'required',
+            'selling_price' => 'required',
             'stock_quantity' => 'required|integer',
         ];
 
@@ -168,7 +168,7 @@ class ProductController extends Controller
 
         Product::where('id', $product->id)->update($validatedData);
 
-        return Redirect::route('products.index')->with('success', 'Product has been updated!');
+        return Redirect::route('products.index')->with('success', 'El producto se ha actualizado!');
     }
 
     /**
@@ -235,9 +235,9 @@ class ProductController extends Controller
 
         } catch (Exception $e) {
             // $error_code = $e->errorInfo[1];
-            return Redirect::route('products.index')->with('error', 'There was a problem uploading the data!');
+            return Redirect::route('products.index')->with('error', 'Hubo un problema al cargar los datos!');
         }
-        return Redirect::route('products.index')->with('success', 'Data has been successfully imported!');
+        return Redirect::route('products.index')->with('success', 'Los datos se han importado correctamente.!');
     }
 
     public function exportExcel($products){

@@ -87,6 +87,25 @@
                                 </div>
                                 @enderror
                             </div>
+
+                            <!-- Agregado selector de sucursal -->
+                            <div class="form-group col-md-6">
+                                <label for="branch_id">Sucursal <span class="text-danger">*</span></label>
+                                <select class="form-control @error('branch_id') is-invalid @enderror" name="branch_id" id="branch_id" required>
+                                    <option value="" disabled selected>-- Seleccionar Sucursal --</option>
+                                    @foreach ($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
+                                            {{ $branch->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('branch_id')
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+                                @enderror
+                            </div>
+
                             <div class="form-group col-md-6">
                                 <label for="role">Rol</label>
                                 <select class="form-control @error('role') is-invalid @enderror" name="role">

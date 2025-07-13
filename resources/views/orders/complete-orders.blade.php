@@ -59,9 +59,9 @@
                         <tr class="ligth ligth-data">
                             <th>No.</th>
                             <th>Nota de Venta</th>
-                            <th>@sortablelink('customer.name', 'name')</th>
-                            <th>@sortablelink('order_date', 'order date')</th>
-                            <th>@sortablelink('pay')</th>
+                            <th>@sortablelink('customer.name', 'Nombre')</th>
+                            <th>@sortablelink('order_date', 'Fecha')</th>
+                            <th>@sortablelink('Pago')</th>
                             <th>Metodo de Pago</th>
                             <th>Status</th>
                             <th>Accion</th>

@@ -23,8 +23,8 @@ return new class extends Migration
             $table->string('product_store')->nullable();
             $table->date('buying_date')->nullable();
             $table->string('expire_date')->nullable();
-            $table->integer('buying_price')->nullable();
-            $table->integer('selling_price')->nullable();
+            $table->float('buying_price')->nullable();
+            $table->float('selling_price')->nullable();
             $table->integer('stock_quantity')->default(0); 
             $table->timestamps();
         });

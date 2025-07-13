@@ -168,7 +168,25 @@ class OrderController extends Controller
         // Delete Cart Sopping History
         Cart::destroy();
 
-        return Redirect::route('dashboard')->with('success', 'Order has been created!');
+        $branchId = $request->branch_id ?? auth()->user()->branch_id ?? null;
+
+        if (!$branchId) {
+            return redirect()->back()->with('error', 'No se especificó la sucursal.');
+        }
+
+        CashFlowService::register(
+            'income',
+            $validatedData['pay'],
+            'Pago inicial de la orden #' . $order_id,
+            $order_id,
+            'Orden',
+            $branchId  // aquí pasa la sucursal
+        );
+
+
+
+
+        return Redirect::route('dashboard')->with('success', 'El pedido se ha creado!');
     }
 
     /**
@@ -189,28 +207,48 @@ class OrderController extends Controller
             'orderDetails' => $orderDetails,
             'orderDetailVideo' => $orderDetailVideo,
         ]);
+    }public function updateAmount(Request $request)
+{
+    $order = Order::findOrFail($request->order_id);
+
+    $previousPay = $order->pay;  // Guardamos el pago anterior
+
+    // Actualizar las cantidades
+    $order->pay = $request->pay;
+    $order->due = $request->due;
+    $order->save();
+
+    // Guardar movimiento en el historial
+    Movement::create([
+        'order_id' => $order->id,
+        'movement_type' => 'Actualización de pago',
+        'amount' => $request->due - $request->pay,
+        'justification' => $request->justification,
+        'user_id' => auth()->id(),
+    ]);
+
+    // Registrar movimiento en caja según diferencia de pago
+    $deltaPay = $order->pay - $previousPay;
+
+    $branchId = auth()->user()->branch_id ?? null;
+
+    if (!$branchId) {
+        return back()->with('error', 'No se especificó la sucursal para registrar movimiento en caja.');
     }
-    public function updateAmount(Request $request)
-    {
-        $order = Order::findOrFail($request->order_id);
 
-        // Actualizar las cantidades
-        $order->pay = $request->pay;
-        $order->due = $request->due;
-        $order->save();
+    CashFlowService::register(
+        $deltaPay > 0 ? 'income' : 'expense',
+        abs($deltaPay),
+        'Ajuste de pago orden #' . $order->id,
+        $order->id,
+        'Orden',
+        $branchId
+    );
 
-        // Guardar movimiento en el historial
-        Movement::create([
-            'order_id' => $order->id,
-            'movement_type' => 'Actualización de pago',
-            'amount' => $request->due - $request->pay,
-            'justification' => $request->justification,
-            'user_id' => auth()->id(), // Asegúrate de que se esté asignando el valor correcto
-        ]);
-        
 
-        return back()->with('success', 'Las cantidades se han actualizado correctamente.');
-    }
+    return back()->with('success', 'Las cantidades se han actualizado correctamente.');
+}
+
     public function uploadVideo(Request $request)
     {
         $request->validate([
@@ -266,7 +304,7 @@ class OrderController extends Controller
 
         Order::findOrFail($order_id)->update(['order_status' => 'complete']);
 
-        return Redirect::route('order.pendingOrders')->with('success', 'Order has been completed!');
+        return Redirect::route('order.pendingOrders')->with('success', 'El pedido se ha completado.');
     }
 
     public function invoiceDownload(Int $order_id)
@@ -307,47 +345,47 @@ class OrderController extends Controller
 
         return response()->json($order);
     }
+public function updateDue(Request $request)
+{
+    // ✅ Validar si el corte del día ya fue aplicado
+    if (DailyCut::where('date', Carbon::today())->exists()) {
+        return redirect()->route('order.pendingDue')->with('error', 'No se puede registrar el pago. El corte diario ya fue aplicado.');
+    }
 
-    public function updateDue(Request $request)
-    {
-            // ✅ Validar si el corte del día ya fue aplicado
-        if (DailyCut::where('date', Carbon::today())->exists()) {
-            return redirect()->route('order.pendingDue')->with('error', 'No se puede registrar el pago. El corte diario ya fue aplicado.');
-        }
+    $rules = [
+        'order_id' => 'required|numeric',
+        'due' => 'required|numeric',
+    ];
 
+    $validatedData = $request->validate($rules);
 
+    $order = Order::findOrFail($request->order_id);
 
+    if ($validatedData['due'] > $order->due) {
+        return redirect()->route('order.pendingDue')->with('error', 'El monto ingresado excede la cantidad debida.');
+    }
+    if ($validatedData['due'] <= 0) {
+        return redirect()->route('order.pendingDue')->with('error', 'El monto a pagar debe ser mayor que cero.');
+    }
 
-        $rules = [
-            'order_id' => 'required|numeric',
-            'due' => 'required|numeric',
-        ];
+    $mainPay = $order->pay;
+    $mainDue = $order->due;
 
-        $validatedData = $request->validate($rules);
+    $paid_due = $mainDue - $validatedData['due'];
+    $paid_pay = $mainPay + $validatedData['due'];
 
-        $order = Order::findOrFail($request->order_id);
-
-        if ($validatedData['due'] > $order->due) {
-            return redirect()->route('order.pendingDue')->with('error', 'El monto ingresado excede la cantidad debida.');
-        }
-        if ($validatedData['due'] <= 0) {
-            return redirect()->route('order.pendingDue')->with('error', 'El monto a pagar debe ser mayor que cero.');
-        }
-
-
-        $mainPay = $order->pay;
-        $mainDue = $order->due;
-
-        $paid_due = $mainDue - $validatedData['due'];
-        $paid_pay = $mainPay + $validatedData['due'];
-
-        Order::findOrFail($request->order_id)->update([
-            'due' => $paid_due,
-            'pay' => $paid_pay,
-        ]);
-
+    Order::findOrFail($request->order_id)->update([
+        'due' => $paid_due,
+        'pay' => $paid_pay,
+    ]);
 
     $paidAmount = $paid_pay - $mainPay;
+
+    // Obtener branch_id del usuario autenticado o poner otro valor por defecto
+    $branchId = auth()->user()->branch_id ?? null;
+    if (!$branchId) {
+        return redirect()->route('order.pendingDue')->with('error', 'No se pudo determinar la sucursal para registrar el pago.');
+    }
 
     // Registrar en caja solo si pagó algo
     if ($paidAmount > 0) {
@@ -356,28 +394,36 @@ class OrderController extends Controller
             $paidAmount,  // Registrar solo lo pagado en esta operación
             'Pago parcial de orden #' . $order->id,
             $order->id,
-            'Orden'
+            'Orden',
+            $branchId  // PASAR branch_id aquí
         );
     }
 
     return Redirect::route('order.pendingDue')->with('success', 'Due Amount Updated Successfully!');
 }
 
-    public function markAsPaid($orderId)
+public function markAsPaid($orderId)
 {
     $order = Order::findOrFail($orderId);
     $order->update(['order_status' => 'paid']);
+
+    $branchId = auth()->user()->branch_id ?? null;
+    if (!$branchId) {
+        return redirect()->back()->with('error', 'No se pudo determinar la sucursal para registrar el pago.');
+    }
 
     CashFlowService::register(
         'income',
         $order->total_amount,
         'Pago de orden #' . $order->id,
         $order->id,
-        'ventas'
+        'ventas',
+        $branchId  // Aquí pasas la sucursal
     );
 
     return redirect()->back()->with('success', 'Orden pagada y registrada en caja.');
 }
+
 public function updateDeviceId(Request $request)
 {
     $request->validate([
