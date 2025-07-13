@@ -27,6 +27,8 @@ class User extends Authenticatable
         'password',
         'photo',
         'email_verified_at',
+        'last_login_at', // ✅ Añadido
+
     ];
 
     /**
@@ -46,6 +48,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'last_login_at' => 'datetime', // ✅
+
     ];
 
     public $sortable = [

@@ -37,14 +37,7 @@
                                             <label>Contraseña</label>
                                         </div>
                                     </div>
-                                    <div class="col-lg-6">
-                                        <p>
-                                            Aún no tienes usuario? <a href="{{ route('register') }}" class="text-primary">Registrar</a>
-                                        </p>
-                                    </div>
-                                    <div class="col-lg-6">
-                                        <a href="#" class="text-primary float-right">¿Olvidaste tu contraseña?</a>
-                                    </div>
+                                    
                                 </div>
                                 <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
                             </form>
