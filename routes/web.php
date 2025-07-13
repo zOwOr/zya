@@ -137,7 +137,8 @@ Route::middleware(['permission:cash.menu'])->group(function () {
     Route::get('/cash', [CashController::class, 'index'])->name('cash.index');
 
     // Ver el corte diario (los movimientos del día)
-    Route::get('/cash/daily-cut', [CashController::class, 'dailyCut'])->name('cash.daily-cut');
+    Route::get('/cash/daily-cut', [CashController::class, 'dailyCut'])->name('cash.dailyCut');
+
 
     // Registrar un movimiento manual (ingreso o egreso)
     Route::post('/cash', [CashController::class, 'store'])->name('cash.store');
@@ -145,6 +146,8 @@ Route::middleware(['permission:cash.menu'])->group(function () {
     Route::post('/cash/apply-cut', [CashController::class, 'applyCut'])->name('cash.applyCut');
 
     Route::get('/cash/filter-by-date', [CashController::class, 'filterByDate'])->name('cash.filterByDate');
+    Route::get('/cash/print', [CashController::class, 'printCut'])->name('cash.printCut');
+
 
 });
 

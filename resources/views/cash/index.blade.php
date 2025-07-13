@@ -13,7 +13,7 @@
 
         <div class="form-group row align-items-center">
             <div class="col-md-12 mb-3 d-flex gap-2 flex-wrap">
-                <a href="{{ route('cash.daily-cut') }}" class="btn btn-lg btn-primary">Ver Corte Diario</a>
+                <a href="{{ route('cash.dailyCut') }}" class="btn btn-lg btn-primary">Ver Corte Diario</a>
                 <a href="{{ route('cash.index') }}" class="btn btn-lg btn-secondary">Actualizar</a>
             </div>
         </div>

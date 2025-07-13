@@ -16,7 +16,7 @@
                             enctype="multipart/form-data">
                             @csrf
                             @method('put')
-                            <!-- begin: Input Image -->
+                            <!-- begin: Input Image -->.
                             <div class="form-group row align-items-center">
                                 <div class="col-md-12">
                                     <div class="profile-img-edit">
