@@ -48,7 +48,7 @@ class UserController extends Controller
         $rules = [
             'name' => 'required|max:50',
             'photo' => 'image|file',
-            'email' => 'required|email|max:50',
+            'email' => 'required|email|max:50|unique:users,email',
             'username' => 'required|min:4|max:25|alpha_dash:ascii|unique:users,username',
             'password' => 'min:6|required_with:password_confirmation',
             'password_confirmation' => 'min:6|same:password',
@@ -104,7 +104,7 @@ class UserController extends Controller
         $rules = [
             'name' => 'required|max:50',
             'photo' => 'image|file',
-            'email' => 'required|email|max:50' . $user->id,
+            'email' => 'required|email|max:50|unique:users,email,' . $user->id,
             'username' => 'required|min:4|max:25|alpha_dash:ascii|unique:users,username,' . $user->id,
             'branch_id' => 'required|exists:branches,id',
         ];

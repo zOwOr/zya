@@ -42,7 +42,7 @@ class CustomerController extends Controller
     {
         $rules = [
             'tit_name' => 'required|string|max:50',
-            'tit_email' => 'required|email|max:50|unique:customers,tit_email',
+            'tit_email' => 'required|email|max:50',
             'tit_phone' => 'required|string|max:15|unique:customers,tit_phone',
             'tit_status' => 'required|string|max:15',
             'tit_address' => 'required|string|max:100',
@@ -152,7 +152,7 @@ class CustomerController extends Controller
         $rules = [
 
             'tit_name' => 'required|string|max:50',
-            'tit_email' => 'required|email|max:50|unique:customers,tit_email,'.$customer->id,
+            'tit_email' => 'required|email|max:50,'.$customer->id,
             'tit_phone' => 'required|string|max:15|unique:customers,tit_phone, '.$customer->id,
             'tit_status' => 'required|string|max:15',
             'tit_address' => 'required|string|max:100',
