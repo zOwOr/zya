@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CashFlow;
 use App\Models\DailyCut;
 use Illuminate\Support\Facades\Log;
+use App\Models\PaymentHistory;
 
 class CashController extends Controller
 {
@@ -71,7 +72,7 @@ public function dailyCut()
         ->where('date', $today)
         ->first();
 
-    // Si no hay corte aún, creamos un objeto manual para la vista
+    // Crea objeto si aún no existe corte
     if (!$dailyCut) {
         $dailyCut = (object)[
             'opening_balance' => $openingBalance,
@@ -81,9 +82,14 @@ public function dailyCut()
         ];
     }
 
-    return view('cash.daily-cut', compact('cashFlows', 'dailyCut'));
-}
+    // ✅ Traer pagos del día que NO entran a caja
+    $externalPayments = PaymentHistory::where('branch_id', $branchId)
+        ->whereDate('created_at', $today)
+        ->whereIn('method', ['Cheque', 'Due'])
+        ->get();
 
+    return view('cash.daily-cut', compact('cashFlows', 'dailyCut', 'externalPayments'));
+}
 
 
     // Registrar un nuevo movimiento manual (opcional)

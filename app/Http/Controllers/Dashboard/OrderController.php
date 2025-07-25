@@ -18,7 +18,7 @@ use Gloudemans\Shoppingcart\Facades\Cart;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
 use App\Services\CashFlowService;
 use App\Models\DailyCut;
-
+use App\Models\PaymentHistory;
 class OrderController extends Controller
 {
     /**
@@ -347,60 +347,56 @@ class OrderController extends Controller
     }
 public function updateDue(Request $request)
 {
-    // ✅ Validar si el corte del día ya fue aplicado
     if (DailyCut::where('date', Carbon::today())->exists()) {
         return redirect()->route('order.pendingDue')->with('error', 'No se puede registrar el pago. El corte diario ya fue aplicado.');
     }
 
-    $rules = [
+    $validatedData = $request->validate([
         'order_id' => 'required|numeric',
         'due' => 'required|numeric',
-    ];
+        'payment_method' => 'required|in:HandCash,Cheque,Due',
+    ]);
 
-    $validatedData = $request->validate($rules);
-
-    $order = Order::findOrFail($request->order_id);
+    $order = Order::findOrFail($validatedData['order_id']);
 
     if ($validatedData['due'] > $order->due) {
         return redirect()->route('order.pendingDue')->with('error', 'El monto ingresado excede la cantidad debida.');
     }
-    if ($validatedData['due'] <= 0) {
-        return redirect()->route('order.pendingDue')->with('error', 'El monto a pagar debe ser mayor que cero.');
-    }
 
-    $mainPay = $order->pay;
-    $mainDue = $order->due;
 
-    $paid_due = $mainDue - $validatedData['due'];
-    $paid_pay = $mainPay + $validatedData['due'];
+    // Calcular los nuevos valores
+    $paid_due = $order->due - $validatedData['due'];
+    $paid_pay = $order->pay + $validatedData['due'];
 
-    Order::findOrFail($request->order_id)->update([
+    $order->update([
         'due' => $paid_due,
         'pay' => $paid_pay,
     ]);
 
-    $paidAmount = $paid_pay - $mainPay;
+    // Registrar SIEMPRE el historial del pago
+    PaymentHistory::create([
+        'order_id' => $order->id,
+        'amount' => $validatedData['due'],
+        'method' => $validatedData['payment_method'],
+        'user_id' => auth()->id(),
+        'branch_id' => auth()->user()->branch_id ?? null,
+    ]);
 
-    // Obtener branch_id del usuario autenticado o poner otro valor por defecto
-    $branchId = auth()->user()->branch_id ?? null;
-    if (!$branchId) {
-        return redirect()->route('order.pendingDue')->with('error', 'No se pudo determinar la sucursal para registrar el pago.');
-    }
-
-    // Registrar en caja solo si pagó algo
-    if ($paidAmount > 0) {
+    // Registrar en caja SOLO si es Efectivo
+    if ($validatedData['payment_method'] === 'HandCash') {
         CashFlowService::register(
             'income',
-            $paidAmount,  // Registrar solo lo pagado en esta operación
+            $validatedData['due'],
             'Pago parcial de orden #' . $order->id,
             $order->id,
             'Orden',
-            $branchId  // PASAR branch_id aquí
+            auth()->user()->branch_id
         );
     }
 
-    return Redirect::route('order.pendingDue')->with('success', 'Due Amount Updated Successfully!');
+    return redirect()->route('order.pendingDue')->with('success', 'Pago registrado correctamente.');
 }
+
 
 public function markAsPaid($orderId)
 {

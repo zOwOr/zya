@@ -97,6 +97,90 @@
                 </tbody>
             </table>
 
+
+            @php
+                $totalCheque = $externalPayments->where('method', 'Cheque')->sum('amount');
+                $totalDue = $externalPayments->where('method', 'Due')->sum('amount');
+            @endphp
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="alert alert-primary text-center">
+                        <strong>Total Transferencias:</strong> ${{ number_format($totalCheque, 2) }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="alert alert-warning text-center">
+                        <strong>Total Créditos:</strong> ${{ number_format($totalDue, 2) }}
+                    </div>
+                </div>
+            </div>
+
+
+            {{-- TABLA DE PAGOS POR TRANSFERENCIA --}}
+            @php
+                $transferPayments = $externalPayments->where('method', 'Cheque');
+            @endphp
+
+            @if ($transferPayments->count())
+                <h5 class="mt-5">Pagos por Transferencia</h5>
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Orden</th>
+                            <th>Monto</th>
+                            <th>Método</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($transferPayments as $payment)
+                            <tr>
+                                <td>{{ $payment->created_at->format('d/m/Y H:i') }}</td>
+                                <td>#{{ $payment->order_id }}</td>
+                                <td>${{ number_format($payment->amount, 2) }}</td>
+                                <td>Transferencia</td>
+                                <td>{{ $payment->user->name ?? 'N/D' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+            {{-- TABLA DE PAGOS A CRÉDITO --}}
+            @php
+                $creditPayments = $externalPayments->where('method', 'Due');
+            @endphp
+
+            @if ($creditPayments->count())
+                <h5 class="mt-5">Pagos a Crédito</h5>
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Orden</th>
+                            <th>Monto</th>
+                            <th>Método</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($creditPayments as $payment)
+                            <tr>
+                                <td>{{ $payment->created_at->format('d/m/Y H:i') }}</td>
+                                <td>#{{ $payment->order_id }}</td>
+                                <td>${{ number_format($payment->amount, 2) }}</td>
+                                <td>Crédito</td>
+                                <td>{{ $payment->user->name ?? 'N/D' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+
+
             <div class="mt-3">
                 {{ $cashFlows->links('pagination::bootstrap-5') }}
             </div>
