@@ -11,6 +11,22 @@
 
             <a href="{{ route('cash.index') }}" class="btn btn-secondary mb-3">Volver</a>
 
+            <div class="card mt-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Banco - Saldo Total</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Efectivo:</strong> ${{ number_format($handCash, 2) }}</p>
+                    <p><strong>Transferencia:</strong> ${{ number_format($cheque, 2) }}</p>
+                    <p><strong>Tarjeta:</strong> ${{ number_format($due, 2) }}</p>
+                    <hr>
+                    <p><strong class="text-success">Total Banco:</strong> <span
+                            class="h5">${{ number_format($totalBanco, 2) }}</span></p>
+                </div>
+            </div>
+
+
+
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="card border-success">
@@ -111,7 +127,7 @@
                 </div>
                 <div class="col-md-6">
                     <div class="alert alert-warning text-center">
-                        <strong>Total Créditos:</strong> ${{ number_format($totalDue, 2) }}
+                        <strong>Total Tarjeta:</strong> ${{ number_format($totalDue, 2) }}
                     </div>
                 </div>
             </div>
@@ -154,7 +170,7 @@
             @endphp
 
             @if ($creditPayments->count())
-                <h5 class="mt-5">Pagos a Crédito</h5>
+                <h5 class="mt-5">Pagos con Tarjeta</h5>
                 <table class="table table-sm table-bordered">
                     <thead class="table-light">
                         <tr>

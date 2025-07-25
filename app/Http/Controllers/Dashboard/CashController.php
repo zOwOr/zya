@@ -88,7 +88,23 @@ public function dailyCut()
         ->whereIn('method', ['Cheque', 'Due'])
         ->get();
 
-    return view('cash.daily-cut', compact('cashFlows', 'dailyCut', 'externalPayments'));
+        $paymentTotalsByMethod = PaymentHistory::where('branch_id', $branchId)
+            ->whereDate('created_at', $today)
+            ->whereIn('method', ['HandCash', 'Cheque', 'Due'])
+            ->select('method', DB::raw('SUM(amount) as total'))
+            ->groupBy('method')
+            ->pluck('total', 'method');
+
+        // Valores individuales
+        $handCash = $paymentTotalsByMethod['HandCash'] ?? 0;
+        $cheque = $paymentTotalsByMethod['Cheque'] ?? 0;
+        $due = $paymentTotalsByMethod['Due'] ?? 0;
+
+        // Total general (Banco)
+        $totalBanco = $handCash + $cheque + $due;
+
+
+    return view('cash.daily-cut', compact('cashFlows', 'dailyCut', 'externalPayments', 'handCash','cheque', 'due','totalBanco'));
 }
 
 
