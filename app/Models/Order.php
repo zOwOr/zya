@@ -46,5 +46,9 @@ class Order extends Model
     {
         return $this->hasMany(Movement::class);
     }
+public function orderDetails()
+{
+    return $this->hasMany(OrderDetails::class);
+}
 
 }

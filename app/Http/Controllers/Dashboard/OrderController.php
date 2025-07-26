@@ -322,22 +322,45 @@ class OrderController extends Controller
         ]);
     }
 
-    public function pendingDue()
-    {
-        $row = (int) request('row', 10);
+public function pendingDue()
+{
+    $row = (int) request('row', 10);
 
-        if ($row < 1 || $row > 100) {
-            abort(400, 'The per-page parameter must be an integer between 1 and 100.');
-        }
-
-        $orders = Order::where('due', '>', '0')
-            ->sortable()
-            ->paginate($row);
-
-        return view('orders.pending-due', [
-            'orders' => $orders
-        ]);
+    if ($row < 1 || $row > 100) {
+        abort(400, 'The per-page parameter must be an integer between 1 and 100.');
     }
+
+    $search = request('search');
+    $deviceId = request('device_id');
+    $imei = request('imei');
+    $productName = request('product');
+
+    $query = Order::where('due', '>', 0);
+
+    if ($search) {
+        $query->where(function($q) use ($search) {
+            $q->where('invoice_no', 'like', "%{$search}%")
+              ->orWhereHas('customer', fn($q2) => $q2->where('tit_name', 'like', "%{$search}%"));
+        });
+    }
+
+    if ($deviceId) {
+        $query->whereHas('orderDetails', fn($q) => $q->where('device_id', 'like', "%{$deviceId}%"));
+    }
+
+    if ($imei) {
+        $query->whereHas('orderDetails.product', fn($q) => $q->where('imei', 'like', "%{$imei}%"));
+    }
+
+
+
+    $orders = $query->sortable()->paginate($row)->appends(request()->query());
+
+    return view('orders.pending-due', [
+        'orders' => $orders
+    ]);
+}
+
 
     public function orderDueAjax(Int $id)
     {

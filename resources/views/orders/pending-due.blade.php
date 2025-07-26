@@ -60,6 +60,14 @@
                             </div>
                         </div>
 
+                        <div class="form-group">
+                            <input type="text" name="device_id" placeholder="Buscar por device/id" class="form-control"
+                                value="{{ request('device_id') }}">
+                        </div>
+                        <div class="form-group">
+                            <input type="text" name="imei" placeholder="Buscar por IMEI" class="form-control"
+                                value="{{ request('imei') }}">
+                        </div>
                         <div class="form-group row">
                             <label class="control-label col-sm-3 align-self-center" for="search">Buscar:</label>
                             <div class="col-sm-8">
@@ -73,6 +81,7 @@
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </form>
             </div>
@@ -93,6 +102,8 @@
                             </tr>
                         </thead>
                         <tbody class="ligth-body">
+
+
                             @foreach ($orders as $order)
                                 <tr>
                                     <td>{{ $orders->currentPage() * 10 - 10 + $loop->iteration }}</td>
@@ -100,7 +111,25 @@
                                     <td>{{ $order->customer ? $order->customer->tit_name : 'El cliente ha sido eliminado' }}
                                     </td>
                                     <td>{{ Carbon\Carbon::parse($order->order_date)->format('Y m, d') }}</td>
-                                    <td>{{ $order->payment_status }}</td>
+                                    <td>
+                                        @switch($order->payment_status)
+                                            @case('HandCash')
+                                                Efectivo
+                                            @break
+
+                                            @case('Cheque')
+                                                Transferencia
+                                            @break
+
+                                            @case('Due')
+                                                Crédito
+                                            @break
+
+                                            @default
+                                                {{ $order->payment_status }}
+                                        @endswitch
+                                    </td>
+
                                     <td>
                                         <span class="btn btn-warning text-white">
                                             ${{ $order->pay }}
