@@ -13,6 +13,7 @@ use App\Models\CashFlow;
 use App\Models\DailyCut;
 use Illuminate\Support\Facades\Log;
 use App\Models\PaymentHistory;
+use App\Models\OrderDetails;
 
 class CashController extends Controller
 {
@@ -43,10 +44,72 @@ class CashController extends Controller
     }
 
     // Mostrar los movimientos del día (corte diario)
-public function dailyCut()
+public function dailyCut(Request $request)
 {
     $today = Carbon::today();
     $branchId = auth()->user()->branch_id;
+
+    $search = $request->input('search');
+
+    // Mapear términos amigables a métodos reales
+    $methodMap = [
+        'efectivo' => 'HandCash',
+        'transferencia' => 'Cheque',
+        'tarjeta' => 'Due',
+    ];
+
+    $searchMethod = null;
+    $searchLower = strtolower($search);
+
+    if (isset($methodMap[$searchLower])) {
+        $searchMethod = $methodMap[$searchLower];
+    }
+
+    // IDs de órdenes con productos de proveedores Payjoy o KrediYa
+    $specialProviderOrderIds = OrderDetails::whereHas('product.supplier', function ($q) {
+        $q->whereIn('name', ['Payjoy', 'KrediYa']);
+    })->pluck('order_id')->unique()->toArray();
+
+    // Pagos especiales con filtro
+    $specialProviderPaymentsQuery = PaymentHistory::where('branch_id', $branchId)
+        ->whereDate('created_at', $today)
+        ->whereIn('order_id', $specialProviderOrderIds);
+
+    if ($search) {
+        $specialProviderPaymentsQuery->where(function ($q) use ($search, $searchMethod) {
+            $q->where('order_id', 'like', "%{$search}%")
+              ->orWhereHas('user', fn($q2) => $q2->where('name', 'like', "%{$search}%"));
+
+            if ($searchMethod) {
+                $q->orWhere('method', $searchMethod);
+            } else {
+                $q->orWhere('method', 'like', "%{$search}%");
+            }
+        });
+    }
+
+    $specialProviderPayments = $specialProviderPaymentsQuery->get();
+
+    // Pagos externos con filtro
+    $externalPaymentsQuery = PaymentHistory::where('branch_id', $branchId)
+        ->whereDate('created_at', $today)
+        ->whereIn('method', ['Cheque', 'Due'])
+        ->whereNotIn('order_id', $specialProviderOrderIds);
+
+    if ($search) {
+        $externalPaymentsQuery->where(function ($q) use ($search, $searchMethod) {
+            $q->where('order_id', 'like', "%{$search}%")
+              ->orWhereHas('user', fn($q2) => $q2->where('name', 'like', "%{$search}%"));
+
+            if ($searchMethod) {
+                $q->orWhere('method', $searchMethod);
+            } else {
+                $q->orWhere('method', 'like', "%{$search}%");
+            }
+        });
+    }
+
+    $externalPayments = $externalPaymentsQuery->get();
 
     $cashFlows = CashFlow::where('branch_id', $branchId)
         ->whereDate('created_at', $today)
@@ -72,7 +135,6 @@ public function dailyCut()
         ->where('date', $today)
         ->first();
 
-    // Crea objeto si aún no existe corte
     if (!$dailyCut) {
         $dailyCut = (object)[
             'opening_balance' => $openingBalance,
@@ -82,30 +144,35 @@ public function dailyCut()
         ];
     }
 
-    // ✅ Traer pagos del día que NO entran a caja
-    $externalPayments = PaymentHistory::where('branch_id', $branchId)
+    // Totales para banco, excluyendo órdenes especiales
+    $paymentTotalsByMethod = PaymentHistory::where('branch_id', $branchId)
         ->whereDate('created_at', $today)
-        ->whereIn('method', ['Cheque', 'Due'])
-        ->get();
+        ->whereIn('method', ['HandCash', 'Cheque', 'Due'])
+        ->whereNotIn('order_id', $specialProviderOrderIds)
+        ->select('method', DB::raw('SUM(amount) as total'))
+        ->groupBy('method')
+        ->pluck('total', 'method');
 
-        $paymentTotalsByMethod = PaymentHistory::where('branch_id', $branchId)
-            ->whereDate('created_at', $today)
-            ->whereIn('method', ['HandCash', 'Cheque', 'Due'])
-            ->select('method', DB::raw('SUM(amount) as total'))
-            ->groupBy('method')
-            ->pluck('total', 'method');
+    $handCash = $paymentTotalsByMethod['HandCash'] ?? 0;
+    $cheque = $paymentTotalsByMethod['Cheque'] ?? 0;
+    $due = $paymentTotalsByMethod['Due'] ?? 0;
 
-        // Valores individuales
-        $handCash = $paymentTotalsByMethod['HandCash'] ?? 0;
-        $cheque = $paymentTotalsByMethod['Cheque'] ?? 0;
-        $due = $paymentTotalsByMethod['Due'] ?? 0;
+    $totalBanco = $handCash + $cheque + $due;
 
-        // Total general (Banco)
-        $totalBanco = $handCash + $cheque + $due;
-
-
-    return view('cash.daily-cut', compact('cashFlows', 'dailyCut', 'externalPayments', 'handCash','cheque', 'due','totalBanco'));
+    return view('cash.daily-cut', compact(
+        'cashFlows',
+        'specialProviderPayments',
+        'dailyCut',
+        'externalPayments',
+        'handCash',
+        'cheque',
+        'due',
+        'totalBanco',
+        'search'
+    ));
 }
+
+
 
 
     // Registrar un nuevo movimiento manual (opcional)

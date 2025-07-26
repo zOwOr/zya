@@ -344,13 +344,8 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         return response()->json($order);
-    }
-public function updateDue(Request $request)
+    }public function updateDue(Request $request)
 {
-    if (DailyCut::where('date', Carbon::today())->exists()) {
-        return redirect()->route('order.pendingDue')->with('error', 'No se puede registrar el pago. El corte diario ya fue aplicado.');
-    }
-
     $validatedData = $request->validate([
         'order_id' => 'required|numeric',
         'due' => 'required|numeric',
@@ -359,12 +354,17 @@ public function updateDue(Request $request)
 
     $order = Order::findOrFail($validatedData['order_id']);
 
+    // Detectar si la orden tiene productos con proveedores Payjoy o KrediYa
+    $hasSpecialProvider = \App\Models\OrderDetails::where('order_id', $order->id)
+        ->whereHas('product.supplier', function($query) {
+            $query->whereIn('name', ['Payjoy', 'KrediYa']);
+        })->exists();
+
     if ($validatedData['due'] > $order->due) {
         return redirect()->route('order.pendingDue')->with('error', 'El monto ingresado excede la cantidad debida.');
     }
 
-
-    // Calcular los nuevos valores
+    // Actualizar pagos en la orden
     $paid_due = $order->due - $validatedData['due'];
     $paid_pay = $order->pay + $validatedData['due'];
 
@@ -373,7 +373,7 @@ public function updateDue(Request $request)
         'pay' => $paid_pay,
     ]);
 
-    // Registrar SIEMPRE el historial del pago
+    // Registrar historial siempre
     PaymentHistory::create([
         'order_id' => $order->id,
         'amount' => $validatedData['due'],
@@ -382,16 +382,36 @@ public function updateDue(Request $request)
         'branch_id' => auth()->user()->branch_id ?? null,
     ]);
 
-    // Registrar en caja SOLO si es Efectivo
-    if ($validatedData['payment_method'] === 'HandCash') {
-        CashFlowService::register(
-            'income',
-            $validatedData['due'],
-            'Pago parcial de orden #' . $order->id,
-            $order->id,
-            'Orden',
-            auth()->user()->branch_id
-        );
+    // Si el proveedor es especial, no registrar en banco nunca
+    if ($hasSpecialProvider) {
+        if ($validatedData['payment_method'] === 'HandCash') {
+            // Registrar solo en caja (CashFlow)
+            CashFlowService::register(
+                'income',
+                $validatedData['due'],
+                'Pago efectivo orden #' . $order->id . ' - proveedor especial',
+                $order->id,
+                'Orden',
+                auth()->user()->branch_id
+            );
+        }
+        // Para cheque o due no registrar nada en caja ni banco, solo historial (ya hecho)
+    } else {
+        // Para otras órdenes, comportamiento normal
+        if ($validatedData['payment_method'] === 'HandCash') {
+            // Registrar en caja y banco (depende de cómo lo tengas)
+            CashFlowService::register(
+                'income',
+                $validatedData['due'],
+                'Pago efectivo orden #' . $order->id,
+                $order->id,
+                'Orden',
+                auth()->user()->branch_id
+            );
+            // Aquí deberías incluir el registro en banco si tienes servicio/modelo para ello
+        } elseif (in_array($validatedData['payment_method'], ['Cheque', 'Due'])) {
+            // No registrar en caja ni banco, solo historial
+        }
     }
 
     return redirect()->route('order.pendingDue')->with('success', 'Pago registrado correctamente.');
