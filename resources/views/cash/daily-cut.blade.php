@@ -257,14 +257,14 @@
         @endphp
 
         @if (!$cutExists)
-            <form method="POST" action="{{ route('cash.applyCut') }}">
+            <form method="POST" action="{{ route('cash.applyCut') }}" id="cutForm">
                 @csrf
                 <div class="mb-3">
                     <label for="withdraw_amount" class="form-label">Monto a retirar del saldo final (opcional):</label>
                     <input type="number" name="withdraw_amount" id="withdraw_amount" step="0.01" class="form-control"
                         value="0">
                 </div>
-                <button type="submit" class="btn btn-primary mb-3">
+                <button type="submit" class="btn btn-primary mb-3" id="cutButton">
                     Aplicar Corte del Día
                 </button>
             </form>
@@ -280,4 +280,29 @@
             <div class="alert alert-info">El corte del día ya fue aplicado.</div>
         @endif
     </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        document.getElementById('cutForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // Evita el envío inmediato
+
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: 'Esta acción aplicará el corte del día. No podrás revertirla.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, aplicar corte',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    e.target.submit(); // Envía el formulario si se confirma
+                }
+            });
+        });
+    </script>
+
 @endsection
