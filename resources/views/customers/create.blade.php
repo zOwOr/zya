@@ -481,14 +481,14 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic  avatar-100 image-preview"
-                                                    id="aval_photo_home" src="{{ asset('assets/images/user/home.jpg') }}"
+                                                    id="aval_photo_home" src="{{ asset('assets/images/user/proof.jpg') }}"
                                                     alt="profile-pic">
                                             </div>
                                         </div>
 
                                     </div>
                                     <div class="col-md-10">
-                                        <label for="aval_photo_home">Foto fachada de la casa</label>
+                                        <label for="aval_photo_home">Foto comprobante de domicilio</label>
 
                                         <div class="custom-file">
                                             <input type="file"

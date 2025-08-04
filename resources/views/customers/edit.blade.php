@@ -513,14 +513,14 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic avatar-100 image-preview" id="image-preview"
-                                                    src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/home.jpg') }}"
+                                                    src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/proof.jpg') }}"
                                                     alt="profile-pic">
                                             </div>
                                         </div>
 
                                     </div>
                                     <div class="col-md-10">
-                                        <label for="aval_photo_home">Foto fachada de la casa</label>
+                                        <label for="aval_photo_home">Foto comprobante de domicilio</label>
 
                                         <div class="custom-file">
                                             <input type="file"

@@ -436,11 +436,11 @@
                             <li class="col-lg-12">
                                 <div class="form-group row">
                                     <div class="col-sm-3 col-4 my-auto">
-                                        <label class="col-form-label">Foto fachada de la casa</label>
+                                        <label class="col-form-label">Foto comprobante de domicilio</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
                                         <img class=" rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/home.jpg') }}">
+                                            src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/proof.jpg') }}">
                                     </div>
                                 </div>
                             </li>
