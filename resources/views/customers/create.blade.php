@@ -481,7 +481,7 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic  avatar-100 image-preview"
-                                                    id="aval_photo_home" src="{{ asset('assets/images/user/proof.jpg') }}"
+                                                    id="aval_photo_home" src="{{ asset('assets/images/user/proof.png') }}"
                                                     alt="profile-pic">
                                             </div>
                                         </div>

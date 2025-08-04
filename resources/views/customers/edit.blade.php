@@ -513,7 +513,7 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic avatar-100 image-preview" id="image-preview"
-                                                    src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/proof.jpg') }}"
+                                                    src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/proof.png') }}"
                                                     alt="profile-pic">
                                             </div>
                                         </div>

@@ -440,7 +440,7 @@
                                     </div>
                                     <div class="col-sm-9 col-8">
                                         <img class=" rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/proof.jpg') }}">
+                                            src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/proof.pmg') }}">
                                     </div>
                                 </div>
                             </li>
