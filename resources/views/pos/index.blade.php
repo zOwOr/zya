@@ -101,16 +101,18 @@
                     <div class="row mt-3">
                         <div class="col-md-12">
                             <div class="input-group">
-                                <select class="form-control" id="customer_id" name="customer_id" required>
-                                    <option selected disabled>-- Seleccionar Cliente --</option>
-                                    @foreach ($customers as $customer)
-                                        <option value="{{ $customer->id }}" data-status="{{ $customer->tit_status }}">
-                                            {{ $customer->tit_name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <input class="form-control" list="customerList" id="customer_input"
+                                    placeholder="Buscar cliente..." required>
+                                <input type="hidden" name="customer_id" id="customer_id">
 
+                                <datalist id="customerList">
+                                    @foreach ($customers as $customer)
+                                        <option value="{{ $customer->tit_name }}" data-id="{{ $customer->id }}"
+                                            data-status="{{ $customer->tit_status }}">
+                                    @endforeach
+                                </datalist>
                             </div>
+
                             @error('customer_id')
                                 <div class="invalid-feedback">
                                     {{ $message }}
@@ -243,50 +245,63 @@
 
 @section('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('createInvoiceForm');
-            if (form) {
-                form.addEventListener('submit', function(event) {
-                    event.preventDefault();
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('createInvoiceForm');
+        const inputNombre = document.getElementById('customer_input');
+        const inputId = document.getElementById('customer_id');
+        const dataList = document.getElementById('customerList');
 
-                    const selectCliente = document.getElementById('customer_id');
-                    const selectedOption = selectCliente.options[selectCliente.selectedIndex];
+        // Asignar ID oculto al elegir un nombre
+        inputNombre.addEventListener('input', function () {
+            const valor = this.value.trim();
+            let encontrado = false;
 
-                    if (!selectedOption.value) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Oops...',
-                            text: 'Por favor selecciona un cliente.'
-                        });
-                        return;
-                    }
+            for (let option of dataList.options) {
+                if (option.value === valor) {
+                    inputId.value = option.dataset.id;
+                    inputNombre.setAttribute('data-status', option.dataset.status);
+                    encontrado = true;
+                    break;
+                }
+            }
 
-                    const clienteStatus = (selectedOption.getAttribute('data-status') || 'desconocido')
-                        .toUpperCase();
+            if (!encontrado) {
+                inputId.value = '';
+                inputNombre.removeAttribute('data-status');
+            }
+        });
 
+        if (form) {
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                if (!inputId.value) {
                     Swal.fire({
-                        title: '¿Desea confirmar la creación de la nota de venta?',
-                        html: `<p>Status del cliente: <strong>${clienteStatus}</strong></p>`,
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí, confirmar',
-                        cancelButtonText: 'Cancelar',
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            form.submit();
-                        }
+                        icon: 'warning',
+                        title: 'Oops...',
+                        text: 'Por favor selecciona un cliente válido de la lista.'
                     });
+                    return;
+                }
 
+                const clienteStatus = (inputNombre.getAttribute('data-status') || 'desconocido').toUpperCase();
+
+                Swal.fire({
+                    title: '¿Desea confirmar la creación de la nota de venta?',
+                    html: `<p>Status del cliente: <strong>${clienteStatus}</strong></p>`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, confirmar',
+                    cancelButtonText: 'Cancelar',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
                 });
-            }
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const input = document.getElementById('barcodeInput');
-            if (input) {
-                input.focus();
-            }
-        });
-    </script>
+            });
+        }
+    });
+</script>
+
+

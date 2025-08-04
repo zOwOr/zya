@@ -42,7 +42,6 @@
                                                 $isPrestamo = stripos($productName, 'Prestamo') !== false;
                                             @endphp
 
-                                            @if ($isPrestamo)
                                                 <form action="{{ route('video.upload') }}" method="POST"
                                                     enctype="multipart/form-data">
                                                     @csrf
@@ -93,7 +92,6 @@
                                                         {{ $orderDetailVideo ? 'Actualizar Video' : 'Subir Video' }}
                                                     </button>
                                                 </form>
-                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
