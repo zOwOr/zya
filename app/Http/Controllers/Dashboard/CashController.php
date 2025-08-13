@@ -299,6 +299,11 @@ public function applyCut(Request $request)
             return redirect()->route('cash.daily-cut')->with('error', 'No hay corte aplicado para hoy en esta sucursal');
         }
 
-        return view('cash.print', compact('dailyCut'));
+        $cashFlows = CashFlow::where('branch_id', $branchId)
+            ->whereDate('created_at', $dailyCut->date)
+            ->orderBy('created_at')
+            ->get();
+
+        return view('cash.print', compact('dailyCut', 'cashFlows'));
     }
 }

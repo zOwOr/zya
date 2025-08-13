@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class CashFlow extends Model
 {
 protected $fillable = [
-        'type', 'amount', 'description', 'reference', 'module', 'branch_id'
+        'type', 'amount', 'description', 'reference', 'module', 'branch_id','payment_method'
     ];
 }

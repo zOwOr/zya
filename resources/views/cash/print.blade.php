@@ -1,12 +1,13 @@
 @extends('dashboard.body.main')
 
 @section('container')
-    <div class="container my-5" style="max-width: 700px;">
+    <div class="container my-5" style="max-width: 900px;">
         <script>
             window.onload = () => window.print();
         </script>
 
-        <div class="card shadow-sm border-primary">
+        {{-- Encabezado del Corte --}}
+        <div class="card shadow-sm border-primary mb-4">
             <div class="card-header bg-primary text-white text-center">
                 <h1 class="mb-0">Corte Diario</h1>
                 <small class="fst-italic">{{ \Carbon\Carbon::parse($dailyCut->date)->format('d/m/Y') }}</small>
@@ -44,20 +45,60 @@
             </div>
         </div>
 
+        {{-- Detalle de Movimientos --}}
+        @if($cashFlows->count())
+            <h4 class="mb-3 text-center">Detalle de Movimientos del Día</h4>
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Tipo</th>
+                        <th>Monto</th>
+                        <th>Descripción</th>
+                        <th>Módulo</th>
+                        <th>Referencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($cashFlows as $flow)
+                        <tr>
+                            <td>{{ $flow->created_at->format('H:i') }}</td>
+                            <td>
+                                <span class="badge bg-{{ $flow->type == 'income' ? 'success' : 'danger' }}">
+                                    {{ $flow->type == 'income' ? 'Ingreso' : 'Egreso' }}
+                                </span>
+                            </td>
+                            <td>${{ number_format($flow->amount, 2) }}</td>
+                            <td>{{ $flow->description }}</td>
+                            <td>{{ $flow->module }}</td>
+                            <td>{{ $flow->reference }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @else
+            <p class="text-center text-muted">No hubo movimientos en este día.</p>
+        @endif
+
         <style>
             /* Para impresión limpia */
             @media print {
                 body {
-                    -webkit-print-color-adjust: exact; /* colores en impresión */
+                    -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
                 }
                 .card {
                     box-shadow: none !important;
                     border: 1px solid #000 !important;
                 }
-                .table-bordered th, 
+                .table-bordered th,
                 .table-bordered td {
                     border: 1px solid #000 !important;
+                }
+                .badge {
+                    color: #fff !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
                 }
             }
         </style>
