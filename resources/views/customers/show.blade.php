@@ -1,4 +1,19 @@
 @extends('dashboard.body.main')
+<style>
+    @media print {
+        .no-print {
+            display: none !important; /* Oculta botones o menús */
+        }
+        .card {
+            border: none !important; /* Quita bordes para que se vea más limpio */
+            box-shadow: none !important;
+        }
+        body {
+            font-size: 12px;
+            background: #fff !important;
+        }
+    }
+</style>
 
 @section('container')
     <div class="container-fluid mb-3">
@@ -15,6 +30,9 @@
             </div>
         </div>
 
+
+
+
         <div class="row px-3">
             <!-- begin: Left Detail Employee -->
             <div class="col-lg-4 card-profile mb-5 h-50">
@@ -28,7 +46,7 @@
                             <div class="ml-3">
                                 <h4 class="mb-1">{{ $customer->tit_name }}</h4>
                                 <p class="mb-2">{{ $customer->tit_facebook }}</p>
-                                
+
                                 <a href="{{ route('customers.index') }}" class="btn btn-danger font-size-14">Regresar</a>
                             </div>
                         </div>
@@ -465,6 +483,10 @@
             <!-- end: Right Detail Employee -->
         </div>
     </div>
+
+            <div class="text-center my-4 no-print">
+            <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir información del cliente</button>
+        </div>
 @endsection
 <script>
     function updateSelectColor(select) {
