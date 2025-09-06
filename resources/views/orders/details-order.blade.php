@@ -15,7 +15,13 @@
                         <div class="header-title">
                             <h4 class="card-title">Detalles del pedido</h4>
                         </div>
+                        <div class="mt-4">
+                            <a href="{{ route('order.contract', $order->id) }}" target="_blank" class="btn btn-primary">
+                                🖨️ Imprimir Contrato
+                            </a>
+                        </div>
                     </div>
+
 
                     <div class="card-body">
                         <!-- begin: Show Data -->
@@ -42,56 +48,55 @@
                                                 $isPrestamo = stripos($productName, 'Prestamo') !== false;
                                             @endphp
 
-                                                <form action="{{ route('video.upload') }}" method="POST"
-                                                    enctype="multipart/form-data">
-                                                    @csrf
-                                                    <input type="hidden" name="order_id" value="{{ $order->id }}">
+                                            <form action="{{ route('video.upload') }}" method="POST"
+                                                enctype="multipart/form-data">
+                                                @csrf
+                                                <input type="hidden" name="order_id" value="{{ $order->id }}">
 
-                                                    @if ($orderDetailVideo)
-                                                        <!-- Si ya existe un video, mostramos el video guardado y opción para actualizarlo -->
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Video guardado</label><br>
-                                                            <video width="400" controls>
-                                                                <source
-                                                                    src="{{ asset('storage/videos/' . $orderDetailVideo->video) }}"
-                                                                    type="video/mp4">
-                                                                Tu navegador no soporta el elemento de video.
-                                                            </video>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label for="video" class="form-label">Actualizar
-                                                                video</label>
-                                                            <input type="file" name="video" id="video"
-                                                                class="form-control" accept="video/*"
-                                                                onchange="previewVideo()">
-                                                            @error('video')
-                                                                <div class="text-danger">{{ $message }}</div>
-                                                            @enderror
-                                                        </div>
-                                                    @else
-                                                        <!-- Si no existe un video, mostramos el formulario para subir uno nuevo -->
-                                                        <div class="mb-3">
-                                                            <label for="video" class="form-label">Seleccionar
-                                                                video</label>
-                                                            <input type="file" name="video" id="video"
-                                                                class="form-control" accept="video/*" required
-                                                                onchange="previewVideo()">
-                                                            @error('video')
-                                                                <div class="text-danger">{{ $message }}</div>
-                                                            @enderror
-                                                        </div>
-                                                    @endif
-
+                                                @if ($orderDetailVideo)
+                                                    <!-- Si ya existe un video, mostramos el video guardado y opción para actualizarlo -->
                                                     <div class="mb-3">
-                                                        <label class="form-label">Vista previa del video</label><br>
-                                                        <video id="videoPreview" width="400" controls
-                                                            style="display: none;"></video>
+                                                        <label class="form-label">Video guardado</label><br>
+                                                        <video width="400" controls>
+                                                            <source
+                                                                src="{{ asset('storage/videos/' . $orderDetailVideo->video) }}"
+                                                                type="video/mp4">
+                                                            Tu navegador no soporta el elemento de video.
+                                                        </video>
                                                     </div>
+                                                    <div class="mb-3">
+                                                        <label for="video" class="form-label">Actualizar
+                                                            video</label>
+                                                        <input type="file" name="video" id="video"
+                                                            class="form-control" accept="video/*" onchange="previewVideo()">
+                                                        @error('video')
+                                                            <div class="text-danger">{{ $message }}</div>
+                                                        @enderror
+                                                    </div>
+                                                @else
+                                                    <!-- Si no existe un video, mostramos el formulario para subir uno nuevo -->
+                                                    <div class="mb-3">
+                                                        <label for="video" class="form-label">Seleccionar
+                                                            video</label>
+                                                        <input type="file" name="video" id="video"
+                                                            class="form-control" accept="video/*" required
+                                                            onchange="previewVideo()">
+                                                        @error('video')
+                                                            <div class="text-danger">{{ $message }}</div>
+                                                        @enderror
+                                                    </div>
+                                                @endif
 
-                                                    <button type="submit" class="btn btn-primary">
-                                                        {{ $orderDetailVideo ? 'Actualizar Video' : 'Subir Video' }}
-                                                    </button>
-                                                </form>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Vista previa del video</label><br>
+                                                    <video id="videoPreview" width="400" controls
+                                                        style="display: none;"></video>
+                                                </div>
+
+                                                <button type="submit" class="btn btn-primary">
+                                                    {{ $orderDetailVideo ? 'Actualizar Video' : 'Subir Video' }}
+                                                </button>
+                                            </form>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -153,8 +158,8 @@
 
                             <div class="form-group col-md-6">
                                 <label>Status del Pago</label>
-                                <input class="form-control bg-white" id="expire_date" value="{{ $order->payment_status }}"
-                                    readonly />
+                                <input class="form-control bg-white" id="expire_date"
+                                    value="{{ $order->payment_status }}" readonly />
                             </div>
 
 

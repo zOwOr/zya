@@ -477,4 +477,22 @@ public function updateDeviceId(Request $request)
     return back()->with('success', 'Device ID actualizado correctamente.');
 }
 
+public function contract(Int $order_id)
+{
+    $order = Order::with(['customer', 'user'])->findOrFail($order_id);
+
+    // Datos del préstamo (ejemplo, cámbialo según tu lógica real)
+    $loan_amount = $order->total;
+    $installments = 12; // Número de pagos
+    $installment_amount = $loan_amount / $installments;
+
+    return view('orders.contract', [
+        'order' => $order,
+        'loan_amount' => $loan_amount,
+        'installments' => $installments,
+        'installment_amount' => $installment_amount,
+    ]);
+}
+
+
 }

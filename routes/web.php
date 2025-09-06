@@ -163,6 +163,9 @@ Route::middleware(['permission:orders.menu'])->group(function () {
     Route::post('/video-upload', [OrderController::class, 'uploadVideo'])->name('video.upload');
 
 
+Route::get('/orders/{id}/contract', [OrderController::class, 'contract'])->name('order.contract');
+
+
     // Pending Due
     Route::get('/pending/due', [OrderController::class, 'pendingDue'])->name('order.pendingDue');
     Route::get('/order/due/{id}', [OrderController::class, 'orderDueAjax'])->name('order.orderDueAjax');

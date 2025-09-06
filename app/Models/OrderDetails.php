@@ -30,4 +30,5 @@ class OrderDetails extends Model
     {
         return $this->hasMany(Movement::class);
     }
+    
 }
