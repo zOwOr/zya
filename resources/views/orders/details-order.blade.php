@@ -17,9 +17,10 @@
                         </div>
                         <div class="mt-4">
                             <a href="{{ route('order.contract', $order->id) }}" target="_blank" class="btn btn-primary">
-                                🖨️ Imprimir Contrato
+                                🖨️ Imprimir Clausulas
                             </a>
                         </div>
+                        
                     </div>
 
 

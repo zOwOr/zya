@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Contrato de Préstamo</title>
+    <title>ZYA CELULARES Y ACCESORIOS</title>
     <link type="text/css" rel="stylesheet" href="{{ asset('assets/invoice/css/bootstrap.min.css') }}">
     <link type="text/css" rel="stylesheet" href="{{ asset('assets/invoice/css/style.css') }}">
     <style>
@@ -40,10 +40,81 @@
 </head>
 
 <body>
+        <div class="container mt-4">
+        <!-- ENCABEZADO -->
+        <div class="d-flex justify-content-between mb-3">
+            <img src="{{ asset('assets/images/logo.png') }}" alt="logo" style="max-height: 80px;">
+            <div class="text-end text-uppercase">
+                <p>VENDEDOR: <strong>ESMERALDA ZAPATA</strong></p>
+                <p>ALLENDE N.L. FECHA:<strong contenteditable="true" class="bg-warning">{{ now()->format('d F Y') }}</strong> </p>
+            </div>
+        </div>
+
+        <!-- TABLA DE PRÉSTAMO -->
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th><span contenteditable="true" class="bg-warning">PRESTAMO CONFIRMADO</span></th>
+                    <th>COMISIÓN POR APERTURA</th>
+                    <th>ABONO</th>
+                    <th>PLAZO</th>
+                    <th>RECARGO POR PAGO TARDÍO</th>
+                    <th>DÍAS DE PAGO</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span contenteditable="true" class="bg-warning">${{ number_format($loan_amount, 2) }}</span></td>
+                    <td><span contenteditable="true" class="bg-warning">$1000</span></td>
+                    <td><span contenteditable="true" class="bg-warning">${{ number_format($installment_amount, 2) }}</span></td>
+                    <td><span contenteditable="true"  class="bg-warning">{{ $installments }}</span></td>
+                    <td><span contenteditable="true"  class="bg-warning">$200.00</span> </td>
+                    <td><span contenteditable="true" class="bg-warning">12 Y 26 DE CADA MES</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- DATOS DEL CLIENTE -->
+        <p><strong>CLIENTE/TITULAR:</strong> {{ $order->customer->tit_name }}</p>
+        <p><strong>DIRECCIÓN:</strong> {{ $order->customer->tit_address }}</p>
+        <p><strong>CELULAR:</strong> {{ $order->customer->tit_phone  }}</p>
+        <p><strong>CORREO:</strong> {{ $order->customer->tit_email ?? 'SN' }}</p>
+        <p><strong>FACEBOOK:</strong> {{ $order->customer->tit_facebook }}</p>
+        <p><strong>LUGAR DE TRABAJO:</strong> {{ $order->customer->tit_work ?? 'ND' }}</p>
+
+        <!-- REFERENCIAS -->
+        <p><strong>REFERENCIA #1:</strong> {{ $order->customer->ref1_name }}</p>
+        <p>DIRECCIÓN: {{ $order->customer->ref1_address }}</p>
+        <p>CELULAR: {{ $order->customer->ref1_phone }}</p>
+
+        <p><strong>REFERENCIA #2:</strong> {{ $order->customer->ref2_name }}</p>
+        <p>DIRECCIÓN: {{ $order->customer->ref2_address }}</p>
+        <p>CELULAR: {{ $order->customer->ref2_phone }}</p>
+
+        <p><strong>REFERENCIA #3:</strong> {{ $order->customer->ref3_name }}</p>
+        <p>DIRECCIÓN: {{ $order->customer->ref3_address }}</p>
+        <p>CELULAR: {{ $order->customer->ref3_phone }}</p>
+
+        <!-- FIRMAS -->
+        <div class="signature mt-5 d-flex justify-content-between text-uppercase">
+            <div class="text-center text-uppercase">
+                ___________________________<br>
+                Cliente<br>{{ $order->customer->tit_name }}
+            </div>
+            <div class="text-center text-uppercase">
+                ___________________________<br>
+                Aval Solidario<br>{{ $order->customer->aval_name }}
+            </div>
+            <div class="text-center text-uppercase">
+                ___________________________<br>
+                Vendedor<br> ESMERALDA ZAPATA
+            </div>
+        </div>
+    </div>
     <div class="container mt-4">
         <div class="text-center mb-4">
             <img src="{{ asset('assets/images/logo.png') }}" alt="logo" style="max-height: 80px;">
-            <h2 class="mt-2">Contrato de <span contenteditable="true">Préstamo</span></h2>
+            <h2 class="mt-2">Cláusulas de <span contenteditable="true" class="bg-warning">Préstamo</span></h2>
         </div>
 
         <h4>Cláusulas:</h4>
