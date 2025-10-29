@@ -109,6 +109,14 @@
                                             {{ old('tit_status', $customer->tit_status) == 'rescate' ? 'selected' : '' }}>
                                             Rescate
                                         </option>
+                                        <option value="rescate"
+                                            {{ old('tit_status', $customer->tit_status) == 'desaprobado' ? 'selected' : '' }}>
+                                            Desaprobado
+                                        </option>
+                                        <option value="rescate"
+                                            {{ old('tit_status', $customer->tit_status) == 'solicitud' ? 'selected' : '' }}>
+                                            En solicitud
+                                        </option>
                                     </select>
                                     @error('tit_status')
                                         <div class="invalid-feedback">
