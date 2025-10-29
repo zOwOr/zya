@@ -103,9 +103,14 @@
                                         <option value="riesgo" {{ old('tit_status') == 'riesgo' ? 'selected' : '' }}>Riesgo
                                         </option>
                                         <option value="moroso" {{ old('tit_status') == 'moroso' ? 'selected' : '' }}>Moroso
-                                        </option>
                                         <option value="rescate" {{ old('tit_status') == 'rescate' ? 'selected' : '' }}>
                                             Rescate</option>
+                                        <option value="desaprobado"
+                                            {{ old('tit_status') == 'desaprobado' ? 'selected' : '' }}>
+                                            Desaprobado</option>
+                                        </option>
+                                        <option value="solicitud" {{ old('tit_status') == 'solicitud' ? 'selected' : '' }}>
+                                            En solicitud</option>
                                     </select>
                                     @error('tit_status')
                                         <div class="invalid-feedback">
@@ -132,8 +137,8 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('tit_photo_proof_address') is-invalid @enderror"
-                                                id="tit_photo_proof_address" name="tit_photo_proof_address" accept="image/*"
-                                                onchange="previewImage(this)">
+                                                id="tit_photo_proof_address" name="tit_photo_proof_address"
+                                                accept="image/*" onchange="previewImage(this)">
                                             <label class="custom-file-label" for="tit_photo_proof_address">Elegir
                                                 Imagen</label>
                                         </div>
@@ -481,8 +486,8 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic  avatar-100 image-preview"
-                                                    id="aval_photo_home" src="{{ asset('assets/images/user/proof.png') }}"
-                                                    alt="profile-pic">
+                                                    id="aval_photo_home"
+                                                    src="{{ asset('assets/images/user/proof.png') }}" alt="profile-pic">
                                             </div>
                                         </div>
 
@@ -539,6 +544,12 @@
                 select.classList.add('bg-danger', 'text-white');
                 break;
             case 'rescate':
+                select.classList.add('bg-primary', 'text-white');
+                break;
+            case 'desaprobado':
+                select.classList.add('bg-secondary', 'text-white');
+                break;
+            case 'solicitud':
                 select.classList.add('bg-primary', 'text-white');
                 break;
         }

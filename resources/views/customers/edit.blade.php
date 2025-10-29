@@ -112,6 +112,13 @@
                                         <option value="rescate"
                                             {{ old('tit_status', $customer->tit_status) == 'rescate' ? 'selected' : '' }}>
                                             Rescate</option>
+                                        <option value="desaprobado"
+                                            {{ old('tit_status', $customer->tit_status) == 'desaprobado' ? 'selected' : '' }}>
+                                            Desaprobado</option>
+                                        <option value="solicitud"
+                                            {{ old('tit_status', $customer->tit_status) == 'solicitud' ? 'selected' : '' }}>
+                                            En solicitud</option>
+
                                     </select>
                                     @error('tit_status')
                                         <div class="invalid-feedback">
@@ -558,7 +565,7 @@
 <script>
     function updateSelectColor(select) {
         // Quita clases anteriores
-        select.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-info', 'text-white');
+        select.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-info', 'text-white' ,'bg-secondary');
 
         switch (select.value) {
             case 'aprobado':
@@ -571,6 +578,12 @@
                 select.classList.add('bg-danger', 'text-white');
                 break;
             case 'rescate':
+                select.classList.add('bg-primary', 'text-white');
+                break;
+            case 'desaprobado':
+                select.classList.add('bg-secondary', 'text-white');
+                break;
+            case 'solicitud':
                 select.classList.add('bg-primary', 'text-white');
                 break;
         }

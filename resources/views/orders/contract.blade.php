@@ -82,6 +82,11 @@
         <p><strong>FACEBOOK:</strong> {{ $order->customer->tit_facebook }}</p>
         <p><strong>LUGAR DE TRABAJO:</strong> {{ $order->customer->tit_work ?? 'ND' }}</p>
 
+        <!-- AVAL -->
+        <p><strong>AVAL:</strong> {{ $order->customer->aval_name }}</p>
+        <p>DIRECCIÓN: {{ $order->customer->aval_address }}</p>
+        <p>CELULAR: {{ $order->customer->aval_phone }}</p>
+
         <!-- REFERENCIAS -->
         <p><strong>REFERENCIA #1:</strong> {{ $order->customer->ref1_name }}</p>
         <p>DIRECCIÓN: {{ $order->customer->ref1_address }}</p>
