@@ -529,7 +529,7 @@
 
     @include('components.preview-img-form')
     <!-- Modal Aval Duplicado -->
-@if(session('duplicate_aval'))
+@if(session('duplicate_aval')) 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
