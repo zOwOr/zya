@@ -12,7 +12,7 @@
                     </div>
 
                     <div class="card-body">
-                        <form action="{{ route('customers.store') }}" method="POST" enctype="multipart/form-data">
+                        <form action="{{ route('customers.store') }}" method="POST" enctype="multipart/form-data" id="customerForm">
                             @csrf
 
                             <h5 class="py-3 text-center bg-primary">Datos del Titular</h5>
@@ -520,6 +520,7 @@
                             </div>
                         </form>
                     </div>
+                    
                 </div>
             </div>
         </div>
@@ -527,6 +528,51 @@
     </div>
 
     @include('components.preview-img-form')
+    <!-- Modal Aval Duplicado -->
+@if(session('duplicate_aval'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    let clientes = @json(session('duplicate_aval')['clientes']);
+
+    let htmlContent = '<div style="text-align:left;">';
+
+    clientes.forEach(function(item) {
+
+        htmlContent += `
+            <div style="margin-bottom:10px;padding:10px;border-bottom:1px solid #ddd;">
+                <strong>Cliente:</strong> ${item.cliente}<br>
+                <strong>Campos duplicados:</strong> ${item.campos.join(', ')}
+            </div>
+        `;
+    });
+
+    htmlContent += '</div>';
+
+    Swal.fire({
+        title: 'Aval duplicado detectado',
+        html: htmlContent,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Continuar de todos modos',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+
+        if (result.isConfirmed) {
+
+            let input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'confirm_duplicate';
+            input.value = '1';
+
+            document.getElementById('customerForm').appendChild(input);
+            document.getElementById('customerForm').submit();
+        }
+    });
+
+});
+</script>
+@endif
 @endsection
 <script>
     function updateSelectColor(select) {

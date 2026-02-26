@@ -554,6 +554,42 @@
                             </div>
                         </form>
                     </div>
+                    @if(session('duplicate_aval'))
+    <div class="alert alert-warning">
+        <h5 class="mb-2">
+            ⚠ Este aval ya existe
+        </h5>
+
+        <p>
+            Pertenece al cliente:
+            <strong>{{ session('duplicate_aval.cliente') }}</strong>
+        </p>
+
+        <p>¿Deseas continuar de todos modos?</p>
+
+        <form method="POST" action="{{ route('customers.update', $customer->id) }}">
+            @csrf
+            @method('PUT')
+
+            <input type="hidden" name="confirm_duplicate" value="1">
+
+            {{-- reenviar todos los datos --}}
+            @foreach(old() as $key => $value)
+                @if(!is_array($value))
+                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                @endif
+            @endforeach
+
+            <button type="submit" class="btn btn-warning">
+                Sí, continuar
+            </button>
+
+            <a href="{{ url()->current() }}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </form>
+    </div>
+@endif
                 </div>
             </div>
         </div>

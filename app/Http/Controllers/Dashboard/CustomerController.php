@@ -41,36 +41,36 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'tit_name' => 'required|string|max:50',
-            'tit_email' => 'required|email|max:50',
+            'tit_name' => 'required|string|max:100',
+            'tit_email' => 'required|email|max:100',
             'tit_phone' => 'required|string|max:15|unique:customers,tit_phone',
             'tit_status' => 'required|string|max:15',
-            'tit_address' => 'required|string|max:100',
+            'tit_address' => 'required|string|max:999',
             'tit_photo' => 'image|file',
             'tit_photo_ine_f' => 'image|file',
             'tit_photo_ine_b' => 'image|file',
-            'tit_facebook' => 'required|string',
+            'tit_facebook' => 'required|string',    
             'tit_photo_home' => 'image|file',
-            'tit_link_location' => 'max:100',
+            'tit_link_location' => 'max:999',
             'tit_photo_proof_address' => 'image|file',
-            'tit_work' => 'max:50',
-            'tit_city' => 'required|string|max:50',
+            'tit_work' => 'max:999',
+            'tit_city' => 'required|string',
 
-            'ref1_name' => 'max:50',
+            'ref1_name' => 'max:100',
             'ref1_phone' => 'max:15',
-            'ref1_address' => 'max:100',
+            'ref1_address' => 'max:999',
 
-            'ref2_name' => 'max:50',
+            'ref2_name' => 'max:100',
             'ref2_phone' => 'max:15',
-            'ref2_address' => 'max:100',
+            'ref2_address' => 'max:999',
             
-            'ref3_name' => 'max:50',
+            'ref3_name' => 'max:100',
             'ref3_phone' => 'max:15',
-            'ref3_address' => 'max:100',
+            'ref3_address' => 'max:999',
 
-            'aval_name' => 'max:50',
+            'aval_name' => 'max:100',
             'aval_phone' => 'max:15',
-            'aval_address' => 'max:100',
+            'aval_address' => 'max:999',
             'aval_photo_ine_f' => 'image|file',
             'aval_photo_ine_b' => 'image|file',
             'aval_photo_proof_address' => 'image|file',
@@ -117,7 +117,78 @@ class CustomerController extends Controller
             $validatedData['aval_photo_home'] = $this->storeImage($request->file('aval_photo_home'), 'customers');
         }
 
+// 🔥 Si viene confirmación, guardar directamente
+if ($request->has('confirm_duplicate')) {
+    Customer::create($validatedData);
 
+    return redirect()->route('customers.index')
+        ->with('success', 'Cliente registrado correctamente.');
+}
+
+
+// 🔎 Verificar duplicado de aval (cualquiera de los campos)
+if (
+    !empty($validatedData['aval_name']) ||
+    !empty($validatedData['aval_phone']) ||
+    !empty($validatedData['aval_address'])
+) {
+
+    $existingAvals = Customer::where(function ($query) use ($validatedData) {
+
+        if (!empty($validatedData['aval_name'])) {
+            $query->orWhere('aval_name', $validatedData['aval_name']);
+        }
+
+        if (!empty($validatedData['aval_phone'])) {
+            $query->orWhere('aval_phone', $validatedData['aval_phone']);
+        }
+
+        if (!empty($validatedData['aval_address'])) {
+            $query->orWhere('aval_address', $validatedData['aval_address']);
+        }
+
+    })->get();
+
+    if ($existingAvals->count() > 0) {
+
+        $clientesDuplicados = [];
+
+        foreach ($existingAvals as $aval) {
+
+            $camposDuplicados = [];
+
+            if (
+                !empty($validatedData['aval_name']) &&
+                $aval->aval_name === $validatedData['aval_name']
+            ) {
+                $camposDuplicados[] = "Nombre";
+            }
+
+            if (
+                !empty($validatedData['aval_phone']) &&
+                $aval->aval_phone === $validatedData['aval_phone']
+            ) {
+                $camposDuplicados[] = "Teléfono";
+            }
+
+            if (
+                !empty($validatedData['aval_address']) &&
+                $aval->aval_address === $validatedData['aval_address']
+            ) {
+                $camposDuplicados[] = "Dirección";
+            }
+
+            $clientesDuplicados[] = [
+                'cliente' => $aval->tit_name,
+                'campos' => $camposDuplicados
+            ];
+        }
+
+        return redirect()->back()->withInput()->with('duplicate_aval', [
+            'clientes' => $clientesDuplicados
+        ]);
+    }
+}
 
         Customer::create($validatedData);
 
@@ -155,32 +226,32 @@ class CustomerController extends Controller
             'tit_email' => 'required|email|max:50,'.$customer->id,
             'tit_phone' => 'required|string|max:15|unique:customers,tit_phone, '.$customer->id,
             'tit_status' => 'required|string|max:15',
-            'tit_address' => 'required|string|max:100',
+            'tit_address' => 'required|string',
             'tit_photo' => 'image|file',
             'tit_photo_ine_f' => 'image|file',
             'tit_photo_ine_b' => 'image|file',
-            'tit_facebook' => 'required|string|max:50',
+            'tit_facebook' => 'required|string',
             'tit_photo_home' => 'image|file',
-            'tit_link_location' => 'max:100',
+            'tit_link_location' => 'max:999',
             'tit_photo_proof_address' => 'image|file',
-            'tit_work' => 'max:50',
-            'tit_city' => 'required|string|max:50',
+            'tit_work' => 'max:999',
+            'tit_city' => 'required|string',
 
             'ref1_name' => 'max:50',
             'ref1_phone' => 'max:15',
-            'ref1_address' => 'max:100',
+            'ref1_address' => 'max:999',
 
             'ref2_name' => 'max:50',
             'ref2_phone' => 'max:15',
-            'ref2_address' => 'max:100',
+            'ref2_address' => 'max:999',
             
             'ref3_name' => 'max:50',
             'ref3_phone' => 'max:15',
-            'ref3_address' => 'max:100',
+            'ref3_address' => 'max:999',
 
             'aval_name' => 'max:50',
             'aval_phone' => 'max:15',
-            'aval_address' => 'max:100',
+            'aval_address' => 'max:999',
             'aval_photo_ine_f' => 'image|file',
             'aval_photo_ine_b' => 'image|file',
             'aval_photo_proof_address' => 'image|file',
@@ -229,6 +300,44 @@ class CustomerController extends Controller
             $validatedData['aval_photo_home'] = $this->storeImage($request->file('aval_photo_home'), 'customers');
         }
 
+        // Verificar duplicado de aval (excepto el cliente actual)
+if (
+    !$request->has('confirm_duplicate') &&
+    !empty($validatedData['aval_name']) &&
+    !empty($validatedData['aval_phone']) &&
+    !empty($validatedData['aval_address'])
+) {
+    $existingAval = Customer::where('id', '!=', $customer->id)
+    ->where(function ($query) use ($validatedData) {
+
+        $query->where('aval_name', $validatedData['aval_name'])
+              ->orWhere('aval_phone', $validatedData['aval_phone'])
+              ->orWhere('aval_address', $validatedData['aval_address']);
+
+    })->first();
+
+    $duplicateData = [];
+
+if ($existingAval) {
+
+    if ($existingAval->aval_name === $validatedData['aval_name']) {
+        $duplicateData['Nombre'] = $validatedData['aval_name'];
+    }
+
+    if ($existingAval->aval_phone === $validatedData['aval_phone']) {
+        $duplicateData['Teléfono'] = $validatedData['aval_phone'];
+    }
+
+    if ($existingAval->aval_address === $validatedData['aval_address']) {
+        $duplicateData['Dirección'] = $validatedData['aval_address'];
+    }
+
+    return redirect()->back()->withInput()->with('duplicate_aval', [
+        'cliente' => $existingAval->tit_name,
+        'duplicates' => $duplicateData
+    ]);
+}
+}
         Customer::where('id', $customer->id)->update($validatedData);
 
         return Redirect::route('customers.index')->with('success', 'La información del cliente se ha actualizado exitosamente!');
