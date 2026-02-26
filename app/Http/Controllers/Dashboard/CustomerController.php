@@ -300,43 +300,80 @@ if (
             $validatedData['aval_photo_home'] = $this->storeImage($request->file('aval_photo_home'), 'customers');
         }
 
-        // Verificar duplicado de aval (excepto el cliente actual)
+       // 🔥 Si viene confirmación, actualizar directamente
+if ($request->has('confirm_duplicate')) {
+
+    $customer->update($validatedData);
+
+    return redirect()->route('customers.index')
+        ->with('success', 'Cliente actualizado correctamente.');
+}
+
+
+// 🔎 Verificar duplicado de aval (cualquiera de los campos)
 if (
-    !$request->has('confirm_duplicate') &&
-    !empty($validatedData['aval_name']) &&
-    !empty($validatedData['aval_phone']) &&
+    !empty($validatedData['aval_name']) ||
+    !empty($validatedData['aval_phone']) ||
     !empty($validatedData['aval_address'])
 ) {
-    $existingAval = Customer::where('id', '!=', $customer->id)
-    ->where(function ($query) use ($validatedData) {
 
-        $query->where('aval_name', $validatedData['aval_name'])
-              ->orWhere('aval_phone', $validatedData['aval_phone'])
-              ->orWhere('aval_address', $validatedData['aval_address']);
+    $existingAvals = Customer::where('id', '!=', $customer->id)
+        ->where(function ($query) use ($validatedData) {
 
-    })->first();
+            if (!empty($validatedData['aval_name'])) {
+                $query->orWhere('aval_name', $validatedData['aval_name']);
+            }
 
-    $duplicateData = [];
+            if (!empty($validatedData['aval_phone'])) {
+                $query->orWhere('aval_phone', $validatedData['aval_phone']);
+            }
 
-if ($existingAval) {
+            if (!empty($validatedData['aval_address'])) {
+                $query->orWhere('aval_address', $validatedData['aval_address']);
+            }
 
-    if ($existingAval->aval_name === $validatedData['aval_name']) {
-        $duplicateData['Nombre'] = $validatedData['aval_name'];
+        })->get();
+
+    if ($existingAvals->count() > 0) {
+
+        $clientesDuplicados = [];
+
+        foreach ($existingAvals as $aval) {
+
+            $camposDuplicados = [];
+
+            if (
+                !empty($validatedData['aval_name']) &&
+                $aval->aval_name === $validatedData['aval_name']
+            ) {
+                $camposDuplicados[] = "Nombre";
+            }
+
+            if (
+                !empty($validatedData['aval_phone']) &&
+                $aval->aval_phone === $validatedData['aval_phone']
+            ) {
+                $camposDuplicados[] = "Teléfono";
+            }
+
+            if (
+                !empty($validatedData['aval_address']) &&
+                $aval->aval_address === $validatedData['aval_address']
+            ) {
+                $camposDuplicados[] = "Dirección";
+            }
+
+            $clientesDuplicados[] = [
+                'cliente' => $aval->tit_name,
+                'id' => $aval->id,
+                'campos' => $camposDuplicados
+            ];
+        }
+
+        return redirect()->back()->withInput()->with('duplicate_aval', [
+            'clientes' => $clientesDuplicados
+        ]);
     }
-
-    if ($existingAval->aval_phone === $validatedData['aval_phone']) {
-        $duplicateData['Teléfono'] = $validatedData['aval_phone'];
-    }
-
-    if ($existingAval->aval_address === $validatedData['aval_address']) {
-        $duplicateData['Dirección'] = $validatedData['aval_address'];
-    }
-
-    return redirect()->back()->withInput()->with('duplicate_aval', [
-        'cliente' => $existingAval->tit_name,
-        'duplicates' => $duplicateData
-    ]);
-}
 }
         Customer::where('id', $customer->id)->update($validatedData);
 

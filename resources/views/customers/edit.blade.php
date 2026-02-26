@@ -554,42 +554,6 @@
                             </div>
                         </form>
                     </div>
-                    @if(session('duplicate_aval'))
-    <div class="alert alert-warning">
-        <h5 class="mb-2">
-            ⚠ Este aval ya existe
-        </h5>
-
-        <p>
-            Pertenece al cliente:
-            <strong>{{ session('duplicate_aval.cliente') }}</strong>
-        </p>
-
-        <p>¿Deseas continuar de todos modos?</p>
-
-        <form method="POST" action="{{ route('customers.update', $customer->id) }}">
-            @csrf
-            @method('PUT')
-
-            <input type="hidden" name="confirm_duplicate" value="1">
-
-            {{-- reenviar todos los datos --}}
-            @foreach(old() as $key => $value)
-                @if(!is_array($value))
-                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
-                @endif
-            @endforeach
-
-            <button type="submit" class="btn btn-warning">
-                Sí, continuar
-            </button>
-
-            <a href="{{ url()->current() }}" class="btn btn-secondary">
-                Cancelar
-            </a>
-        </form>
-    </div>
-@endif
                 </div>
             </div>
         </div>
@@ -597,11 +561,56 @@
     </div>
 
     @include('components.preview-img-form')
+
+    @if (session('duplicate_aval'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+
+                let clientes = @json(session('duplicate_aval')['clientes']);
+
+                let htmlContent = '<div style="text-align:left;">';
+
+                clientes.forEach(function(item) {
+
+                    htmlContent += `
+            <div style="margin-bottom:10px;padding:10px;border-bottom:1px solid #ddd;">
+                <strong>Cliente:</strong> ${item.cliente}<br>
+                <strong>Campos duplicados:</strong> ${item.campos.join(', ')}
+            </div>
+        `;
+                });
+
+                htmlContent += '</div>';
+
+                Swal.fire({
+                    title: 'Aval duplicado detectado',
+                    html: htmlContent,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Continuar de todos modos',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+
+                    if (result.isConfirmed) {
+
+                        let input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'confirm_duplicate';
+                        input.value = '1';
+
+                        document.getElementById('customerForm').appendChild(input);
+                        document.getElementById('customerForm').submit();
+                    }
+                });
+
+            });
+        </script>
+    @endif
 @endsection
 <script>
     function updateSelectColor(select) {
         // Quita clases anteriores
-        select.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-info', 'text-white' ,'bg-secondary');
+        select.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-info', 'text-white', 'bg-secondary');
 
         switch (select.value) {
             case 'aprobado':
