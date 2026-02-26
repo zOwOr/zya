@@ -12,7 +12,8 @@
                     </div>
 
                     <div class="card-body">
-                        <form action="{{ route('customers.store') }}" method="POST" enctype="multipart/form-data" id="customerForm">
+                        <form action="{{ route('customers.store') }}" method="POST" enctype="multipart/form-data"
+                            id="customerForm">
                             @csrf
 
                             <h5 class="py-3 text-center bg-primary">Datos del Titular</h5>
@@ -520,7 +521,7 @@
                             </div>
                         </form>
                     </div>
-                    
+
                 </div>
             </div>
         </div>
@@ -529,50 +530,50 @@
 
     @include('components.preview-img-form')
     <!-- Modal Aval Duplicado -->
-@if(session('duplicate_aval')) 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
+    @if (session('duplicate_aval'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
 
-    let clientes = @json(session('duplicate_aval')['clientes']);
+                let clientes = @json(session('duplicate_aval')['clientes']);
 
-    let htmlContent = '<div style="text-align:left;">';
+                let htmlContent = '<div style="text-align:left;">';
 
-    clientes.forEach(function(item) {
+                clientes.forEach(function(item) {
 
-        htmlContent += `
+                    htmlContent += `
             <div style="margin-bottom:10px;padding:10px;border-bottom:1px solid #ddd;">
                 <strong>Cliente:</strong> ${item.cliente}<br>
                 <strong>Campos duplicados:</strong> ${item.campos.join(', ')}
             </div>
         `;
-    });
+                });
 
-    htmlContent += '</div>';
+                htmlContent += '</div>';
 
-    Swal.fire({
-        title: 'Aval duplicado detectado',
-        html: htmlContent,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Continuar de todos modos',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
+                Swal.fire({
+                    title: 'Aval duplicado detectado',
+                    html: htmlContent,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Continuar de todos modos',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
 
-        if (result.isConfirmed) {
+                    if (result.isConfirmed) {
 
-            let input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'confirm_duplicate';
-            input.value = '1';
+                        let input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'confirm_duplicate';
+                        input.value = '1';
 
-            document.getElementById('customerForm').appendChild(input);
-            document.getElementById('customerForm').submit();
-        }
-    });
+                        document.getElementById('customerForm').appendChild(input);
+                        document.getElementById('customerForm').submit();
+                    }
+                });
 
-});
-</script>
-@endif
+            });
+        </script>
+    @endif
 @endsection
 <script>
     function updateSelectColor(select) {
