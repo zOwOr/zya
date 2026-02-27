@@ -536,7 +536,14 @@
 
                 let clientes = @json(session('duplicate_aval')['clientes']);
 
-                let htmlContent = '<div style="text-align:left;">';
+                let htmlContent = `
+                    <div style="
+                        text-align:left;
+                        max-height:300px;
+                        overflow-y:auto;
+                        padding-right:10px;
+                    ">
+                `;
 
                 clientes.forEach(function(item) {
 

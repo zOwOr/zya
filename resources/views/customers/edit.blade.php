@@ -12,7 +12,7 @@
                     </div>
 
                     <div class="card-body">
-                        <form action="{{ route('customers.update', $customer->id) }}" method="POST"
+                        <form action="{{ route('customers.update', $customer->id) }}" method="POST" id="customerForm2"
                             enctype="multipart/form-data">
                             @csrf
                             @method('put')
@@ -567,8 +567,14 @@
             document.addEventListener('DOMContentLoaded', function() {
 
                 let clientes = @json(session('duplicate_aval')['clientes']);
-
-                let htmlContent = '<div style="text-align:left;">';
+                let htmlContent = `
+                    <div style="
+                        text-align:left;
+                        max-height:300px;
+                        overflow-y:auto;
+                        padding-right:10px;
+                    ">
+                `;
 
                 clientes.forEach(function(item) {
 
@@ -598,8 +604,8 @@
                         input.name = 'confirm_duplicate';
                         input.value = '1';
 
-                        document.getElementById('customerForm').appendChild(input);
-                        document.getElementById('customerForm').submit();
+                        document.getElementById('customerForm2').appendChild(input);
+                        document.getElementById('customerForm2').submit();
                     }
                 });
 
