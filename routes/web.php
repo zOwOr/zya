@@ -57,6 +57,8 @@ Route::middleware(['permission:user.menu'])->group(function () {
 
 // ====== CUSTOMERS ======
 Route::middleware(['permission:customer.menu'])->group(function () {
+    Route::get('/customers/check-phone', [CustomerController::class, 'checkPhone'])->name('customers.check-phone');
+    Route::get('/customers/check-name', [CustomerController::class, 'checkName'])->name('customers.check-name');
     Route::resource('/customers', CustomerController::class);
 });
 
@@ -104,6 +106,7 @@ Route::middleware(['permission:category.menu'])->group(function () {
 Route::middleware(['permission:pos.menu'])->group(function () {
     Route::get('/pos', [PosController::class,'index'])->name('pos.index');
     Route::post('/pos/add', [PosController::class, 'addCart'])->name('pos.addCart');
+    Route::post('/pos/add-dynamic', [PosController::class, 'addDynamicProduct'])->name('pos.addDynamicProduct');
     Route::post('/pos/update/{rowId}', [PosController::class, 'updateCart'])->name('pos.updateCart');
     Route::get('/pos/delete/{rowId}', [PosController::class, 'deleteCart'])->name('pos.deleteCart');
     Route::post('/pos/invoice/create', [PosController::class, 'createInvoice'])->name('pos.createInvoice');

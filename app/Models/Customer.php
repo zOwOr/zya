@@ -45,12 +45,10 @@ class Customer extends Model
         'aval_photo_ine_f',
         'aval_photo_ine_b',
         'aval_photo_home',
-
-
-
-
-
-
+        'alternate_phone',
+        'position',
+        'monthly_income',
+        'income_receipt_path',
     ];
     public $sortable = [
         'tit_name',

@@ -20,7 +20,7 @@
         </div>
         <div class="input-group mb-4">
             <div class="custom-file">
-                <input type="file" class="custom-file-input @error('photo') is-invalid @enderror" id="image" name="photo" accept="image/*" onchange="previewImage();">
+                <input type="file" class="custom-file-input @error('photo') is-invalid @enderror" id="image" name="photo" accept=".pdf, image/*" onchange="previewImage();">
                 <label class="custom-file-label" for="photo">Choose file</label>
             </div>
             @error('photo')

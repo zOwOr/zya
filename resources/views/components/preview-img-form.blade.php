@@ -2,14 +2,28 @@
     function previewImage(input) {
         const container = input.closest('.image-container');
         const imagePreview = container.querySelector('.image-preview');
+        const file = input.files[0];
 
-        imagePreview.style.display = 'block';
+        if (!file) return;
 
-        const oFReader = new FileReader();
-        oFReader.readAsDataURL(input.files[0]);
+        // Eliminar cualquier embed de PDF previo
+        const existingEmbed = container.querySelector('.pdf-preview-embed');
+        if (existingEmbed) existingEmbed.remove();
 
-        oFReader.onload = function(oFREvent) {
-            imagePreview.src = oFREvent.target.result;
+        if (file.type === 'application/pdf') {
+            // Para PDFs: ocultar el img y mostrar un embed/iframe
+            imagePreview.style.display = 'none';
+            const url = URL.createObjectURL(file);
+            const embed = document.createElement('embed');
+            embed.src = url;
+            embed.type = 'application/pdf';
+            embed.className = 'pdf-preview-embed';
+            embed.style.cssText = 'width:100%; height:200px; border:1px solid #ccc; border-radius:6px; margin-top:6px;';
+            container.appendChild(embed);
+        } else {
+            // Para imágenes: usar FileReader
+            imagePreview.style.display = 'block';
+            imagePreview.src = URL.createObjectURL(file); // Más rápido que FileReader para previsualización simple
         }
     }
 

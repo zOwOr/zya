@@ -42,7 +42,7 @@ class SupplierController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'photo' => 'image|file|max:1024',
+            'photo' => 'file|mimes:jpeg,png,jpg,gif,pdf,webp|max:1024',
             'name' => 'required|string|max:50',
             'email' => 'required|email|max:50|unique:suppliers,email',
             'phone' => 'required|string|max:15|unique:suppliers,phone',
@@ -97,7 +97,7 @@ class SupplierController extends Controller
     public function update(Request $request, Supplier $supplier)
     {
         $rules = [
-            'photo' => 'image|file|max:1024',
+            'photo' => 'file|mimes:jpeg,png,jpg,gif,pdf,webp|max:1024',
             'name' => 'required|string|max:50',
             'email' => 'required|email|max:50|unique:suppliers,email,'.$supplier->id,
             'phone' => 'required|string|max:15|unique:suppliers,phone,'.$supplier->id,

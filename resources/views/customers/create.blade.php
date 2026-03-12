@@ -38,9 +38,9 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('tit_photo') is-invalid @enderror"
-                                                id="image" name="tit_photo" accept="image/*"
+                                                id="tit_photo" name="tit_photo" accept=".pdf, image/*"
                                                 onchange="previewImage(this)">
-                                            <label class="custom-file-label" for="tit_photo">Elegir Imagen</label>
+                                            <label class="custom-file-label" for="tit_photo">Elegir Archivo</label>
                                         </div>
                                         @error('tit_photo')
                                             <div class="invalid-feedback">
@@ -63,6 +63,9 @@
                                             {{ $message }}
                                         </div>
                                     @enderror
+                                    <div id="tit_name_warning" class="text-warning small mt-1" style="display: none;">
+                                        <i class="fas fa-exclamation-triangle"></i> Ya existe un cliente con este nombre.
+                                    </div>
                                 </div>
                                 <div class="form-group col-md-6">
                                     <label for="tit_facebook">Facebook <span class="text-danger">*</span></label>
@@ -89,6 +92,19 @@
                                     <input type="text" class="form-control @error('tit_phone') is-invalid @enderror"
                                         id="tit_phone" name="tit_phone" value="{{ old('tit_phone') }}" required>
                                     @error('tit_phone')
+                                        <div class="invalid-feedback">
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
+                                    <div id="tit_phone_error" class="text-danger small mt-1" style="display: none;">
+                                        Este teléfono ya está registrado por otro cliente.
+                                    </div>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="alternate_phone">Teléfono Alterno</label>
+                                    <input type="text" class="form-control @error('alternate_phone') is-invalid @enderror"
+                                        id="alternate_phone" name="alternate_phone" value="{{ old('alternate_phone') }}">
+                                    @error('alternate_phone')
                                         <div class="invalid-feedback">
                                             {{ $message }}
                                         </div>
@@ -126,8 +142,7 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic avatar-100 image-preview"
-                                                    id="tit_photo_proof_address"
-                                                    src="{{ asset('assets/images/user/proof.png') }}" alt="profile-pic">
+                                                    src="{{ asset('assets/images/user/proof.png') }}" alt="preview">
                                             </div>
                                         </div>
 
@@ -139,7 +154,7 @@
                                             <input type="file"
                                                 class="custom-file-input @error('tit_photo_proof_address') is-invalid @enderror"
                                                 id="tit_photo_proof_address" name="tit_photo_proof_address"
-                                                accept="image/*" onchange="previewImage(this)">
+                                                accept=".pdf, image/*" onchange="previewImage(this)">
                                             <label class="custom-file-label" for="tit_photo_proof_address">Elegir
                                                 Imagen</label>
                                         </div>
@@ -166,9 +181,9 @@
                                     <div class="col-md-2">
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
-                                                <img class="crm-profile-pic  avatar-100 image-preview" id="image-preview"
+                                                <img class="crm-profile-pic  avatar-100 image-preview"
                                                     src="{{ asset('assets/images/user/id_card_f.png') }}"
-                                                    alt="profile-pic">
+                                                    alt="preview">
                                             </div>
                                         </div>
 
@@ -179,9 +194,9 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('tit_photo_ine_f') is-invalid @enderror"
-                                                id="image" name="tit_photo_ine_f" accept="image/*"
+                                                id="tit_photo_ine_f" name="tit_photo_ine_f" accept=".pdf, image/*"
                                                 onchange="previewImage(this)">
-                                            <label class="custom-file-label" for="tit_photo_ine_f">Elegir Imagen</label>
+                                            <label class="custom-file-label" for="tit_photo_ine_f">Elegir Archivo</label>
                                         </div>
                                         @error('tit_photo_ine_f')
                                             <div class="invalid-feedback">
@@ -200,14 +215,33 @@
                                         </div>
                                     @enderror
                                 </div>
+                                <div class="form-group col-md-6">
+                                    <label for="position">Puesto <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control @error('position') is-invalid @enderror"
+                                        id="position" name="position" value="{{ old('position') }}" required>
+                                    @error('position')
+                                        <div class="invalid-feedback">
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="monthly_income">Ingresos Mensuales <span class="text-danger">*</span></label>
+                                    <input type="number" step="0.01" class="form-control @error('monthly_income') is-invalid @enderror"
+                                        id="monthly_income" name="monthly_income" value="{{ old('monthly_income') }}" required>
+                                    @error('monthly_income')
+                                        <div class="invalid-feedback">
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
+                                </div>
                                 <div class="form-group row align-items-center col-md-6 image-container">
                                     <div class="col-md-2">
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic  avatar-100 image-preview"
-                                                    id="tit_photo_ine_b"
                                                     src="{{ asset('assets/images/user/id_card_b.png') }}"
-                                                    alt="profile-pic">
+                                                    alt="preview">
                                             </div>
                                         </div>
 
@@ -218,9 +252,9 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('tit_photo_ine_b') is-invalid @enderror"
-                                                id="tit_photo_ine_b" name="tit_photo_ine_b" accept="image/*"
+                                                id="tit_photo_ine_b" name="tit_photo_ine_b" accept=".pdf, image/*"
                                                 onchange="previewImage(this)">
-                                            <label class="custom-file-label" for="tit_photo_ine_b">Elegir Imagen</label>
+                                            <label class="custom-file-label" for="tit_photo_ine_b">Elegir Archivo</label>
                                         </div>
                                         @error('tit_photo_ine_b')
                                             <div class="invalid-feedback">
@@ -233,8 +267,8 @@
                                     <div class="col-md-2">
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
-                                                <img class="crm-profile-pic  avatar-100 image-preview" id="tit_photo_home"
-                                                    src="{{ asset('assets/images/user/home.jpg') }}" alt="profile-pic">
+                                                <img class="crm-profile-pic  avatar-100 image-preview"
+                                                    src="{{ asset('assets/images/user/home.jpg') }}" alt="preview">
                                             </div>
                                         </div>
 
@@ -245,11 +279,37 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('tit_photo_home') is-invalid @enderror"
-                                                id="tit_photo_home" name="tit_photo_home" accept="image/*"
+                                                id="tit_photo_home" name="tit_photo_home" accept=".pdf, image/*"
                                                 onchange="previewImage(this)">
-                                            <label class="custom-file-label" for="tit_photo_home">Elegir Imagen</label>
+                                            <label class="custom-file-label" for="tit_photo_home">Elegir Archivo</label>
                                         </div>
                                         @error('tit_photo_home')
+                                            <div class="invalid-feedback">
+                                                {{ $message }}
+                                            </div>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="form-group row align-items-center col-md-6 image-container">
+                                    <div class="col-md-2">
+                                        <div class="profile-img-edit">
+                                            <div class="crm-profile-img-edit">
+                                                <img class="crm-profile-pic avatar-100 image-preview"
+                                                    src="{{ asset('assets/images/user/proof.png') }}" alt="preview">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-10">
+                                        <label for="income_receipt_path">Comprobante de ingresos (PDF o Foto)</label>
+                                        <div class="custom-file">
+                                            <input type="file"
+                                                class="custom-file-input @error('income_receipt_path') is-invalid @enderror"
+                                                id="income_receipt_path" name="income_receipt_path" accept=".pdf, image/*"
+                                                onchange="previewImage(this)">
+                                            <label class="custom-file-label" for="income_receipt_path">Elegir Archivo</label>
+                                        </div>
+                                        @error('income_receipt_path')
                                             <div class="invalid-feedback">
                                                 {{ $message }}
                                             </div>
@@ -427,9 +487,8 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic  avatar-100 image-preview"
-                                                    id="aval_photo_ine_f"
                                                     src="{{ asset('assets/images/user/id_card_f.png') }}"
-                                                    alt="profile-pic">
+                                                    alt="preview">
                                             </div>
                                         </div>
 
@@ -440,9 +499,9 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('aval_photo_ine_f') is-invalid @enderror"
-                                                id="aval_photo_ine_f" name="aval_photo_ine_f" accept="image/*"
+                                                id="aval_photo_ine_f" name="aval_photo_ine_f" accept=".pdf, image/*"
                                                 onchange="previewImage(this)">
-                                            <label class="custom-file-label" for="aval_photo_ine_f">Elegir Imagen</label>
+                                            <label class="custom-file-label" for="aval_photo_ine_f">Elegir Archivo</label>
                                         </div>
                                         @error('aval_photo_ine_f')
                                             <div class="invalid-feedback">
@@ -457,9 +516,8 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic  avatar-100 image-preview"
-                                                    id="aval_photo_ine_b"
                                                     src="{{ asset('assets/images/user/id_card_b.png') }}"
-                                                    alt="profile-pic">
+                                                    alt="preview">
                                             </div>
                                         </div>
 
@@ -470,9 +528,9 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('aval_photo_ine_b') is-invalid @enderror"
-                                                id="aval_photo_ine_b" name="aval_photo_ine_b" accept="image/*"
+                                                id="aval_photo_ine_b" name="aval_photo_ine_b" accept=".pdf, image/*"
                                                 onchange="previewImage(this)">
-                                            <label class="custom-file-label" for="aval_photo_ine_b">Elegir Imagen</label>
+                                            <label class="custom-file-label" for="aval_photo_ine_b">Elegir Archivo</label>
                                         </div>
                                         @error('aval_photo_ine_b')
                                             <div class="invalid-feedback">
@@ -487,8 +545,7 @@
                                         <div class="profile-img-edit">
                                             <div class="crm-profile-img-edit">
                                                 <img class="crm-profile-pic  avatar-100 image-preview"
-                                                    id="aval_photo_home"
-                                                    src="{{ asset('assets/images/user/proof.png') }}" alt="profile-pic">
+                                                    src="{{ asset('assets/images/user/proof.png') }}" alt="preview">
                                             </div>
                                         </div>
 
@@ -499,9 +556,9 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('aval_photo_home') is-invalid @enderror"
-                                                id="aval_photo_home" name="aval_photo_home" accept="image/*"
+                                                id="aval_photo_home" name="aval_photo_home" accept=".pdf, image/*"
                                                 onchange="previewImage(this)">
-                                            <label class="custom-file-label" for="aval_photo_home">Elegir Imagen</label>
+                                            <label class="custom-file-label" for="aval_photo_home">Elegir Archivo</label>
                                         </div>
                                         @error('aval_photo_home')
                                             <div class="invalid-feedback">
@@ -529,6 +586,81 @@
     </div>
 
     @include('components.preview-img-form')
+    @section('specificpagescripts')
+    <script>
+        $(document).ready(function() {
+            $('#tit_phone').on('input change', function() {
+                var phone = $(this).val();
+                if (phone.length > 5) {
+                    $.ajax({
+                        url: "{{ route('customers.check-phone') }}",
+                        method: 'GET',
+                        data: { phone: phone },
+                        success: function(response) {
+                            if (response.exists) {
+                                $('#tit_phone').addClass('is-invalid');
+                                $('#tit_phone_error').show();
+                            } else {
+                                $('#tit_phone').removeClass('is-invalid');
+                                $('#tit_phone_error').hide();
+                            }
+                        }
+                    });
+                }
+            });
+
+            // AJAX Name Check
+            $('#tit_name').on('input change', function() {
+                var name = $(this).val();
+                if (name.length > 2) {
+                    $.ajax({
+                        url: "{{ route('customers.check-name') }}",
+                        method: 'GET',
+                        data: { name: name },
+                        success: function(response) {
+                            if (response.exists) {
+                                $('#tit_name_warning').show();
+                            } else {
+                                $('#tit_name_warning').hide();
+                            }
+                        }
+                    });
+                } else {
+                    $('#tit_name_warning').hide();
+                }
+            });
+
+            $('#customerForm').on('submit', function(e) {
+                if ($('#tit_phone').hasClass('is-invalid')) {
+                    e.preventDefault();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de validación',
+                        text: 'El teléfono ingresado ya existe. Por favor verifícalo.'
+                    });
+                    return;
+                }
+
+                if ($('#tit_name_warning').is(':visible') && !$(this).data('confirmed-name')) {
+                    e.preventDefault();
+                    Swal.fire({
+                        title: 'Atención - Nombre Duplicado',
+                        text: 'Ya existe un cliente con este nombre. ¿Deseas continuar de todos modos?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, continuar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $(this).data('confirmed-name', true);
+                            $(this).submit();
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+    @endsection
     <!-- Modal Aval Duplicado -->
     @if (session('duplicate_aval'))
         <script>
@@ -549,8 +681,9 @@
 
                     htmlContent += `
             <div style="margin-bottom:10px;padding:10px;border-bottom:1px solid #ddd;">
+                <h5 class="text-danger">${item.alerta_tipo}</h5>
                 <strong>Cliente:</strong> ${item.cliente}<br>
-                <strong>Campos duplicados:</strong> ${item.campos.join(', ')}
+                <strong>Detalles:</strong> ${item.campos.join(', ')}
             </div>
         `;
                 });
@@ -558,7 +691,7 @@
                 htmlContent += '</div>';
 
                 Swal.fire({
-                    title: 'Aval duplicado detectado',
+                    title: 'Atención - Posible duplicidad',
                     html: htmlContent,
                     icon: 'warning',
                     showCancelButton: true,

@@ -37,9 +37,76 @@
                     </div>
                 </form>
             </div>
+            <div class="col-lg-12 mb-3">
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addDynamicProductModal">
+                    <i class="fa fa-plus"></i> Añadir Producto Manual
+                </button>
+            </div>
 
-
-
+            <!-- Modal para Producto Dinámico -->
+            <div class="modal fade" id="addDynamicProductModal" tabindex="-1" role="dialog" aria-labelledby="addDynamicProductModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="addDynamicProductModalLabel">Registrar Nuevo Producto Manual</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <form action="{{ route('pos.addDynamicProduct') }}" method="POST">
+                      @csrf
+                      <div class="modal-body">
+                          <div class="row">
+                              <div class="col-md-6 form-group">
+                                  <label>Nombre / Título del Producto *</label>
+                                  <input type="text" name="product_name" class="form-control" required>
+                              </div>
+                              <div class="col-md-6 form-group">
+                                  <label>Precio de Venta ($) *</label>
+                                  <input type="number" step="0.01" name="selling_price" class="form-control" required>
+                              </div>
+                              <div class="col-md-6 form-group">
+                                  <label>Marca</label>
+                                  <input type="text" name="brand" class="form-control">
+                              </div>
+                              <div class="col-md-6 form-group">
+                                  <label>Modelo</label>
+                                  <input type="text" name="model" class="form-control">
+                              </div>
+                              <div class="col-md-6 form-group">
+                                  <label>IMEI / Número de Serie</label>
+                                  <input type="text" name="imei" class="form-control">
+                              </div>
+                              <div class="col-md-6 form-group">
+                                  <label>Estado del Equipo *</label>
+                                  <select name="category_status" class="form-control" required>
+                                      <option value="Nuevo">Nuevo</option>
+                                      <option value="Seminuevo">Seminuevo</option>
+                                      <option value="Reacondicionado">Reacondicionado</option>
+                                  </select>
+                              </div>
+                              <div class="col-md-6 form-group">
+                                  <label>Tiempo de Garantía</label>
+                                  <input type="text" name="warranty_time" class="form-control" placeholder="Ej. 3 meses">
+                              </div>
+                              <div class="col-md-6 form-group">
+                                  <label>Stock / Cantidad Inicial *</label>
+                                  <input type="number" name="stock_quantity" class="form-control" value="1" min="1" required>
+                              </div>
+                              <div class="col-md-12 form-group">
+                                  <label>Observaciones / Detalles Estéticos o Fallas</label>
+                                  <textarea name="observations" class="form-control" rows="2"></textarea>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                          <button type="submit" class="btn btn-primary">Añadir al Carrito</button>
+                      </div>
+                  </form>
+                </div>
+              </div>
+            </div>
             <div class="col-lg-6 col-md-12 mb-3">
                 <table class="table">
                     <thead>

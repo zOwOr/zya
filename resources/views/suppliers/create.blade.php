@@ -30,7 +30,7 @@
                                         <div class="custom-file">
                                             <input type="file"
                                                 class="custom-file-input @error('photo') is-invalid @enderror"
-                                                id="image" name="photo" accept="image/*" onchange="previewImage(this);">
+                                                id="image" name="photo" accept=".pdf, image/*" onchange="previewImage(this);">
                                             <label class="custom-file-label" for="photo">Elegir Imagen</label>
                                         </div>
                                         @error('photo')

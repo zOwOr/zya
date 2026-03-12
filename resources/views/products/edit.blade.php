@@ -35,7 +35,7 @@
                         <div class="row">
                             <div class="input-group mb-4 col-lg-6">
                                 <div class="custom-file">
-                                    <input type="file" class="custom-file-input @error('product_image') is-invalid @enderror" id="image" name="product_image" accept="image/*" onchange="previewImage();">
+                                    <input type="file" class="custom-file-input @error('product_image') is-invalid @enderror" id="image" name="product_image" accept=".pdf, image/*" onchange="previewImage();">
                                     <label class="custom-file-label" for="product_image">Elegir imagen</label>
                                 </div>
                                 @error('product_image')

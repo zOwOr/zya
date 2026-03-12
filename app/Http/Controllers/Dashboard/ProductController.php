@@ -64,7 +64,7 @@ class ProductController extends Controller
         ]);
 
         $rules = [
-            'product_image' => 'image|file|max:1024',
+            'product_image' => 'file|mimes:jpeg,png,jpg,gif,pdf,webp|max:1024',
             'product_name' => 'required|string',
             'imei' => 'string|nullable',
             'category_id' => 'required|integer',
@@ -133,7 +133,7 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $rules = [
-            'product_image' => 'image|file|max:1024',
+            'product_image' => 'file|mimes:jpeg,png,jpg,gif,pdf,webp|max:1024',
             'product_name' => 'required|string',
             'category_id' => 'required|integer',
             'supplier_id' => 'required|integer',

@@ -140,5 +140,56 @@ class PosController extends Controller
         return redirect()->back()->with('success', 'Producto añadido correctamente.');
     }
 
+    public function addDynamicProduct(Request $request)
+    {
+        $validatedData = $request->validate([
+            'product_name' => 'required|string|max:255',
+            'selling_price' => 'required|numeric',
+            'brand' => 'nullable|string|max:255',
+            'model' => 'nullable|string|max:255',
+            'imei' => 'nullable|string|max:255',
+            'category_status' => 'required|string|max:255',
+            'warranty_time' => 'nullable|string|max:255',
+            'stock_quantity' => 'required|numeric|min:1',
+            'observations' => 'nullable|string',
+        ]);
 
+        // Asegurar que hay al menos una categoría y un proveedor para evitar errores Constraint
+        $category = \App\Models\Category::first();
+        $supplier = \App\Models\Supplier::first();
+
+        $product = Product::create([
+            'product_name' => $validatedData['product_name'],
+            'selling_price' => $validatedData['selling_price'],
+            'buying_price' => 0,
+            'stock_quantity' => $validatedData['stock_quantity'],
+            'product_code' => 'DYN-' . time(),
+            'brand' => $validatedData['brand'],
+            'model' => $validatedData['model'],
+            'imei' => $validatedData['imei'],
+            'category_status' => $validatedData['category_status'],
+            'warranty_time' => $validatedData['warranty_time'],
+            'observations' => $validatedData['observations'],
+            'category_id' => $category ? $category->id : 1,
+            'supplier_id' => $supplier ? $supplier->id : 1,
+        ]);
+
+        Cart::add([
+            'id' => $product->id,
+            'name' => $product->product_name,
+            'qty' => 1,
+            'price' => $product->selling_price,
+            'options' => [
+                'image' => null,
+                'brand' => $product->brand,
+                'model' => $product->model,
+                'serial' => $product->imei,
+                'status' => $product->category_status,
+                'warranty' => $product->warranty_time,
+                'observations' => $product->observations,
+            ]
+        ]);
+
+        return redirect()->back()->with('success', 'Producto personalizado añadido al carrito correctamente.');
+    }
 }

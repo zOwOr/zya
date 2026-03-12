@@ -1,21 +1,51 @@
 @extends('dashboard.body.main')
+
+@section('specificpagestyles')
 <style>
     @media print {
         .no-print {
-            display: none !important; /* Oculta botones o menús */
+            display: none !important;
         }
-        .card {
-            border: none !important; /* Quita bordes para que se vea más limpio */
-            box-shadow: none !important;
+        /* Fix para PDFs: ocultar el visor interactivo y mostrar el marcador estático */
+        .pdf-embed-to-fix {
+            display: none !important;
         }
-        body {
-            font-size: 12px;
-            background: #fff !important;
+        .pdf-print-fix {
+            display: block !important;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: #f9f9f9 !important;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
         }
     }
 </style>
+@endsection
 
 @section('container')
+
+@once
+@php
+if (!function_exists('filePreviewHtml')) {
+    function filePreviewHtml(string $filename, string $btnClass = 'btn-outline-primary'): string
+    {
+        $url = asset('storage/customers/' . $filename);
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $btnHtml = '<a href="' . $url . '" target="_blank" class="btn btn-sm ' . $btnClass . ' mb-2 no-print">';
+        if ($ext === 'pdf') {
+            return $btnHtml . '<i class="fa fa-file-pdf-o"></i> Ver / Descargar PDF</a><br>'
+                 . '<div class="pdf-print-fix" style="display:none; border:1px solid #ccc; padding:10px; border-radius:6px; background:#f9f9f9; text-align:center;">'
+                 . '<i class="fa fa-file-pdf-o" style="font-size:20px; color:red;"></i><br>Archivo PDF adjunto</div>'
+                 . '<embed class="pdf-embed-to-fix" src="' . $url . '" type="application/pdf" '
+                 . 'style="width:100%;height:260px;border:1px solid #ccc;border-radius:6px;margin-top:4px;"></embed>';
+        }
+        return $btnHtml . '<i class="fa fa-download"></i> Ver / Descargar Documento</a><br>'
+             . '<img class="rounded img-fluid" style="max-height:150px;width:auto;" src="' . $url . '">';
+    }
+}
+@endphp
+@endonce
     <div class="container-fluid mb-3">
         <div class="row">
             <div class="col-lg-12">
@@ -74,6 +104,20 @@
                                     <p class="mb-0">{{ $customer->tit_phone }}</p>
                                 </div>
                             </li>
+                            @if($customer->alternate_phone)
+                            <li class="mb-2">
+                                <div class="d-flex align-items-center">
+                                    <svg class="svg-icon mr-3" height="16" width="16"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z">
+                                        </path>
+                                    </svg>
+                                    <p class="mb-0">{{ $customer->alternate_phone }} (Alterno)</p>
+                                </div>
+                            </li>
+                            @endif
                             <li class="mb-2">
                                 <div class="d-flex align-items-center">
                                     <svg class="svg-icon mr-3" height="16" width="16"
@@ -313,8 +357,11 @@
                                         <label class="col-form-label">Foto INE parte frontal</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
-                                        <img class="rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->tit_photo_ine_f ? asset('storage/customers/' . $customer->tit_photo_ine_f) : asset('assets/images/user/id_card-f.png') }}">
+                                        @if($customer->tit_photo_ine_f)
+                                            {!! filePreviewHtml($customer->tit_photo_ine_f, 'btn-outline-primary') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
                                     </div>
                                 </div>
                             </li>
@@ -324,8 +371,11 @@
                                         <label class="col-form-label">Foto INE parte trasera</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
-                                        <img class=" rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->tit_photo_ine_b ? asset('storage/customers/' . $customer->tit_photo_ine_b) : asset('assets/images/user/id_card-b.png') }}">
+                                        @if($customer->tit_photo_ine_b)
+                                            {!! filePreviewHtml($customer->tit_photo_ine_b, 'btn-outline-primary') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
                                     </div>
                                 </div>
                             </li>
@@ -335,8 +385,11 @@
                                         <label class="col-form-label">Foto comprobante de domicilio</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
-                                        <img class=" rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->tit_photo_proof_address ? asset('storage/customers/' . $customer->tit_photo_proof_address) : asset('assets/images/user/proof.png') }}">
+                                        @if($customer->tit_photo_proof_address)
+                                            {!! filePreviewHtml($customer->tit_photo_proof_address, 'btn-outline-primary') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
                                     </div>
                                 </div>
                             </li>
@@ -346,8 +399,25 @@
                                         <label class="col-form-label">Foto fachada de la casa</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
-                                        <img class=" rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->tit_photo_home ? asset('storage/customers/' . $customer->tit_photo_home) : asset('assets/images/user/home.jpg') }}">
+                                        @if($customer->tit_photo_home)
+                                            {!! filePreviewHtml($customer->tit_photo_home, 'btn-outline-primary') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="col-lg-12">
+                                <div class="form-group row">
+                                    <div class="col-sm-3 col-4 my-auto">
+                                        <label class="col-form-label">Comprobante de Ingresos</label>
+                                    </div>
+                                    <div class="col-sm-9 col-8">
+                                        @if($customer->income_receipt_path)
+                                            {!! filePreviewHtml($customer->income_receipt_path, 'btn-outline-primary') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
                                     </div>
                                 </div>
                             </li>
@@ -370,6 +440,28 @@
                                     <div class="col-sm-9 col-8">
                                         <input type="text" class="form-control bg-white"
                                             value="{{ $customer->tit_work }}" readonly>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="col-lg-12">
+                                <div class="form-group row">
+                                    <div class="col-sm-3 col-4">
+                                        <label class="col-form-label">Puesto</label>
+                                    </div>
+                                    <div class="col-sm-9 col-8">
+                                        <input type="text" class="form-control bg-white"
+                                            value="{{ $customer->position }}" readonly>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="col-lg-12">
+                                <div class="form-group row">
+                                    <div class="col-sm-3 col-4">
+                                        <label class="col-form-label">Ingresos Mensuales</label>
+                                    </div>
+                                    <div class="col-sm-9 col-8">
+                                        <input type="text" class="form-control bg-white"
+                                            value="${{ number_format($customer->monthly_income, 2) }}" readonly>
                                     </div>
                                 </div>
                             </li>
@@ -405,7 +497,7 @@
 
         <div class="row px-3">
             <!-- begin: Right Detail Employee -->
-            <div class="col-lg-12 "">
+            <div class="col-lg-12">
                 <div class="card card-block card-stretch mb-0">
                     <div class="card-header px-3 bg-warning">
                         <div class="header-title ">
@@ -442,8 +534,11 @@
                                         <label class="col-form-label">Foto INE parte frontal</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
-                                        <img class="rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->aval_photo_ine_f ? asset('storage/customers/' . $customer->aval_photo_ine_f) : asset('assets/images/user/id_card-f.png') }}">
+                                        @if($customer->aval_photo_ine_f)
+                                            {!! filePreviewHtml($customer->aval_photo_ine_f, 'btn-outline-warning') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
                                     </div>
                                 </div>
                             </li>
@@ -453,8 +548,11 @@
                                         <label class="col-form-label">Foto INE parte trasera</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
-                                        <img class=" rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->aval_photo_ine_b ? asset('storage/customers/' . $customer->aval_photo_ine_b) : asset('assets/images/user/id_card-b.png') }}">
+                                        @if($customer->aval_photo_ine_b)
+                                            {!! filePreviewHtml($customer->aval_photo_ine_b, 'btn-outline-warning') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
                                     </div>
                                 </div>
                             </li>
@@ -465,8 +563,11 @@
                                         <label class="col-form-label">Foto comprobante de domicilio</label>
                                     </div>
                                     <div class="col-sm-9 col-8">
-                                        <img class=" rounded" style="max-height: 150px; width: auto;"
-                                            src="{{ $customer->aval_photo_home ? asset('storage/customers/' . $customer->aval_photo_home) : asset('assets/images/user/proof.pmg') }}">
+                                        @if($customer->aval_photo_home)
+                                            {!! filePreviewHtml($customer->aval_photo_home, 'btn-outline-warning') !!}
+                                        @else
+                                            <span class="text-muted">No adjunto</span>
+                                        @endif
                                     </div>
                                 </div>
                             </li>
@@ -493,33 +594,33 @@
     </div>
 
             <div class="text-center my-4 no-print">
-            <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir información del cliente</button>
+            <button class="btn btn-primary" onclick="imprimirCliente()">🖨️ Imprimir información del cliente</button>
         </div>
 @endsection
-<script>
-    function updateSelectColor(select) {
-        // Quita clases anteriores
-        select.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-info', 'text-white');
 
-        switch (select.value) {
-            case 'aprobado':
-                select.classList.add('bg-success', 'text-white');
-                break;
-            case 'riesgo':
-                select.classList.add('bg-warning', 'text-dark');
-                break;
-            case 'moroso':
-                select.classList.add('bg-danger', 'text-white');
-                break;
-            case 'rescate':
-                select.classList.add('bg-primary', 'text-white');
-                break;
+@section('specificpagescripts')
+<script>
+    function imprimirCliente() {
+        if (document.activeElement) {
+            document.activeElement.blur();
         }
+        window.print();
     }
 
-    // Aplicar color al cargar la página si ya hay un valor seleccionado
+    function updateSelectColor(select) {
+        select.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-info', 'text-white', 'bg-secondary');
+        switch (select.value) {
+            case 'aprobado':    select.classList.add('bg-success', 'text-white'); break;
+            case 'riesgo':      select.classList.add('bg-warning', 'text-dark'); break;
+            case 'moroso':      select.classList.add('bg-danger', 'text-white'); break;
+            case 'rescate':     select.classList.add('bg-primary', 'text-white'); break;
+            case 'desaprobado': select.classList.add('bg-secondary', 'text-white'); break;
+            case 'solicitud':   select.classList.add('bg-primary', 'text-white'); break;
+        }
+    }
     document.addEventListener('DOMContentLoaded', function() {
         const select = document.getElementById('tit_status');
-        updateSelectColor(select);
+        if (select) updateSelectColor(select);
     });
 </script>
+@endsection

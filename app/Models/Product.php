@@ -24,6 +24,11 @@ class Product extends Model
         'buying_price',
         'selling_price',
         'stock_quantity',
+        'brand',
+        'model',
+        'category_status',
+        'warranty_time',
+        'observations',
     ];
 
     public $sortable = [
