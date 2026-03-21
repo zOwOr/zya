@@ -2,8 +2,12 @@
     <div class="iq-navbar-custom">
         <nav class="navbar navbar-expand-lg navbar-light p-0">
             <div class="iq-navbar-logo d-flex align-items-center justify-content-between">
-{{--                 <i class="ri-menu-line wrapper-menu"></i>
- --}}                <a href="{{ route('dashboard') }}" class="header-logo">
+                <div class="iq-menu-bt d-flex align-items-center" onclick="document.body.classList.toggle('sidebar-main')" style="cursor: pointer; z-index: 1050;">
+                    <div>
+                        <div class="main-circle"><i class="ri-menu-line" style="font-size: 25px;"></i></div>
+                    </div>
+                </div>
+                <a href="{{ route('dashboard') }}" class="header-logo">
                     <img src="../assets/images/logo.png" class="img-fluid rounded-normal" alt="logo">
                 </a>
             </div>

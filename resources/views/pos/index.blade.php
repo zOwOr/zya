@@ -108,8 +108,9 @@
               </div>
             </div>
             <div class="col-lg-6 col-md-12 mb-3">
-                <table class="table">
-                    <thead>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
                         <tr class="ligth">
                             <th scope="col">Nombre</th>
                             <th scope="col">Cantidad</th>
@@ -147,6 +148,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
 
                 <div class="container row text-center">
                     <div class="form-group col-sm-6">

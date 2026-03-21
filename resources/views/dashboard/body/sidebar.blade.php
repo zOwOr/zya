@@ -4,9 +4,9 @@
             <img src="{{ asset('assets/images/logo.png') }}" class="img-fluid rounded-normal  light-logo"
                 style="width: 120px;" alt="logo">
         </a>
-{{--         <div class="iq-menu-bt-sidebar ml-0">
-            <i class="las la-bars wrapper-menu"></i>
-        </div> --}}
+        <div class="iq-menu-bt-sidebar ml-0" onclick="document.body.classList.remove('sidebar-main')" style="cursor: pointer;">
+            <i class="las la-bars" style="font-size: 25px;"></i>
+        </div>
     </div>
     <div class="data-scrollbar" data-scroll="1">
         <nav class="iq-sidebar-menu">

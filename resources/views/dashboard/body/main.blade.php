@@ -21,6 +21,21 @@
     overflow-y: auto;
     overflow-x: hidden;
   }
+  @media (max-width: 1299px) {
+    body.sidebar-main .iq-sidebar {
+      width: 260px !important;
+      left: 0 !important;
+      z-index: 9999 !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu li a span,
+    body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu li a .iq-arrow-right {
+      display: inline-block !important;
+      opacity: 1 !important;
+    }
+  }
 </style>
 
     @yield('specificpagestyles')
