@@ -18,7 +18,7 @@ class PaySalaryController extends Controller
     {
         $row = (int) request('row', 10);
 
-        if ($row < 1 || $row > 100) {
+        if ($row < 1 || $row > 100000) {
             abort(400, 'The row parameter must be an integer between 1 and 100.');
         }
 
@@ -52,7 +52,7 @@ class PaySalaryController extends Controller
     {
         $row = (int) request('row', 10);
 
-        if ($row < 1 || $row > 100) {
+        if ($row < 1 || $row > 100000) {
             abort(400, 'The row parameter must be an integer between 1 and 100.');
         }
 

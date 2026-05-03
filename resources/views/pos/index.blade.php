@@ -239,7 +239,7 @@
                                 <div class="form-group row">
                                     <label for="row" class="align-self-center mx-2">Row:</label>
                                     <div>
-                                        <select class="form-control" name="row">
+                                        <select class="form-control" name="row" onchange="this.form.submit()">
                                             <option value="10"
                                                 @if (request('row') == '10') selected="selected" @endif>10</option>
                                             <option value="25"
@@ -248,6 +248,7 @@
                                                 @if (request('row') == '50') selected="selected" @endif>50</option>
                                             <option value="100"
                                                 @if (request('row') == '100') selected="selected" @endif>100</option>
+                                    <option value="100000" @if(request('row') == '100000') selected="selected" @endif>Todos</option>
                                         </select>
                                     </div>
                                 </div>

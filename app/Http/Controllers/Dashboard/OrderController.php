@@ -28,8 +28,8 @@ class OrderController extends Controller
     {
         $row = (int) request('row', 10);
 
-        if ($row < 1 || $row > 100) {
-            abort(400, 'The per-page parameter must be an integer between 1 and 100.');
+        if ($row < 1 || $row > 100000) {
+            abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
         }
 
         $orders = Order::where('order_status', 'pending')->sortable()->paginate($row);
@@ -73,8 +73,8 @@ class OrderController extends Controller
     {
         $row = (int) request('row', 10);
 
-        if ($row < 1 || $row > 100) {
-            abort(400, 'The per-page parameter must be an integer between 1 and 100.');
+        if ($row < 1 || $row > 100000) {
+            abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
         }
 
         $orders = Order::where('order_status', 'complete')->sortable()->paginate($row);
@@ -88,8 +88,8 @@ class OrderController extends Controller
     {
         $row = (int) request('row', 10);
 
-        if ($row < 1 || $row > 100) {
-            abort(400, 'The per-page parameter must be an integer between 1 and 100.');
+        if ($row < 1 || $row > 100000) {
+            abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
         }
 
         return view('stock.index', [
@@ -326,8 +326,8 @@ public function pendingDue()
 {
     $row = (int) request('row', 10);
 
-    if ($row < 1 || $row > 100) {
-        abort(400, 'The per-page parameter must be an integer between 1 and 100.');
+    if ($row < 1 || $row > 100000) {
+        abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
     }
 
     $search = request('search');
