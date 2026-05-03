@@ -27,7 +27,7 @@
         </form>
 
         {{-- 🧾 Tabla de movimientos --}}
-        <table class="table table-bordered table-striped">
+        <table class="table table-bordered table-striped datatable-export">
             <thead>
                 <tr>
                     <th>Fecha</th>
@@ -70,3 +70,4 @@
 
     </div>
 @endsection
+

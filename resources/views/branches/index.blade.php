@@ -10,7 +10,7 @@
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
-    <table class="table table-bordered table-striped">
+    <table class="table table-bordered table-striped datatable-export">
         <thead>
             <tr>
                 <th>Nombre</th>
@@ -41,3 +41,4 @@
     {{ $branches->links() }}
 </div>
 @endsection
+

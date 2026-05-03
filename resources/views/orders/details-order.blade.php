@@ -284,7 +284,19 @@
                                             src="{{ $item->product && $item->product->product_image ? asset('storage/product/' . $item->product->product_image) : asset('assets/images/product/default.webp') }}">
 
                                     </td>
-                                    <td>{{ $item->product->product_name ?? 'El Producto ha sido eliminado' }}</td>
+                                    <td>
+                                        {{ $item->product->product_name ?? 'El Producto ha sido eliminado' }}
+                                        @if($item->product && ($item->product->brand || $item->product->model || $item->product->imei || $item->product->category_status || $item->product->warranty_time || $item->product->observations))
+                                            <small class="text-muted d-block mt-1">
+                                                @if($item->product->brand) <b>Marca:</b> {{ $item->product->brand }} <br> @endif
+                                                @if($item->product->model) <b>Modelo:</b> {{ $item->product->model }} <br> @endif
+                                                @if($item->product->imei) <b>IMEI/Serie:</b> {{ $item->product->imei }} <br> @endif
+                                                @if($item->product->category_status) <b>Estado:</b> {{ $item->product->category_status }} <br> @endif
+                                                @if($item->product->warranty_time) <b>Garantía:</b> {{ $item->product->warranty_time }} <br> @endif
+                                                @if($item->product->observations) <b>Obs:</b> {{ $item->product->observations }} @endif
+                                            </small>
+                                        @endif
+                                    </td>
                                     <td>{{ $item->product->product_code ?? 'El Producto ha sido eliminado' }}</td>
                                     <td>{{ $item->quantity }}</td>
                                     <td>${{ $item->unitcost }}</td>

@@ -22,7 +22,7 @@
                     <div class="container">
                         <a href="{{ route('repairs.create') }}" class="btn btn-primary mb-3">Nueva Reparación</a>
 
-                        <table class="table table-bordered">
+                        <table class="table table-bordered datatable-export">
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
@@ -68,3 +68,4 @@
             </div>
         </div>
     @endsection
+

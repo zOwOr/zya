@@ -134,9 +134,28 @@
                                             @foreach ($content as $item)
                                                 <tr>
                                                     <th class="text-center" scope="row">{{ $loop->iteration }}</th>
-                                                    <td>
-                                                        <h6 class="mb-0">{{ $item->name }}</h6>
-                                                    </td>
+                                                        <td>
+                                                            <h6 class="mb-0">{{ $item->name }}</h6>
+                                                            @php
+                                                                $prod = \App\Models\Product::find($item->id);
+                                                                $brand = $item->options->get('brand') ?: ($prod ? $prod->brand : null);
+                                                                $model = $item->options->get('model') ?: ($prod ? $prod->model : null);
+                                                                $serial = $item->options->get('serial') ?: ($prod ? $prod->imei : null);
+                                                                $status = $item->options->get('status') ?: ($prod ? $prod->category_status : null);
+                                                                $warranty = $item->options->get('warranty') ?: ($prod ? $prod->warranty_time : null);
+                                                                $obs = $item->options->get('observations') ?: ($prod ? $prod->observations : null);
+                                                            @endphp
+                                                            @if($brand || $model || $serial || $status || $warranty || $obs)
+                                                                <small class="text-muted d-block mt-1">
+                                                                    @if($brand) <b>Marca:</b> {{ $brand }} <br> @endif
+                                                                    @if($model) <b>Modelo:</b> {{ $model }} <br> @endif
+                                                                    @if($serial) <b>IMEI/Serie:</b> {{ $serial }} <br> @endif
+                                                                    @if($status) <b>Estado:</b> {{ $status }} <br> @endif
+                                                                    @if($warranty) <b>Garantía:</b> {{ $warranty }} <br> @endif
+                                                                    @if($obs) <b>Obs:</b> {{ $obs }} @endif
+                                                                </small>
+                                                            @endif
+                                                        </td>
                                                     <td class="text-center">{{ $item->qty }}</td>
                                                     <td class="text-center">{{ $item->price }}</td>
                                                     <td class="text-center"><b>{{ $item->subtotal }}</b></td>

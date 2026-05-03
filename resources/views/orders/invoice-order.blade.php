@@ -82,7 +82,19 @@
                                     <tbody>
                                         @foreach ($orderDetails as $item)
                                         <tr>
-                                            <td>{{ $item->product->product_name }}</td>
+                                            <td>
+                                                {{ $item->product->product_name }}
+                                                @if($item->product && ($item->product->brand || $item->product->model || $item->product->imei || $item->product->category_status || $item->product->warranty_time || $item->product->observations))
+                                                    <small class="text-muted d-block mt-1" style="font-size: 0.8em; line-height: 1.2;">
+                                                        @if($item->product->brand) <b>Marca:</b> {{ $item->product->brand }} <br> @endif
+                                                        @if($item->product->model) <b>Modelo:</b> {{ $item->product->model }} <br> @endif
+                                                        @if($item->product->imei) <b>IMEI/Serie:</b> {{ $item->product->imei }} <br> @endif
+                                                        @if($item->product->category_status) <b>Estado:</b> {{ $item->product->category_status }} <br> @endif
+                                                        @if($item->product->warranty_time) <b>Garantía:</b> {{ $item->product->warranty_time }} <br> @endif
+                                                        @if($item->product->observations) <b>Obs:</b> {{ $item->product->observations }} @endif
+                                                    </small>
+                                                @endif
+                                            </td>
                                             <td>${{ $item->unitcost }}</td>
                                             <td>{{ $item->quantity }}</td>
                                             <td>${{ $item->total }}</td>

@@ -54,7 +54,7 @@
 
         <div class="col-lg-12">
             <div class="table-responsive rounded mb-3">
-                <table class="table mb-0">
+                <table class="table mb-0 datatable-export">
                     <thead class="bg-white text-uppercase">
                         <tr class="ligth ligth-data">
                             <th>No.</th>
@@ -99,3 +99,4 @@
 </div>
 
 @endsection
+

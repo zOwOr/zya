@@ -122,7 +122,28 @@
                     <tbody>
                         @foreach ($productItem as $item)
                             <tr>
-                                <td>{{ $item->name }}</td>
+                                <td>
+                                    {{ $item->name }}
+                                    @php
+                                        $prod = \App\Models\Product::find($item->id);
+                                        $brand = $item->options->get('brand') ?: ($prod ? $prod->brand : null);
+                                        $model = $item->options->get('model') ?: ($prod ? $prod->model : null);
+                                        $serial = $item->options->get('serial') ?: ($prod ? $prod->imei : null);
+                                        $status = $item->options->get('status') ?: ($prod ? $prod->category_status : null);
+                                        $warranty = $item->options->get('warranty') ?: ($prod ? $prod->warranty_time : null);
+                                        $obs = $item->options->get('observations') ?: ($prod ? $prod->observations : null);
+                                    @endphp
+                                    @if($brand || $model || $serial || $status || $warranty || $obs)
+                                        <small class="text-muted d-block mt-1">
+                                            @if($brand) <b>Marca:</b> {{ $brand }} <br> @endif
+                                            @if($model) <b>Modelo:</b> {{ $model }} <br> @endif
+                                            @if($serial) <b>IMEI/Serie:</b> {{ $serial }} <br> @endif
+                                            @if($status) <b>Estado:</b> {{ $status }} <br> @endif
+                                            @if($warranty) <b>Garantía:</b> {{ $warranty }} <br> @endif
+                                            @if($obs) <b>Obs:</b> {{ $obs }} @endif
+                                        </small>
+                                    @endif
+                                </td>
                                 <td style="min-width: 140px;">
                                     <form action="{{ route('pos.updateCart', $item->rowId) }}" method="POST">
                                         @csrf
@@ -249,7 +270,7 @@
 
 
                         <div class="table-responsive rounded mb-3 border-none">
-                            <table class="table mb-0">
+                            <table class="table mb-0 datatable-export">
                                 <thead class="bg-white text-uppercase">
                                     <tr class="ligth ligth-data">
                                         <th>No.</th>
@@ -372,5 +393,6 @@
         }
     });
 </script>
+
 
 
