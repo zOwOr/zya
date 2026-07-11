@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 use Spatie\Permission\PermissionRegistrar;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class CreatePermissionTables extends Migration
 {
@@ -118,6 +120,66 @@ class CreatePermissionTables extends Migration
         app('cache')
             ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
             ->forget(config('permission.cache.key'));
+
+        // Seed default permissions, roles and assign to user id = 1
+        try {
+            $permissionGroups = [
+                'pos', 'employee', 'customer', 'supplier', 'salary', 'attendence',
+                'category', 'product', 'orders', 'stock', 'roles', 'permissions',
+                'user', 'branch', 'database', 'cash', 'repairs', 'tandas'
+            ];
+
+            $actions = ['menu', 'read', 'create', 'edit', 'delete'];
+            $now = Carbon::now()->toDateTimeString();
+
+            $permissions = [];
+            foreach ($permissionGroups as $group) {
+                foreach ($actions as $action) {
+                    $permissions[] = [
+                        'name' => "{$group}.{$action}",
+                        'guard_name' => 'web',
+                        'group_name' => $group,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+
+            // Insert permissions (ignore duplicates)
+            if (!empty($permissions)) {
+                DB::table('permissions')->insertOrIgnore($permissions);
+            }
+
+            // Create or ensure SuperAdmin role
+            DB::table('roles')->insertOrIgnore([
+                [
+                    'name' => 'SuperAdmin',
+                    'guard_name' => 'web',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]
+            ]);
+
+            // Assign all permissions to SuperAdmin
+            $roleId = DB::table('roles')->where('name', 'SuperAdmin')->value('id');
+            if ($roleId) {
+                $permissionIds = DB::table('permissions')->pluck('id')->all();
+                $rolePerms = [];
+                foreach ($permissionIds as $pid) {
+                    $rolePerms[] = ['permission_id' => $pid, 'role_id' => $roleId];
+                }
+                if (!empty($rolePerms)) {
+                    DB::table('role_has_permissions')->insertOrIgnore($rolePerms);
+                }
+
+                // Ensure user id 1 has this role
+                DB::table('model_has_roles')->insertOrIgnore([
+                    ['role_id' => $roleId, 'model_type' => 'App\\Models\\User', 'model_id' => 1]
+                ]);
+            }
+        } catch (\Exception $e) {
+            // avoid breaking migrations if DB is not ready for seeding
+        }
     }
 
     /**
