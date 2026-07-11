@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\CashFlow;
 use App\Models\DailyCut;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,23 @@ use App\Models\OrderDetails;
 
 class CashController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'cash';
+
+    protected array $permissionMapping = [
+        'index' => 'read',
+        'dailyCut' => 'read',
+        'store' => 'create',
+        'applyCut' => 'edit',
+        'filterByDate' => 'read',
+        'printCut' => 'read',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     // Mostrar todos los movimientos de caja
     public function index(Request $request)
     {

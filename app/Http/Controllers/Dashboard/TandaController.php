@@ -9,9 +9,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 
 class TandaController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'tandas';
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     public function index()
     {
         $tandas = Tanda::with('clients')->get();

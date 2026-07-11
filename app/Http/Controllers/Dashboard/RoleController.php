@@ -7,12 +7,47 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Spatie\QueryBuilder\QueryBuilder;
 use Illuminate\Support\Facades\Redirect;
 use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'roles';
+
+    protected array $permissionMapping = [
+        'permissionIndex' => 'permissions.read',
+        'permissionCreate' => 'permissions.create',
+        'permissionStore' => 'permissions.create',
+        'permissionEdit' => 'permissions.edit',
+        'permissionUpdate' => 'permissions.edit',
+        'permissionDestroy' => 'permissions.delete',
+        'roleIndex' => 'roles.read',
+        'roleCreate' => 'roles.create',
+        'roleStore' => 'roles.create',
+        'roleEdit' => 'roles.edit',
+        'roleUpdate' => 'roles.edit',
+        'roleDestroy' => 'roles.delete',
+        'rolePermissionIndex' => 'roles.edit',
+        'rolePermissionCreate' => 'roles.edit',
+        'rolePermissionStore' => 'roles.edit',
+        'rolePermissionEdit' => 'roles.edit',
+        'rolePermissionUpdate' => 'roles.edit',
+        'rolePermissionDestroy' => 'roles.edit',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
+
+    protected function permissionForAction(string $action): ?string
+    {
+        return $this->permissionMapping[$action] ?? null;
+    }
     // Permission Controller
     public function permissionIndex()
     {

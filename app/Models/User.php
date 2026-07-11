@@ -87,15 +87,13 @@ class User extends Authenticatable
 
     public static function roleHasPermission($role, $permissions)
     {
-        $hasPermission = true;
-
         foreach ($permissions as $permission) {
-            if(!$role->hasPermissionTo($permission->name)) {
-                $hasPermission = false;
-                return $hasPermission;
+            if (! $role->hasPermissionTo($permission->name)) {
+                return false;
             }
-            return $hasPermission;
         }
+
+        return true;
     }
     public function movements()
     {

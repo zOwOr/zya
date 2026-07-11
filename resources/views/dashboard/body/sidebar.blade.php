@@ -104,16 +104,20 @@
                                     <i class="fa-solid fa-arrow-right"></i><span>Productos</span>
                                 </a>
                             </li>
-                            <li class="{{ Request::is(['products/create']) ? 'active' : '' }}">
-                                <a href="{{ route('products.create') }}">
-                                    <i class="fa-solid fa-arrow-right"></i><span>Nuevo Producto</span>
-                                </a>
-                            </li>
-                            <li class="{{ Request::is(['categories*']) ? 'active' : '' }}">
-                                <a href="{{ route('categories.index') }}">
-                                    <i class="fa-solid fa-arrow-right"></i><span>Categorias</span>
-                                </a>
-                            </li>
+                            @if (auth()->user()->can('product.create'))
+                                <li class="{{ Request::is(['products/create']) ? 'active' : '' }}">
+                                    <a href="{{ route('products.create') }}">
+                                        <i class="fa-solid fa-arrow-right"></i><span>Nuevo Producto</span>
+                                    </a>
+                                </li>
+                            @endif
+                            @if (auth()->user()->can('category.read'))
+                                <li class="{{ Request::is(['categories*']) ? 'active' : '' }}">
+                                    <a href="{{ route('categories.index') }}">
+                                        <i class="fa-solid fa-arrow-right"></i><span>Categorias</span>
+                                    </a>
+                                </li>
+                            @endif
                         </ul>
                     </li>
                 @endif
@@ -256,39 +260,49 @@
                         </a>
                         <ul id="permission" class="iq-submenu collapse" data-parent="#iq-sidebar-toggle"
                             style="">
-                            <li
-                                class="{{ Request::is(['permission', 'permission/create', 'permission/edit/*']) ? 'active' : '' }}">
-                                <a href="{{ route('permission.index') }}">
-                                    <i class="fa-solid fa-arrow-right"></i><span>Permisos</span>
-                                </a>
-                            </li>
-                            <li class="{{ Request::is(['role', 'role/create', 'role/edit/*']) ? 'active' : '' }}">
-                                <a href="{{ route('role.index') }}">
-                                    <i class="fa-solid fa-arrow-right"></i><span>Roles</span>
-                                </a>
-                            </li>
-                            <li class="{{ Request::is(['role/permission*']) ? 'active' : '' }}">
-                                <a href="{{ route('rolePermission.index') }}">
-                                    <i class="fa-solid fa-arrow-right"></i><span>Asignar Permisos</span>
-                                </a>
-                            </li>
+                            @if (auth()->user()->can('permissions.read'))
+                                <li
+                                    class="{{ Request::is(['permission', 'permission/create', 'permission/edit/*']) ? 'active' : '' }}">
+                                    <a href="{{ route('permission.index') }}">
+                                        <i class="fa-solid fa-arrow-right"></i><span>Permisos</span>
+                                    </a>
+                                </li>
+                            @endif
+                            @if (auth()->user()->can('roles.read'))
+                                <li class="{{ Request::is(['role', 'role/create', 'role/edit/*']) ? 'active' : '' }}">
+                                    <a href="{{ route('role.index') }}">
+                                        <i class="fa-solid fa-arrow-right"></i><span>Roles</span>
+                                    </a>
+                                </li>
+                            @endif
+                            @if (auth()->user()->can('roles.edit'))
+                                <li class="{{ Request::is(['role/permission*']) ? 'active' : '' }}">
+                                    <a href="{{ route('rolePermission.index') }}">
+                                        <i class="fa-solid fa-arrow-right"></i><span>Asignar Permisos</span>
+                                    </a>
+                                </li>
+                            @endif
                         </ul>
                     </li>
                 @endif
 
                 @if (auth()->user()->can('user.menu'))
-                    <li class="{{ Request::is('users*') ? 'active' : '' }}">
-                        <a href="{{ route('users.index') }}" class="svg-icon">
-                            <i class="fa-solid fa-users"></i>
-                            <span class="ml-3">Usuarios</span>
-                        </a>
-                    </li>
-                    <li class="{{ Request::is('users*') ? 'active' : '' }}">
-                        <a href="{{ route('branches.index') }}" class="svg-icon">
-                            <i class="fa-solid fa-users"></i>
-                            <span class="ml-3">Sucursales</span>
-                        </a>
-                    </li>
+                    @if (auth()->user()->can('user.read'))
+                        <li class="{{ Request::is('users*') ? 'active' : '' }}">
+                            <a href="{{ route('users.index') }}" class="svg-icon">
+                                <i class="fa-solid fa-users"></i>
+                                <span class="ml-3">Usuarios</span>
+                            </a>
+                        </li>
+                    @endif
+                    @if (auth()->user()->can('branch.read'))
+                        <li class="{{ Request::is('branches*') ? 'active' : '' }}">
+                            <a href="{{ route('branches.index') }}" class="svg-icon">
+                                <i class="fa-solid fa-users"></i>
+                                <span class="ml-3">Sucursales</span>
+                            </a>
+                        </li>
+                    @endif
                 @endif
 
             </ul>

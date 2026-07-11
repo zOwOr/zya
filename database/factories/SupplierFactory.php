@@ -21,13 +21,9 @@ class SupplierFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'phone' => fake()->unique()->phoneNumber(),
             'address' => fake()->address(),
+            'rfc' => fake()->regexify('[A-Z]{4}[0-9]{6}[A-Z0-9]{3}'),
+            'curp' => fake()->regexify('[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[0-9]{2}'),
             'shopname' => fake()->company(),
-            'type' => fake()->randomElement(['Distributor', 'Whole Seller']),
-            'account_holder' => fake()->name(),
-            'account_number' => fake()->randomNumber(8, true),
-            'bank_name' => fake()->randomElement(['BRI', 'BNI', 'BCA', 'BSI', 'MANDIRI', 'BJB']),
-            'bank_branch' => fake()->city(),
-            'city' => fake()->city(),
         ];
     }
 }

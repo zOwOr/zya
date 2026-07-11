@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Redirect;
@@ -13,6 +14,14 @@ use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'user';
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     /**
      * Display a listing of the resource.
      */

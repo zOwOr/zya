@@ -83,7 +83,7 @@
                                         @foreach ($orderDetails as $item)
                                         <tr>
                                             <td>
-                                                {{ $item->product->product_name }}
+                                                {{ $item->product->product_name ?? 'Producto eliminado' }}
                                                 @if($item->product && ($item->product->brand || $item->product->model || $item->product->imei || $item->product->category_status || $item->product->warranty_time || $item->product->observations))
                                                     <small class="text-muted d-block mt-1" style="font-size: 0.8em; line-height: 1.2;">
                                                         @if($item->product->brand) <b>Marca:</b> {{ $item->product->brand }} <br> @endif

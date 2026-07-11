@@ -5,9 +5,18 @@ namespace App\Http\Controllers\Dashboard;
 use App\Models\Branch;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 
 class BranchController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'branch';
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     // Mostrar listado
     public function index()
     {

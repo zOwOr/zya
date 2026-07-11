@@ -5,11 +5,29 @@ namespace App\Http\Controllers\Dashboard;
 use File;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Redirect;
 
 class DatabaseBackupController extends Controller
-{    public function index()
+{
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'database';
+
+    protected array $permissionMapping = [
+        'index' => 'read',
+        'create' => 'create',
+        'download' => 'read',
+        'delete' => 'delete',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
+
+    public function index()
     {
         return view('database.index', [
             'files' => File::allFiles(storage_path('/app/POS'))

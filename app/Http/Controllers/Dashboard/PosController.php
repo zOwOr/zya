@@ -7,11 +7,32 @@ use App\Models\Product;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Illuminate\Support\Facades\Redirect;
 use Gloudemans\Shoppingcart\Facades\Cart;
 
 class PosController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'pos';
+
+    protected array $permissionMapping = [
+        'index' => 'read',
+        'addCart' => 'create',
+        'updateCart' => 'edit',
+        'deleteCart' => 'delete',
+        'createInvoice' => 'create',
+        'showInvoice' => 'read',
+        'printInvoice' => 'read',
+        'scanBarcode' => 'create',
+        'addDynamicProduct' => 'create',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     public function index()
     {
         $todayDate = Carbon::now();
@@ -80,21 +101,54 @@ class PosController extends Controller
 
         $validatedData = $request->validate($rules);
         $customer = Customer::where('id', $validatedData['customer_id'])->first();
+
+        if (!$customer) {
+            return Redirect::back()->with('warning', 'Cliente no encontrado.');
+        }
+
         $content = Cart::content();
 
-    // Verificación del stock para cada producto
+        // Verificación del stock solo para productos reales del inventario
         foreach ($content as $item) {
+            // Los productos dinámicos no tienen stock en inventario, omitir
+            if ($item->options->get('is_dynamic')) {
+                continue;
+            }
             $product = Product::find($item->id);
             if ($product && $product->stock_quantity < $item->qty) {
-                // Si no hay suficiente stock, redirigir con un mensaje de error
-                
                 return Redirect::back()->with(['warning' => 'No hay suficiente stock para el producto: ' . $product->product_name]);
             }
         }
-        // Si todo está bien con el stock, proceder a mostrar la vista de la factura
+
+        // Guardamos el customer_id en sesión para recuperarlo en la vista GET
+        session(['pos_invoice_customer_id' => $customer->id]);
+
+        return Redirect::route('pos.showInvoice');
+    }
+
+    public function showInvoice()
+    {
+        $customerId = session('pos_invoice_customer_id');
+
+        if (!$customerId) {
+            return Redirect::route('pos.index')->with('warning', 'Selecciona un cliente antes de continuar.');
+        }
+
+        $customer = Customer::find($customerId);
+        $content  = Cart::content();
+
+        if (!$customer) {
+            return Redirect::route('pos.index')->with('warning', 'Cliente no encontrado.');
+        }
+
+        // Si el carrito está vacío redirigir al POS
+        if ($content->isEmpty()) {
+            return Redirect::route('pos.index')->with('warning', 'El carrito está vacío.');
+        }
+
         return view('pos.create-invoice', [
             'customer' => $customer,
-            'content' => $content
+            'content'  => $content,
         ]);
     }
 
@@ -143,50 +197,36 @@ class PosController extends Controller
     public function addDynamicProduct(Request $request)
     {
         $validatedData = $request->validate([
-            'product_name' => 'required|string|max:255',
-            'selling_price' => 'required|numeric',
-            'brand' => 'nullable|string|max:255',
-            'model' => 'nullable|string|max:255',
-            'imei' => 'nullable|string|max:255',
+            'product_name'    => 'required|string|max:255',
+            'selling_price'   => 'required|numeric',
+            'brand'           => 'nullable|string|max:255',
+            'model'           => 'nullable|string|max:255',
+            'imei'            => 'nullable|string|max:255',
             'category_status' => 'required|string|max:255',
-            'warranty_time' => 'nullable|string|max:255',
-            'stock_quantity' => 'required|numeric|min:1',
-            'observations' => 'nullable|string',
+            'warranty_time'   => 'nullable|string|max:255',
+            'stock_quantity'  => 'required|numeric|min:1',
+            'observations'    => 'nullable|string',
         ]);
 
-        // Asegurar que hay al menos una categoría y un proveedor para evitar errores Constraint
-        $category = \App\Models\Category::first();
-        $supplier = \App\Models\Supplier::first();
-
-        $product = Product::create([
-            'product_name' => $validatedData['product_name'],
-            'selling_price' => $validatedData['selling_price'],
-            'buying_price' => 0,
-            'stock_quantity' => $validatedData['stock_quantity'],
-            'product_code' => 'DYN-' . time(),
-            'brand' => $validatedData['brand'],
-            'model' => $validatedData['model'],
-            'imei' => $validatedData['imei'],
-            'category_status' => $validatedData['category_status'],
-            'warranty_time' => $validatedData['warranty_time'],
-            'observations' => $validatedData['observations'],
-            'category_id' => $category ? $category->id : 1,
-            'supplier_id' => $supplier ? $supplier->id : 1,
-        ]);
+        // Generamos un ID único temporal con prefijo DYN- para no colisionar
+        // con IDs reales de productos. Este ID NO se persiste en la tabla products.
+        $dynamicId = 'DYN-' . time() . '-' . rand(1000, 9999);
 
         Cart::add([
-            'id' => $product->id,
-            'name' => $product->product_name,
-            'qty' => 1,
-            'price' => $product->selling_price,
+            'id'    => $dynamicId,
+            'name'  => $validatedData['product_name'],
+            'qty'   => (int) $validatedData['stock_quantity'],
+            'price' => $validatedData['selling_price'],
             'options' => [
-                'image' => null,
-                'brand' => $product->brand,
-                'model' => $product->model,
-                'serial' => $product->imei,
-                'status' => $product->category_status,
-                'warranty' => $product->warranty_time,
-                'observations' => $product->observations,
+                'is_dynamic'      => true,
+                'image'           => null,
+                'brand'           => $validatedData['brand'] ?? null,
+                'model'           => $validatedData['model'] ?? null,
+                'serial'          => $validatedData['imei'] ?? null,
+                'status'          => $validatedData['category_status'],
+                'warranty'        => $validatedData['warranty_time'] ?? null,
+                'observations'    => $validatedData['observations'] ?? null,
+                'dynamic_code'    => $dynamicId,
             ]
         ]);
 

@@ -5,12 +5,21 @@ namespace App\Http\Controllers\Dashboard;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Redirect;
 
 class EmployeeController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'employee';
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     /**
      * Display a listing of the resource.
      */

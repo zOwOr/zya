@@ -5,12 +5,21 @@ namespace App\Http\Controllers\Dashboard;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Redirect;
 
 class CustomerController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'customer';
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     /**
      * Display a listing of the resource.
      */

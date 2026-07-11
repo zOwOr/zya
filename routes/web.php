@@ -110,6 +110,7 @@ Route::middleware(['permission:pos.menu'])->group(function () {
     Route::post('/pos/update/{rowId}', [PosController::class, 'updateCart'])->name('pos.updateCart');
     Route::get('/pos/delete/{rowId}', [PosController::class, 'deleteCart'])->name('pos.deleteCart');
     Route::post('/pos/invoice/create', [PosController::class, 'createInvoice'])->name('pos.createInvoice');
+    Route::get('/pos/invoice/show', [PosController::class, 'showInvoice'])->name('pos.showInvoice');
     Route::post('/pos/invoice/print', [PosController::class, 'printInvoice'])->name('pos.printInvoice');
 
     // Create Order

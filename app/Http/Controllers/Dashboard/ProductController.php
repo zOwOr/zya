@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -20,6 +21,15 @@ use Haruncpi\LaravelIdGenerator\IdGenerator;
 
 class ProductController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'product';
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
+
     /**
      * Display a listing of the resource.
      */

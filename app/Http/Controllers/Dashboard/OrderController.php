@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Illuminate\Support\Facades\Redirect;
 use Gloudemans\Shoppingcart\Facades\Cart;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
@@ -21,6 +22,33 @@ use App\Models\DailyCut;
 use App\Models\PaymentHistory;
 class OrderController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'orders';
+
+    protected array $permissionMapping = [
+        'pendingOrders' => 'read',
+        'completeOrders' => 'read',
+        'stockManage' => 'read',
+        'orderDetails' => 'read',
+        'invoiceDownload' => 'read',
+        'contract' => 'read',
+        'pendingDue' => 'read',
+        'orderDueAjax' => 'read',
+        'storeOrder' => 'create',
+        'updateAmount' => 'edit',
+        'updateStatus' => 'edit',
+        'updateDue' => 'edit',
+        'markAsPaid' => 'edit',
+        'uploadVideo' => 'edit',
+        'destroy' => 'delete',
+        'updateDeviceId' => 'edit',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     /**
      * Display a listing of the resource.
      */
@@ -47,8 +75,13 @@ class OrderController extends Controller
         // Obtener los detalles de la orden
         $orderDetails = OrderDetails::where('order_id', $id)->get();
     
-        // Recorrer cada detalle de la orden y devolver el stock de los productos
+        // Recorrer cada detalle de la orden y devolver el stock de los productos reales
         foreach ($orderDetails as $detail) {
+            // Los productos dinámicos no afectaron el stock, no hay nada que restaurar
+            if ($detail->is_dynamic) {
+                continue;
+            }
+
             $product = Product::find($detail->product_id);
             
             if ($product) {
@@ -131,13 +164,17 @@ class OrderController extends Controller
         $validatedData['due'] = Cart::total() - $validatedData['pay'];
         $validatedData['created_at'] = Carbon::now();
 
-            // Verificar si el stock es suficiente
+        // Verificar si el stock es suficiente (solo para productos reales, no dinámicos)
         $contents = Cart::content();
         foreach ($contents as $content) {
+            // Los productos dinámicos tienen is_dynamic = true en options y no tienen ID numérico
+            if ($content->options->get('is_dynamic')) {
+                continue;
+            }
             $product = Product::find($content->id);
             if ($product && $product->stock_quantity < $content->qty) {
                 // Si el stock es insuficiente, redirige con un mensaje de error
-                return redirect()->back()->with('error', 'No hay suficiente stock para el producto: ' . $product->name);
+                return redirect()->back()->with('error', 'No hay suficiente stock para el producto: ' . $product->product_name);
             }
         }
 
@@ -145,27 +182,47 @@ class OrderController extends Controller
 
         // Create Order Details
         $contents = Cart::content();
-        $oDetails = array();
 
         foreach ($contents as $content) {
-            $oDetails['order_id'] = $order_id;
-            $oDetails['product_id'] = $content->id;
-            $oDetails['quantity'] = $content->qty;
-            $oDetails['unitcost'] = $content->price;
-            $oDetails['total'] = $content->total;
-            $oDetails['created_at'] = Carbon::now();
+            $isDynamic = (bool) $content->options->get('is_dynamic', false);
+
+            $oDetails = [
+                'order_id'   => $order_id,
+                'product_id' => $isDynamic ? null : $content->id,
+                'quantity'   => $content->qty,
+                'unitcost'   => $content->price,
+                'total'      => $content->total,
+                'created_at' => Carbon::now(),
+                'is_dynamic' => $isDynamic,
+            ];
+
+            if ($isDynamic) {
+                $oDetails['dynamic_product_name']    = $content->name;
+                $oDetails['dynamic_brand']           = $content->options->get('brand');
+                $oDetails['dynamic_model']           = $content->options->get('model');
+                $oDetails['dynamic_imei']            = $content->options->get('serial');
+                $oDetails['dynamic_category_status'] = $content->options->get('status');
+                $oDetails['dynamic_warranty_time']   = $content->options->get('warranty');
+                $oDetails['dynamic_observations']    = $content->options->get('observations');
+                $oDetails['dynamic_product_code']    = $content->options->get('dynamic_code');
+            }
 
             OrderDetails::insert($oDetails);
         }
 
+        // Descontar stock solo de los productos reales del inventario
         foreach ($contents as $content) {
+            if ($content->options->get('is_dynamic')) {
+                continue;
+            }
             $product = Product::find($content->id);
             if ($product) {
                 $product->stock_quantity -= $content->qty;
                 $product->save();
             }
         }
-        // Delete Cart Sopping History
+
+        // Delete Cart Shopping History
         Cart::destroy();
 
         $branchId = $request->branch_id ?? auth()->user()->branch_id ?? null;
@@ -180,14 +237,12 @@ class OrderController extends Controller
             'Pago inicial de la orden #' . $order_id,
             $order_id,
             'Orden',
-            $branchId  // aquí pasa la sucursal
+            $branchId
         );
-
-
-
 
         return Redirect::route('dashboard')->with('success', 'El pedido se ha creado!');
     }
+
 
     /**
      * Display the specified resource.
@@ -195,7 +250,7 @@ class OrderController extends Controller
     public function orderDetails(Int $order_id)
     {
         $order = Order::where('id', $order_id)->first();
-        $orderDetails = OrderDetails::with('product')
+        $orderDetails = OrderDetails::with('productRelation')
                         ->where('order_id', $order_id)
                         ->orderBy('id', 'DESC')
                         ->get();
@@ -294,10 +349,13 @@ class OrderController extends Controller
     {
         $order_id = $request->id;
 
-        // Reduce the stock
+        // Reduce the stock (solo para productos reales del inventario)
         $products = OrderDetails::where('order_id', $order_id)->get();
 
         foreach ($products as $product) {
+            if ($product->is_dynamic) {
+                continue;
+            }
             Product::where('id', $product->product_id)
                     ->update(['stock_quantity' => DB::raw('stock_quantity-'.$product->quantity)]);
         }
@@ -310,7 +368,7 @@ class OrderController extends Controller
     public function invoiceDownload(Int $order_id)
     {
         $order = Order::where('id', $order_id)->first();
-        $orderDetails = OrderDetails::with('product')
+        $orderDetails = OrderDetails::with('productRelation')
                         ->where('order_id', $order_id)
                         ->orderBy('id', 'DESC')
                         ->get();

@@ -2,12 +2,25 @@
 
 namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 
 use App\Models\TandaPeriod;
 use Illuminate\Http\Request;
 
 class TandaPeriodController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'tandas';
+
+    protected array $permissionMapping = [
+        'updatePayment' => 'edit',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     public function updatePayment(Request $request, TandaPeriod $period)
     {
         $data = $request->validate([

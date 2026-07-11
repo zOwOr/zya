@@ -8,11 +8,20 @@ use App\Models\Repairs;
 use App\Models\Attendence;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 
 class RepairsController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'repairs';
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     /**
      * Display a listing of the resource.
      */

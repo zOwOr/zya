@@ -7,10 +7,27 @@ use App\Models\PaySalary;
 use Illuminate\Http\Request;
 use App\Models\AdvanceSalary;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Illuminate\Support\Facades\Redirect;
 
 class PaySalaryController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'salary';
+
+    protected array $permissionMapping = [
+        'index' => 'read',
+        'paySalary' => 'create',
+        'payHistory' => 'read',
+        'payHistoryDetail' => 'read',
+        'destroy' => 'delete',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     /**
      * Display a listing of the resource.
      */

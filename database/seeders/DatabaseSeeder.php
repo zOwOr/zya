@@ -54,24 +54,56 @@ class DatabaseSeeder extends Seeder
         }
         Category::factory(5)->create();
 
-        Permission::create(['name' => 'pos.menu', 'group_name' => 'pos']);
-        Permission::create(['name' => 'employee.menu', 'group_name' => 'employee']);
-        Permission::create(['name' => 'customer.menu', 'group_name' => 'customer']);
-        Permission::create(['name' => 'supplier.menu', 'group_name' => 'supplier']);
-        Permission::create(['name' => 'salary.menu', 'group_name' => 'salary']);
-        Permission::create(['name' => 'attendence.menu', 'group_name' => 'attendence']);
-        Permission::create(['name' => 'category.menu', 'group_name' => 'category']);
-        Permission::create(['name' => 'product.menu', 'group_name' => 'product']);
-        Permission::create(['name' => 'orders.menu', 'group_name' => 'orders']);
-        Permission::create(['name' => 'stock.menu', 'group_name' => 'stock']);
-        Permission::create(['name' => 'roles.menu', 'group_name' => 'roles']);
-        Permission::create(['name' => 'user.menu', 'group_name' => 'user']);
-        Permission::create(['name' => 'database.menu', 'group_name' => 'database']);
+        $permissionGroups = [
+            'pos',
+            'employee',
+            'customer',
+            'supplier',
+            'salary',
+            'attendence',
+            'category',
+            'product',
+            'orders',
+            'stock',
+            'roles',
+            'permissions',
+            'user',
+            'branch',
+            'database',
+            'cash',
+            'repairs',
+            'tandas',
+        ];
+
+        $actions = ['menu', 'read', 'create', 'edit', 'delete'];
+
+        foreach ($permissionGroups as $group) {
+            foreach ($actions as $action) {
+                Permission::firstOrCreate(
+                    ['name' => "{$group}.{$action}"],
+                    ['group_name' => $group]
+                );
+            }
+        }
 
         Role::create(['name' => 'SuperAdmin'])->givePermissionTo(Permission::all());
-        Role::create(['name' => 'Admin'])->givePermissionTo(['customer.menu', 'user.menu', 'supplier.menu']);
-        Role::create(['name' => 'Account'])->givePermissionTo(['customer.menu', 'user.menu', 'supplier.menu']);
-        Role::create(['name' => 'Manager'])->givePermissionTo(['stock.menu', 'orders.menu', 'product.menu', 'salary.menu', 'employee.menu']);
+        Role::create(['name' => 'Admin'])->givePermissionTo([
+            'customer.menu', 'customer.read', 'customer.create', 'customer.edit', 'customer.delete',
+            'user.menu', 'user.read', 'user.create', 'user.edit', 'user.delete',
+            'supplier.menu', 'supplier.read', 'supplier.create', 'supplier.edit', 'supplier.delete',
+        ]);
+        Role::create(['name' => 'Account'])->givePermissionTo([
+            'customer.menu', 'customer.read',
+            'user.menu', 'user.read',
+            'supplier.menu', 'supplier.read',
+        ]);
+        Role::create(['name' => 'Manager'])->givePermissionTo([
+            'stock.menu', 'stock.read',
+            'orders.menu', 'orders.read', 'orders.create', 'orders.edit', 'orders.delete',
+            'product.menu', 'product.read', 'product.create', 'product.edit', 'product.delete',
+            'salary.menu', 'salary.read',
+            'employee.menu', 'employee.read',
+        ]);
 
         $admin->assignRole('SuperAdmin');
         $user->assignRole('Account');

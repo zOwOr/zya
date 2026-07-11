@@ -7,10 +7,28 @@ use Illuminate\Http\Request;
 use App\Models\AdvanceSalary;
 use Illuminate\Support\Carbon;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Illuminate\Support\Facades\Redirect;
 
 class AdvanceSalaryController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'salary';
+
+    protected array $permissionMapping = [
+        'index' => 'read',
+        'create' => 'create',
+        'store' => 'create',
+        'edit' => 'edit',
+        'update' => 'edit',
+        'destroy' => 'delete',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
     /**
      * Display a listing of the resource.
      */
