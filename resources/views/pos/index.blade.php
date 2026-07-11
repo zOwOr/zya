@@ -179,10 +179,10 @@
                         <p class="h4 text-primary">Subtotal: {{ Cart::subtotal() }}</p>
                     </div>
                     <div class="form-group col-sm-6" hidden>
-                        <p class="h4 text-primary">Vat: {{ Cart::tax() }}</p>
+                        <p class="h4 text-primary">Vat: {{ Cart::instance('default')->tax() }}</p>
                     </div>
                     <div class="form-group col-sm-6">
-                        <p class="h4 text-primary">Total: ${{ Cart::total() }}</p>
+                        <p class="h4 text-primary">Total: ${{ Cart::instance('default')->total() }}</p>
                     </div>
                 </div>
 
@@ -342,8 +342,44 @@
         const inputNombre = document.getElementById('customer_input');
         const inputId = document.getElementById('customer_id');
         const dataList = document.getElementById('customerList');
+        const customersSearchUrl = '{{ route('pos.customers.search') }}';
+        let customerOptionsLoaded = false;
 
-        // Asignar ID oculto al elegir un nombre
+        // Cargar clientes cuando el usuario hace click o focus en el campo
+        const loadCustomers = async (query = '') => {
+            try {
+                const response = await fetch(`${customersSearchUrl}?q=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    return;
+                }
+                const customers = await response.json();
+
+                dataList.innerHTML = '';
+                customers.forEach(customer => {
+                    const option = document.createElement('option');
+                    option.value = customer.tit_name;
+                    option.dataset.id = customer.id;
+                    option.dataset.status = customer.tit_status;
+                    dataList.appendChild(option);
+                });
+                customerOptionsLoaded = true;
+            } catch (error) {
+                console.error('Error cargando clientes:', error);
+            }
+        };
+
+        const requestCustomerOptions = function () {
+            if (!customerOptionsLoaded) {
+                loadCustomers(inputNombre.value);
+            }
+        };
+
+        inputNombre.addEventListener('focus', requestCustomerOptions);
+        inputNombre.addEventListener('click', requestCustomerOptions);
+
+        // Si ya hay productos en el carrito o el usuario vuelve sin cliente, pre-cargamos clientes.
+        loadCustomers();
+
         inputNombre.addEventListener('input', function () {
             const valor = this.value.trim();
             let encontrado = false;
@@ -360,6 +396,10 @@
             if (!encontrado) {
                 inputId.value = '';
                 inputNombre.removeAttribute('data-status');
+            }
+
+            if (valor.length >= 2) {
+                loadCustomers(valor);
             }
         });
 

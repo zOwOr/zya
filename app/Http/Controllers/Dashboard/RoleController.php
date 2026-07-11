@@ -119,7 +119,7 @@ class RoleController extends Controller
 
     public function roleCreate()
     {
-        return view('role.create');
+        return view('roles.role-create');
     }
 
     public function roleStore(Request $request)

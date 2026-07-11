@@ -465,4 +465,20 @@ if (count($alertas) > 0) {
 
         return response()->json(['exists' => $exists]);
     }
+
+    public function search(Request $request)
+    {
+        $search = $request->query('q', '');
+
+        $customers = Customer::select('id', 'tit_name', 'tit_status')
+            ->when($search, function ($query, $search) {
+                return $query->where('tit_name', 'like', "%{$search}%")
+                    ->orWhere('tit_phone', 'like', "%{$search}%")
+                    ->orWhere('tit_email', 'like', "%{$search}%");
+            })
+            ->limit(50)
+            ->get();
+
+        return response()->json($customers);
+    }
 }

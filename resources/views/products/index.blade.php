@@ -118,18 +118,20 @@
                                                     title="Ver" href="{{ route('products.show', $product->id) }}"><i
                                                         class="ri-eye-line mr-0"></i>
                                                 </a>
-                                                @if (auth()->user()->hasRole('Super Administrador'))
+                                                @can('product.edit')
                                                     <a class="btn btn-success mr-2" data-toggle="tooltip"
                                                         data-placement="top" title="Editar"
                                                         href="{{ route('products.edit', $product->id) }}"><i
                                                             class="ri-pencil-line mr-0"></i>
                                                     </a>
+                                                @endcan
+                                                @can('product.delete')
                                                     <button type="button" class="btn btn-warning mr-2 border-0"
                                                         onclick="confirmDelete('{{ $product->product_name }}', '{{ $product->id }}')"
                                                         data-toggle="tooltip" data-placement="top" title="Eliminar">
                                                         <i class="ri-delete-bin-line mr-0"></i>
                                                     </button>
-                                                @endif
+                                                @endcan
 
 
 

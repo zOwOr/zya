@@ -59,6 +59,7 @@ Route::middleware(['permission:user.menu'])->group(function () {
 Route::middleware(['permission:customer.menu'])->group(function () {
     Route::get('/customers/check-phone', [CustomerController::class, 'checkPhone'])->name('customers.check-phone');
     Route::get('/customers/check-name', [CustomerController::class, 'checkName'])->name('customers.check-name');
+    Route::get('/customers/search', [CustomerController::class, 'search'])->name('customers.search');
     Route::resource('/customers', CustomerController::class);
 });
 
@@ -112,6 +113,7 @@ Route::middleware(['permission:pos.menu'])->group(function () {
     Route::post('/pos/invoice/create', [PosController::class, 'createInvoice'])->name('pos.createInvoice');
     Route::get('/pos/invoice/show', [PosController::class, 'showInvoice'])->name('pos.showInvoice');
     Route::post('/pos/invoice/print', [PosController::class, 'printInvoice'])->name('pos.printInvoice');
+    Route::get('/pos/customers/search', [CustomerController::class, 'search'])->name('pos.customers.search');
 
     // Create Order
     Route::post('/pos/order', [OrderController::class, 'storeOrder'])->name('pos.storeOrder');

@@ -26,7 +26,7 @@
                                     <div class="modal-content">
                                         <div class="modal-header bg-white">
                                             <h3 class="modal-title text-center mx-auto">Nota de Venta de
-                                                {{ $customer->tit_name }}<br />Total a pagar: ${{ Cart::total() }}</h3>
+                                                {{ $customer->tit_name }}<br />Total a pagar: ${{ Cart::instance('default')->total() }}</h3>
                                         </div>
                                         <form action="{{ route('pos.storeOrder') }}" method="post">
                                             @csrf

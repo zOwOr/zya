@@ -44,7 +44,7 @@ class PosController extends Controller
 
         return view('pos.index', [
             'customers' => Customer::all()->sortBy('name'),
-            'productItem' => Cart::content(),
+            'productItem' => Cart::instance('default')->content(),
             'products' => Product::where('expire_date', '>', $todayDate)->filter(request(['search']))
                 ->sortable()
                 ->paginate($row)
@@ -62,7 +62,7 @@ class PosController extends Controller
 
         $validatedData = $request->validate($rules);
 
-        Cart::add([
+        Cart::instance('default')->add([
             'id' => $validatedData['id'],
             'name' => $validatedData['name'],
             'qty' => 1,
@@ -81,14 +81,14 @@ class PosController extends Controller
 
         $validatedData = $request->validate($rules);
 
-        Cart::update($rowId, $validatedData['qty']);
+        Cart::instance('default')->update($rowId, $validatedData['qty']);
 
         return Redirect::back()->with('success', 'El carrito se ha actualizado!');
     }
 
     public function deleteCart(String $rowId)
     {
-        Cart::remove($rowId);
+        Cart::instance('default')->remove($rowId);
 
         return Redirect::back()->with('success', 'El carrito se ha actualizado!');
     }
@@ -106,10 +106,14 @@ class PosController extends Controller
             return Redirect::back()->with('warning', 'Cliente no encontrado.');
         }
 
-        $content = Cart::content();
+        $contents = Cart::instance('default')->content();
+
+        if ($contents->isEmpty()) {
+            return Redirect::back()->with('warning', 'El carrito está vacío.');
+        }
 
         // Verificación del stock solo para productos reales del inventario
-        foreach ($content as $item) {
+        foreach ($contents as $item) {
             // Los productos dinámicos no tienen stock en inventario, omitir
             if ($item->options->get('is_dynamic')) {
                 continue;
@@ -135,7 +139,7 @@ class PosController extends Controller
         }
 
         $customer = Customer::find($customerId);
-        $content  = Cart::content();
+        $content  = Cart::instance('default')->content();
 
         if (!$customer) {
             return Redirect::route('pos.index')->with('warning', 'Cliente no encontrado.');
@@ -160,7 +164,7 @@ class PosController extends Controller
 
         $validatedData = $request->validate($rules);
         $customer = Customer::where('id', $validatedData['customer_id'])->first();
-        $content = Cart::content();
+        $content = Cart::instance('default')->content();
 
         return view('pos.print-invoice', [
             'customer' => $customer,
@@ -183,7 +187,7 @@ class PosController extends Controller
         }
 
         // Añadir producto al carrito
-        Cart::add([
+        Cart::instance('default')->add([
             'id' => $product->id,
             'name' => $product->product_name,
             'qty' => 1,
@@ -212,7 +216,7 @@ class PosController extends Controller
         // con IDs reales de productos. Este ID NO se persiste en la tabla products.
         $dynamicId = 'DYN-' . time() . '-' . rand(1000, 9999);
 
-        Cart::add([
+        Cart::instance('default')->add([
             'id'    => $dynamicId,
             'name'  => $validatedData['product_name'],
             'qty'   => (int) $validatedData['stock_quantity'],

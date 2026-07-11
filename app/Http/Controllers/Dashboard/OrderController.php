@@ -156,16 +156,16 @@ class OrderController extends Controller
         $validatedData = $request->validate($rules);
         $validatedData['order_date'] = Carbon::now()->format('Y-m-d');
         $validatedData['order_status'] = 'pending';
-        $validatedData['total_products'] = Cart::count();
-        $validatedData['sub_total'] = Cart::subtotal();
-        $validatedData['vat'] = Cart::tax();
+        $validatedData['total_products'] = Cart::instance('default')->count();
+        $validatedData['sub_total'] = Cart::instance('default')->subtotal();
+        $validatedData['vat'] = Cart::instance('default')->tax();
         $validatedData['invoice_no'] = $invoice_no;
-        $validatedData['total'] = Cart::total();
-        $validatedData['due'] = Cart::total() - $validatedData['pay'];
+        $validatedData['total'] = Cart::instance('default')->total();
+        $validatedData['due'] = Cart::instance('default')->total() - $validatedData['pay'];
         $validatedData['created_at'] = Carbon::now();
 
         // Verificar si el stock es suficiente (solo para productos reales, no dinámicos)
-        $contents = Cart::content();
+        $contents = Cart::instance('default')->content();
         foreach ($contents as $content) {
             // Los productos dinámicos tienen is_dynamic = true en options y no tienen ID numérico
             if ($content->options->get('is_dynamic')) {
@@ -181,7 +181,7 @@ class OrderController extends Controller
         $order_id = Order::insertGetId($validatedData);
 
         // Create Order Details
-        $contents = Cart::content();
+        $contents = Cart::instance('default')->content();
 
         foreach ($contents as $content) {
             $isDynamic = (bool) $content->options->get('is_dynamic', false);
@@ -223,7 +223,7 @@ class OrderController extends Controller
         }
 
         // Delete Cart Shopping History
-        Cart::destroy();
+        Cart::instance('default')->destroy();
 
         $branchId = $request->branch_id ?? auth()->user()->branch_id ?? null;
 
