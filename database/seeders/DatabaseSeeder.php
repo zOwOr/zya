@@ -73,6 +73,7 @@ class DatabaseSeeder extends Seeder
             'cash',
             'repairs',
             'tandas',
+            'financieras',
         ];
 
         $actions = ['menu', 'read', 'create', 'edit', 'delete'];

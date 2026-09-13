@@ -21,6 +21,12 @@ use App\Http\Controllers\Dashboard\TandaController;
 use App\Http\Controllers\Dashboard\TandaPeriodController;
 use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\BranchController;
+use App\Http\Controllers\Dashboard\FinancierasController;
+use App\Http\Controllers\Dashboard\FinSaleController;
+use App\Http\Controllers\Dashboard\FinDeviceController;
+use App\Http\Controllers\Dashboard\FinWarrantyController;
+use App\Http\Controllers\Dashboard\FinTheftReportController;
+use App\Http\Controllers\Dashboard\FinCatalogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -60,6 +66,7 @@ Route::middleware(['permission:customer.menu'])->group(function () {
     Route::get('/customers/check-phone', [CustomerController::class, 'checkPhone'])->name('customers.check-phone');
     Route::get('/customers/check-name', [CustomerController::class, 'checkName'])->name('customers.check-name');
     Route::get('/customers/search', [CustomerController::class, 'search'])->name('customers.search');
+    Route::get('/customers/export', [CustomerController::class, 'exportData'])->name('customers.exportData');
     Route::resource('/customers', CustomerController::class);
 });
 
@@ -220,4 +227,85 @@ Route::middleware(['permission:roles.menu'])->group(function () {
     Route::delete('/role/permission/{id}', [RoleController::class, 'rolePermissionDestroy'])->name('rolePermission.destroy');
 });
 
+// ====== FINANCIERAS ======
+Route::middleware(['auth', 'permission:financieras.menu'])->prefix('financieras')->name('financieras.')->group(function () {
+    Route::get('/', [FinancierasController::class, 'index'])->name('index');
+    Route::get('/brands/autocomplete', [FinancierasController::class, 'autocompleteBrands'])->name('brands.autocomplete');
+    Route::get('/devices/autocomplete-imei', [FinancierasController::class, 'autocompleteImeis'])->name('devices.autocomplete-imei');
+    Route::get('/devices/lookup-imei', [FinancierasController::class, 'lookupImei'])->name('devices.lookup-imei');
+
+    // Section 1: Ventas
+    Route::prefix('ventas')->name('ventas.')->group(function () {
+        Route::get('/', [FinSaleController::class, 'index'])->name('index');
+        Route::get('/create', [FinSaleController::class, 'create'])->name('create');
+        Route::post('/', [FinSaleController::class, 'store'])->name('store');
+        Route::get('/export/excel', [FinSaleController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/{sale}', [FinSaleController::class, 'show'])->name('show');
+        Route::get('/{sale}/edit', [FinSaleController::class, 'edit'])->name('edit');
+        Route::put('/{sale}', [FinSaleController::class, 'update'])->name('update');
+        Route::delete('/{sale}', [FinSaleController::class, 'destroy'])->name('destroy');
+        Route::post('/{sale}/cancel', [FinSaleController::class, 'cancel'])->name('cancel');
+        Route::post('/{sale}/notes', [FinSaleController::class, 'addNote'])->name('notes.store');
+        Route::get('/{sale}/pdf', [FinSaleController::class, 'exportPdf'])->name('pdf');
+    });
+
+    // Section 2: Inventario
+    Route::prefix('inventario')->name('inventario.')->group(function () {
+        Route::get('/', [FinDeviceController::class, 'index'])->name('index');
+        Route::get('/create', [FinDeviceController::class, 'create'])->name('create');
+        Route::post('/', [FinDeviceController::class, 'store'])->name('store');
+        Route::get('/export/excel', [FinDeviceController::class, 'exportExcel'])->name('export.excel');
+        Route::post('/import/excel', [FinDeviceController::class, 'importExcel'])->name('import.excel');
+        Route::get('/{device}', [FinDeviceController::class, 'show'])->name('show');
+        Route::get('/{device}/edit', [FinDeviceController::class, 'edit'])->name('edit');
+        Route::put('/{device}', [FinDeviceController::class, 'update'])->name('update');
+        Route::delete('/{device}', [FinDeviceController::class, 'destroy'])->name('destroy');
+        Route::post('/{device}/transfer', [FinDeviceController::class, 'transfer'])->name('transfer');
+        Route::get('/{device}/history', [FinDeviceController::class, 'history'])->name('history');
+    });
+
+    // Section 3: Garantias
+    Route::prefix('garantias')->name('garantias.')->group(function () {
+        Route::get('/', [FinWarrantyController::class, 'index'])->name('index');
+        Route::get('/create', [FinWarrantyController::class, 'create'])->name('create');
+        Route::post('/', [FinWarrantyController::class, 'store'])->name('store');
+        Route::get('/export/excel', [FinWarrantyController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/{warranty}', [FinWarrantyController::class, 'show'])->name('show');
+        Route::get('/{warranty}/edit', [FinWarrantyController::class, 'edit'])->name('edit');
+        Route::put('/{warranty}', [FinWarrantyController::class, 'update'])->name('update');
+        Route::delete('/{warranty}', [FinWarrantyController::class, 'destroy'])->name('destroy');
+        Route::post('/{warranty}/stage', [FinWarrantyController::class, 'changeStage'])->name('stage.update');
+    });
+
+    // Section 4: Robos
+    Route::prefix('robos')->name('robos.')->group(function () {
+        Route::get('/', [FinTheftReportController::class, 'index'])->name('index');
+        Route::get('/create', [FinTheftReportController::class, 'create'])->name('create');
+        Route::post('/', [FinTheftReportController::class, 'store'])->name('store');
+        Route::get('/export/excel', [FinTheftReportController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/{theftReport}', [FinTheftReportController::class, 'show'])->name('show');
+        Route::get('/{theftReport}/edit', [FinTheftReportController::class, 'edit'])->name('edit');
+        Route::put('/{theftReport}', [FinTheftReportController::class, 'update'])->name('update');
+        Route::delete('/{theftReport}', [FinTheftReportController::class, 'destroy'])->name('destroy');
+        Route::post('/{theftReport}/status', [FinTheftReportController::class, 'updateStatus'])->name('status.update');
+    });
+
+    // Catalogs
+    Route::prefix('catalogos')->name('catalogos.')->group(function () {
+        Route::get('/', [FinCatalogController::class, 'index'])->name('index');
+        Route::post('/financieras', [FinCatalogController::class, 'storeFinanciera'])->name('financieras.store');
+        Route::put('/financieras/{financiera}', [FinCatalogController::class, 'updateFinanciera'])->name('financieras.update');
+        Route::delete('/financieras/{financiera}', [FinCatalogController::class, 'destroyFinanciera'])->name('financieras.destroy');
+
+        Route::post('/brands', [FinCatalogController::class, 'storeBrand'])->name('brands.store');
+        Route::put('/brands/{brand}', [FinCatalogController::class, 'updateBrand'])->name('brands.update');
+        Route::delete('/brands/{brand}', [FinCatalogController::class, 'destroyBrand'])->name('brands.destroy');
+
+        Route::post('/warranty-stages', [FinCatalogController::class, 'storeWarrantyStage'])->name('warranty-stages.store');
+        Route::put('/warranty-stages/{stage}', [FinCatalogController::class, 'updateWarrantyStage'])->name('warranty-stages.update');
+        Route::delete('/warranty-stages/{stage}', [FinCatalogController::class, 'destroyWarrantyStage'])->name('warranty-stages.destroy');
+    });
+});
+
 require __DIR__.'/auth.php';
+

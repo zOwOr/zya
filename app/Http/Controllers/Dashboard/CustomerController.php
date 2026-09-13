@@ -481,4 +481,91 @@ if (count($alertas) > 0) {
 
         return response()->json($customers);
     }
+
+    public function exportExcel($customers)
+    {
+        ini_set('max_execution_time', 0);
+        ini_set('memory_limit', '4000M');
+
+        try {
+            $spreadSheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $spreadSheet->getActiveSheet()->getDefaultColumnDimension()->setWidth(20);
+            $spreadSheet->getActiveSheet()->fromArray($customers);
+            $Excel_writer = new \PhpOffice\PhpSpreadsheet\Writer\Xls($spreadSheet);
+            header('Content-Type: application/vnd.ms-excel');
+            header('Content-Disposition: attachment;filename="Clientes_Exportados.xls"');
+            header('Cache-Control: max-age=0');
+            ob_end_clean();
+            $Excel_writer->save('php://output');
+            exit();
+        } catch (\Exception $e) {
+            return;
+        }
+    }
+
+    public function exportData()
+    {
+        $customers = Customer::all()->sortByDesc('id');
+
+        $customer_array[] = array(
+            'ID',
+            'Nombre',
+            'Email',
+            'Teléfono',
+            'Estado / Estatus',
+            'Dirección',
+            'Facebook',
+            'Ciudad',
+            'Lugar de Trabajo',
+            'Teléfono Alterno',
+            'Puesto',
+            'Ingreso Mensual',
+            'Ubicación Link',
+            'Ref 1 Nombre',
+            'Ref 1 Teléfono',
+            'Ref 1 Dirección',
+            'Ref 2 Nombre',
+            'Ref 2 Teléfono',
+            'Ref 2 Dirección',
+            'Ref 3 Nombre',
+            'Ref 3 Teléfono',
+            'Ref 3 Dirección',
+            'Aval Nombre',
+            'Aval Teléfono',
+            'Aval Dirección',
+        );
+
+        foreach ($customers as $c) {
+            $customer_array[] = array(
+                'ID' => $c->id,
+                'Nombre' => $c->tit_name,
+                'Email' => $c->tit_email,
+                'Teléfono' => $c->tit_phone,
+                'Estado / Estatus' => $c->tit_status,
+                'Dirección' => $c->tit_address,
+                'Facebook' => $c->tit_facebook,
+                'Ciudad' => $c->tit_city,
+                'Lugar de Trabajo' => $c->tit_work,
+                'Teléfono Alterno' => $c->alternate_phone,
+                'Puesto' => $c->position,
+                'Ingreso Mensual' => $c->monthly_income,
+                'Ubicación Link' => $c->tit_link_location,
+                'Ref 1 Nombre' => $c->ref1_name,
+                'Ref 1 Teléfono' => $c->ref1_phone,
+                'Ref 1 Dirección' => $c->ref1_address,
+                'Ref 2 Nombre' => $c->ref2_name,
+                'Ref 2 Teléfono' => $c->ref2_phone,
+                'Ref 2 Dirección' => $c->ref2_address,
+                'Ref 3 Nombre' => $c->ref3_name,
+                'Ref 3 Teléfono' => $c->ref3_phone,
+                'Ref 3 Dirección' => $c->ref3_address,
+                'Aval Nombre' => $c->aval_name,
+                'Aval Teléfono' => $c->aval_phone,
+                'Aval Dirección' => $c->aval_address,
+            );
+        }
+
+        $this->exportExcel($customer_array);
+    }
 }
+

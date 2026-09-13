@@ -20,6 +20,8 @@
                             la experiencia del cliente, garantizando su retención. </p>
                     </div>
                     <div>
+                        <a href="{{ route('customers.exportData') }}" class="btn btn-success add-list mr-2"><i
+                                class="fa-solid fa-file-excel mr-2"></i>Exportar Excel</a>
                         <a href="{{ route('customers.create') }}" class="btn btn-primary add-list"><i
                                 class="fa-solid fa-plus mr-3"></i>Nuevo Cliente</a>
                         <a href="{{ route('customers.index') }}" class="btn btn-danger add-list"><i
