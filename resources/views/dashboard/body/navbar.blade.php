@@ -8,7 +8,7 @@
                     </div>
                 </div>
                 <a href="{{ route('dashboard') }}" class="header-logo">
-                    <img src="../assets/images/logo.png" class="img-fluid rounded-normal" alt="logo">
+                    <img src="{{ asset('assets/images/logo.png') }}" class="img-fluid rounded-normal" alt="logo">
                 </a>
             </div>
             <div class="iq-search-bar device-search">
