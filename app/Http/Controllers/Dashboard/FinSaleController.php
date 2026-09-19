@@ -97,14 +97,26 @@ class FinSaleController extends Controller
             'seller_id' => 'required|exists:users,id',
             'price' => 'required|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0|lte:price',
+            'enganche_descuento' => 'nullable|numeric|min:0',
             'credit_amount' => 'nullable|numeric|min:0',
+            'abono_semanal' => 'nullable|numeric|min:0',
             'term_months' => 'nullable|integer|min:1|max:120',
+            'term_weeks' => 'nullable|integer|min:1|max:520',
+            'tag_contrato' => 'nullable|string|max:100',
             'sale_date' => 'nullable|date',
             'customer_name' => 'nullable|string|max:150',
             'customer_phone' => 'nullable|string|max:30',
             'customer_email' => 'nullable|email|max:150',
             'customer_ine' => 'nullable|string|max:50',
             'customer_address' => 'nullable|string|max:500',
+            'customer_chip' => 'nullable|string|max:100',
+            'customer_facebook' => 'nullable|string|max:150',
+            'ref1_name' => 'nullable|string|max:150',
+            'ref1_phone' => 'nullable|string|max:30',
+            'ref2_name' => 'nullable|string|max:150',
+            'ref2_phone' => 'nullable|string|max:30',
+            'ref3_name' => 'nullable|string|max:150',
+            'ref3_phone' => 'nullable|string|max:30',
             'initial_note' => 'nullable|string|max:2000',
         ], [
             'imei.required_without' => 'El IMEI es obligatorio.',
@@ -181,15 +193,30 @@ class FinSaleController extends Controller
                 'financiera_id' => $request->input('financiera_id'),
                 'branch_id' => $request->input('branch_id', $device->branch_id),
                 'seller_id' => $request->input('seller_id', auth()->id()),
+                // Datos del cliente
                 'customer_name' => $request->input('customer_name'),
                 'customer_phone' => $request->input('customer_phone'),
                 'customer_email' => $request->input('customer_email'),
                 'customer_ine' => $request->input('customer_ine'),
                 'customer_address' => $request->input('customer_address'),
+                'customer_chip' => $request->input('customer_chip'),
+                'customer_facebook' => $request->input('customer_facebook'),
+                // Referencias
+                'ref1_name' => $request->input('ref1_name'),
+                'ref1_phone' => $request->input('ref1_phone'),
+                'ref2_name' => $request->input('ref2_name'),
+                'ref2_phone' => $request->input('ref2_phone'),
+                'ref3_name' => $request->input('ref3_name'),
+                'ref3_phone' => $request->input('ref3_phone'),
+                // Financiero
                 'price' => $price,
                 'down_payment' => $downPayment,
+                'enganche_descuento' => $request->input('enganche_descuento'),
                 'credit_amount' => $creditAmount,
+                'abono_semanal' => $request->input('abono_semanal'),
                 'term_months' => $request->input('term_months'),
+                'term_weeks' => $request->input('term_weeks'),
+                'tag_contrato' => $request->input('tag_contrato'),
                 'sale_date' => $request->input('sale_date', now()),
                 'status' => 'activa',
             ]);
@@ -257,26 +284,52 @@ class FinSaleController extends Controller
             'financiera_id' => 'nullable|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
             'seller_id' => 'nullable|exists:users,id',
+            'tag_contrato' => 'nullable|string|max:100',
             'price' => 'nullable|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0',
+            'enganche_descuento' => 'nullable|numeric|min:0',
             'credit_amount' => 'nullable|numeric|min:0',
+            'abono_semanal' => 'nullable|numeric|min:0',
             'term_months' => 'nullable|integer|min:1',
+            'term_weeks' => 'nullable|integer|min:1|max:520',
             'sale_date' => 'nullable|date',
+            'customer_name' => 'nullable|string|max:150',
+            'customer_phone' => 'nullable|string|max:30',
+            'customer_email' => 'nullable|email|max:150',
+            'customer_ine' => 'nullable|string|max:50',
+            'customer_address' => 'nullable|string|max:500',
+            'customer_chip' => 'nullable|string|max:100',
+            'customer_facebook' => 'nullable|string|max:150',
+            'ref1_name' => 'nullable|string|max:150',
+            'ref1_phone' => 'nullable|string|max:30',
+            'ref2_name' => 'nullable|string|max:150',
+            'ref2_phone' => 'nullable|string|max:30',
+            'ref3_name' => 'nullable|string|max:150',
+            'ref3_phone' => 'nullable|string|max:30',
         ]);
 
         $sale->update($request->only([
             'financiera_id',
             'branch_id',
             'seller_id',
+            'tag_contrato',
             'customer_name',
             'customer_phone',
             'customer_email',
             'customer_ine',
             'customer_address',
+            'customer_chip',
+            'customer_facebook',
+            'ref1_name', 'ref1_phone',
+            'ref2_name', 'ref2_phone',
+            'ref3_name', 'ref3_phone',
             'price',
             'down_payment',
+            'enganche_descuento',
             'credit_amount',
+            'abono_semanal',
             'term_months',
+            'term_weeks',
             'sale_date',
         ]));
 
@@ -458,7 +511,10 @@ class FinSaleController extends Controller
             'notes.user'
         ]);
 
-        $pdf = Pdf::loadView('financieras.ventas.pdf', compact('sale'));
+        // Pasar todas las sucursales para mostrar sus direcciones reales en el PDF
+        $branches = Branch::orderBy('name')->get();
+
+        $pdf = Pdf::loadView('financieras.ventas.pdf', compact('sale', 'branches'));
         return $pdf->download("Venta_{$sale->sale_code}.pdf");
     }
 }

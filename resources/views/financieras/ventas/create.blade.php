@@ -161,6 +161,43 @@
                                 <label class="font-weight-bold">Dirección / Domicilio</label>
                                 <input type="text" name="customer_address" class="form-control" placeholder="Calle, número, colonia, ciudad" value="{{ old('customer_address') }}">
                             </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">Chip Ingresado (SIM)</label>
+                                <input type="text" name="customer_chip" class="form-control" placeholder="Operadora / Número de SIM" value="{{ old('customer_chip') }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">Facebook</label>
+                                <input type="text" name="customer_facebook" class="form-control" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook') }}">
+                            </div>
+                        </div>
+
+                        <hr class="section-divider">
+                        <h6 class="font-weight-bold text-secondary mb-3"><i class="fa-solid fa-users mr-1"></i>Referencias Personales</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #1 — Nombre</label>
+                                <input type="text" name="ref1_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref1_name') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #1 — Celular</label>
+                                <input type="text" name="ref1_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref1_phone') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #2 — Nombre</label>
+                                <input type="text" name="ref2_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref2_name') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #2 — Celular</label>
+                                <input type="text" name="ref2_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref2_phone') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #3 — Nombre</label>
+                                <input type="text" name="ref3_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref3_name') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #3 — Celular</label>
+                                <input type="text" name="ref3_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref3_phone') }}">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -186,6 +223,10 @@
                                 </select>
                             </div>
                             <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">TAG / No. Contrato</label>
+                                <input type="text" name="tag_contrato" class="form-control" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato') }}">
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Precio Total ($) <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
@@ -203,11 +244,29 @@
                                 </div>
                             </div>
                             <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">Enganche con Descuento ($)</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                    <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', 0) }}" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Monto Financiado ($)</label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
                                     <input type="number" step="0.01" min="0" name="credit_amount" id="creditAmountInput" class="form-control font-weight-bold text-primary" value="{{ old('credit_amount', 0) }}">
                                 </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">Abono Semanal ($)</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                    <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control" value="{{ old('abono_semanal', 0) }}" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">Plazo en Semanas</label>
+                                <input type="number" min="1" max="104" name="term_weeks" class="form-control" placeholder="Ej. 12, 24, 52" value="{{ old('term_weeks') }}">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Plazo en Meses</label>

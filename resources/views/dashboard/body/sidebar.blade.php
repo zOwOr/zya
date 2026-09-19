@@ -145,7 +145,7 @@
                 @if (auth()->user()->can('financieras.menu'))
                     <li class="{{ Request::is('financieras*') ? 'active' : '' }}">
                         <a href="{{ route('financieras.index') }}" class="svg-icon">
-                            <i class="fa-solid fa-building-columns"></i>
+                            <i class="fa-solid fa-landmark"></i>
                             <span class="ml-3">Financieras</span>
                         </a>
                     </li>

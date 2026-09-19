@@ -134,6 +134,12 @@
                                         {{ $sale->financiera?->name ?? 'Venta Directa' }}
                                     </span>
                                 </div>
+                                @if($sale->tag_contrato)
+                                <div class="col-md-3 col-6 mb-3">
+                                    <span class="text-muted font-size-12 d-block">TAG / Contrato</span>
+                                    <span class="font-weight-bold text-dark">{{ $sale->tag_contrato }}</span>
+                                </div>
+                                @endif
                                 <div class="col-md-3 col-6 mb-3">
                                     <span class="text-muted font-size-12 d-block">Precio Total</span>
                                     <span class="font-weight-bold font-size-18 text-dark">${{ number_format($sale->price, 2) }}</span>
@@ -142,12 +148,30 @@
                                     <span class="text-muted font-size-12 d-block">Enganche</span>
                                     <span class="font-weight-bold font-size-18 text-success">${{ number_format($sale->down_payment, 2) }}</span>
                                 </div>
+                                @if($sale->enganche_descuento)
+                                <div class="col-md-3 col-6 mb-3">
+                                    <span class="text-muted font-size-12 d-block">Enganche c/ Descuento</span>
+                                    <span class="font-weight-bold font-size-16 text-warning">${{ number_format($sale->enganche_descuento, 2) }}</span>
+                                </div>
+                                @endif
                                 <div class="col-md-3 col-6 mb-3">
                                     <span class="text-muted font-size-12 d-block">Monto Financiado</span>
                                     <span class="font-weight-bold font-size-18 text-primary">${{ number_format($sale->credit_amount, 2) }}</span>
                                 </div>
+                                @if($sale->abono_semanal)
+                                <div class="col-md-3 col-6 mb-3">
+                                    <span class="text-muted font-size-12 d-block">Abono Semanal</span>
+                                    <span class="font-weight-bold font-size-16 text-info">${{ number_format($sale->abono_semanal, 2) }}</span>
+                                </div>
+                                @endif
+                                @if($sale->term_weeks)
                                 <div class="col-md-3 col-6 mb-2">
-                                    <span class="text-muted font-size-12 d-block">Plazo</span>
+                                    <span class="text-muted font-size-12 d-block">Plazo en Semanas</span>
+                                    <span class="font-weight-bold">{{ $sale->term_weeks }} semanas</span>
+                                </div>
+                                @endif
+                                <div class="col-md-3 col-6 mb-2">
+                                    <span class="text-muted font-size-12 d-block">Plazo en Meses</span>
                                     <span class="font-weight-bold">{{ $sale->term_months ? $sale->term_months . ' Meses' : 'No especificado' }}</span>
                                 </div>
                                 <div class="col-md-6 col-12 mb-2">
@@ -240,7 +264,52 @@
                                     <span class="text-muted font-size-12 d-block">Domicilio</span>
                                     <span class="font-weight-bold">{{ $sale->customer_address ?: 'No especificado' }}</span>
                                 </li>
+                                @if($sale->customer_chip)
+                                <li class="list-group-item px-0 py-2">
+                                    <span class="text-muted font-size-12 d-block">Chip Ingresado (SIM)</span>
+                                    <span class="font-weight-bold">{{ $sale->customer_chip }}</span>
+                                </li>
+                                @endif
+                                @if($sale->customer_facebook)
+                                <li class="list-group-item px-0 py-2">
+                                    <span class="text-muted font-size-12 d-block">Facebook</span>
+                                    <span class="font-weight-bold">{{ $sale->customer_facebook }}</span>
+                                </li>
+                                @endif
                             </ul>
+
+                            @if($sale->ref1_name || $sale->ref2_name || $sale->ref3_name)
+                            <div class="mt-3 pt-2 border-top">
+                                <span class="text-muted font-size-12 font-weight-bold d-block mb-2"><i class="fa-solid fa-users mr-1"></i>REFERENCIAS</span>
+                                @if($sale->ref1_name)
+                                <div class="mb-1">
+                                    <span class="badge badge-light border text-dark">#1</span>
+                                    <span class="font-weight-bold ml-1">{{ $sale->ref1_name }}</span>
+                                    @if($sale->ref1_phone)
+                                        &mdash; <a href="tel:{{ $sale->ref1_phone }}" class="text-primary">{{ $sale->ref1_phone }}</a>
+                                    @endif
+                                </div>
+                                @endif
+                                @if($sale->ref2_name)
+                                <div class="mb-1">
+                                    <span class="badge badge-light border text-dark">#2</span>
+                                    <span class="font-weight-bold ml-1">{{ $sale->ref2_name }}</span>
+                                    @if($sale->ref2_phone)
+                                        &mdash; <a href="tel:{{ $sale->ref2_phone }}" class="text-primary">{{ $sale->ref2_phone }}</a>
+                                    @endif
+                                </div>
+                                @endif
+                                @if($sale->ref3_name)
+                                <div class="mb-1">
+                                    <span class="badge badge-light border text-dark">#3</span>
+                                    <span class="font-weight-bold ml-1">{{ $sale->ref3_name }}</span>
+                                    @if($sale->ref3_phone)
+                                        &mdash; <a href="tel:{{ $sale->ref3_phone }}" class="text-primary">{{ $sale->ref3_phone }}</a>
+                                    @endif
+                                </div>
+                                @endif
+                            </div>
+                            @endif
                         </div>
                     </div>
 

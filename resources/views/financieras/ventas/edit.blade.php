@@ -92,6 +92,43 @@
                                 <label class="font-weight-bold">Dirección</label>
                                 <input type="text" name="customer_address" class="form-control" value="{{ old('customer_address', $sale->customer_address) }}">
                             </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">Chip Ingresado (SIM)</label>
+                                <input type="text" name="customer_chip" class="form-control" placeholder="Operadora / Número SIM" value="{{ old('customer_chip', $sale->customer_chip) }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">Facebook</label>
+                                <input type="text" name="customer_facebook" class="form-control" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook', $sale->customer_facebook) }}">
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6 class="font-weight-bold text-secondary mb-3"><i class="fa-solid fa-users mr-1"></i>Referencias Personales</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #1 — Nombre</label>
+                                <input type="text" name="ref1_name" class="form-control" value="{{ old('ref1_name', $sale->ref1_name) }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #1 — Celular</label>
+                                <input type="text" name="ref1_phone" class="form-control" value="{{ old('ref1_phone', $sale->ref1_phone) }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #2 — Nombre</label>
+                                <input type="text" name="ref2_name" class="form-control" value="{{ old('ref2_name', $sale->ref2_name) }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #2 — Celular</label>
+                                <input type="text" name="ref2_phone" class="form-control" value="{{ old('ref2_phone', $sale->ref2_phone) }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #3 — Nombre</label>
+                                <input type="text" name="ref3_name" class="form-control" value="{{ old('ref3_name', $sale->ref3_name) }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Referencia #3 — Celular</label>
+                                <input type="text" name="ref3_phone" class="form-control" value="{{ old('ref3_phone', $sale->ref3_phone) }}">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -123,26 +160,42 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-2 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">TAG / No. Contrato</label>
+                                <input type="text" name="tag_contrato" class="form-control" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato', $sale->tag_contrato) }}">
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Precio Total ($)</label>
                                 <input type="number" step="0.01" min="0" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $sale->price) }}">
                                 @error('price')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-2 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Enganche ($)</label>
                                 <input type="number" step="0.01" min="0" name="down_payment" class="form-control @error('down_payment') is-invalid @enderror" value="{{ old('down_payment', $sale->down_payment) }}">
                                 @error('down_payment')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-2 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">Enganche con Descuento ($)</label>
+                                <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', $sale->enganche_descuento) }}" placeholder="0.00">
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Crédito ($)</label>
                                 <input type="number" step="0.01" min="0" name="credit_amount" class="form-control @error('credit_amount') is-invalid @enderror" value="{{ old('credit_amount', $sale->credit_amount) }}">
                                 @error('credit_amount')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">Abono Semanal ($)</label>
+                                <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control" value="{{ old('abono_semanal', $sale->abono_semanal) }}" placeholder="0.00">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">Plazo (Semanas)</label>
+                                <input type="number" min="1" max="104" name="term_weeks" class="form-control" value="{{ old('term_weeks', $sale->term_weeks) }}">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Plazo (Meses)</label>

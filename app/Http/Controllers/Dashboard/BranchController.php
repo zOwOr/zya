@@ -35,8 +35,8 @@ class BranchController extends Controller
     {
         $request->validate([
             'name' => 'required|unique:branches,name|max:100',
-            'address' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:1000',
+            'phone' => 'nullable|string|max:50',
         ]);
 
         Branch::create($request->only('name', 'address', 'phone'));
@@ -55,8 +55,8 @@ class BranchController extends Controller
     {
         $request->validate([
             'name' => 'required|unique:branches,name,'.$branch->id.'|max:100',
-            'address' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:1000',
+            'phone' => 'nullable|string|max:50',
         ]);
 
         $branch->update($request->only('name', 'address', 'phone'));
