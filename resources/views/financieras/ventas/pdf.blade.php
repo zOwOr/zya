@@ -101,14 +101,11 @@
                     <div class="fecha-sub-cell">AÑO<br><span class="fecha-sub-val">{{ $sale->sale_date ? $sale->sale_date->format('Y') : '' }}</span></div>
                 </div>
             </div>
-            <div class="fin-logos">
-                @if($sale->financiera)
+            @if($sale->financiera)
+                <div class="fin-logos">
                     <span class="fin-logo-badge">{{ strtoupper($sale->financiera->name) }}</span>
-                @else
-                    <span class="fin-logo-badge badge-payjoy">PAYJOY</span>
-                    <span class="fin-logo-badge badge-krediya">KrediYA</span>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
     </div>
 

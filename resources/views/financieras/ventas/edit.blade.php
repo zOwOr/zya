@@ -140,15 +140,18 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Financiera</label>
-                                <select name="financiera_id" class="form-control">
-                                    <option value="">Directo / Sin Financiera</option>
+                                <label class="font-weight-bold">Financiera <span class="text-danger">*</span></label>
+                                <select name="financiera_id" class="form-control @error('financiera_id') is-invalid @enderror" required>
+                                    <option value="">-- Seleccionar Financiera --</option>
                                     @foreach ($financieras as $f)
                                         <option value="{{ $f->id }}" {{ old('financiera_id', $sale->financiera_id) == $f->id ? 'selected' : '' }}>
                                             {{ $f->name }}
                                         </option>
                                     @endforeach
                                 </select>
+                                @error('financiera_id')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Vendedor</label>

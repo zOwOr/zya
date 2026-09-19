@@ -92,7 +92,7 @@ class FinSaleController extends Controller
             'brand_id' => 'nullable|exists:fin_brands,id',
             'brand_name' => 'nullable|string|max:100',
             'color' => 'nullable|string|max:50',
-            'financiera_id' => 'nullable|exists:fin_financieras,id',
+            'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
             'seller_id' => 'required|exists:users,id',
             'price' => 'required|numeric|min:0',
@@ -281,7 +281,7 @@ class FinSaleController extends Controller
     public function update(Request $request, FinSale $sale)
     {
         $request->validate([
-            'financiera_id' => 'nullable|exists:fin_financieras,id',
+            'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
             'seller_id' => 'nullable|exists:users,id',
             'tag_contrato' => 'nullable|string|max:100',
