@@ -16,7 +16,6 @@
                 <th>Color</th>
                 <th>Capacidad</th>
                 <th>Estado</th>
-                <th>Venta Vinculada</th>
                 <th class="text-right">Acciones</th>
             </tr>
         </thead>
@@ -90,15 +89,6 @@
                                 <span class="badge badge-light">{{ $device->status }}</span>
                         @endswitch
                     </td>
-                    <td>
-                        @if ($device->latestSale)
-                            <a href="{{ route('financieras.ventas.show', $device->latestSale->id) }}" class="btn btn-xs btn-outline-primary" title="Ver detalle de la venta">
-                                <i class="fa-solid fa-file-invoice-dollar mr-1"></i>{{ $device->latestSale->sale_code }}
-                            </a>
-                        @else
-                            <span class="text-muted font-size-12">Sin venta</span>
-                        @endif
-                    </td>
                     <td class="text-right">
                         <div class="d-inline-flex">
                             <a href="{{ route('financieras.inventario.history', $device->id) }}" class="btn btn-sm btn-info mr-1" title="Historial Completo">
@@ -133,7 +123,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ auth()->user()->can('financieras.inventario.delete') ? 12 : 11 }}" class="text-center py-4 text-muted">
+                    <td colspan="{{ auth()->user()->can('financieras.inventario.delete') ? 11 : 10 }}" class="text-center py-4 text-muted">
                         <i class="fa-solid fa-boxes-stacked fa-3x mb-2 text-secondary"></i>
                         <p class="mb-0">No se encontraron dispositivos registrados en inventario.</p>
                     </td>

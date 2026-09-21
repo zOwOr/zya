@@ -69,7 +69,7 @@ class FinSale extends Model
 
     public function device()
     {
-        return $this->belongsTo(FinDevice::class, 'device_id');
+        return $this->belongsTo(FinDevice::class, 'device_id')->withTrashed();
     }
 
     public function financiera()
