@@ -248,17 +248,19 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-light border font-size-12 mb-3">
-                        <p class="font-weight-bold mb-1 text-primary">Encabezados soportados en el archivo:</p>
-                        <p class="mb-1 font-family-monospace text-dark">
-                            <code>FECHA DE LLEGADA | PROVEEDOR | UBICACIÓN | MARCA | MODELO | IMEI | COLOR | CAPACIDAD</code>
-                        </p>
-                        <ul class="pl-3 mb-0 text-muted">
-                            <li><strong>MARCA</strong>: debe existir previamente en el Catálogo de Marcas.</li>
-                            <li><strong>UBICACIÓN</strong>: debe existir en el Catálogo de Sucursales.</li>
-                            <li><strong>PROVEEDOR</strong>: debe existir en el Catálogo de Proveedores.</li>
-                            <li><strong>FECHA DE LLEGADA</strong>: se registrará como fecha de entrada del equipo.</li>
-                        </ul>
+                    <!-- Descarga de Plantilla Oficial -->
+                    <div class="card border border-light shadow-xs mb-3" style="background-color: #f0fdf4; border-color: #bbf7d0 !important;">
+                        <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="font-weight-bold text-success mb-1">
+                                    <i class="fa-solid fa-file-excel mr-1"></i>Plantilla Oficial de Importación
+                                </h6>
+                                <p class="text-muted font-size-12 mb-0">Descarga el archivo base en blanco con las columnas exactas requeridas para la carga masiva.</p>
+                            </div>
+                            <a href="{{ route('financieras.inventario.template.excel') }}" class="btn btn-success btn-sm font-weight-bold text-nowrap ml-3 shadow-xs">
+                                <i class="fa-solid fa-download mr-1"></i>Descargar (.xlsx)
+                            </a>
+                        </div>
                     </div>
 
                     <div class="form-group mb-3">

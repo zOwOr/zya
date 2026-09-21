@@ -17,6 +17,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xls;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class FinDeviceController extends Controller
 {
@@ -37,6 +38,7 @@ class FinDeviceController extends Controller
         'transfer' => 'transfer',
         'importExcel' => 'create',
         'exportExcel' => 'read',
+        'downloadTemplate' => 'read',
     ];
 
     public function __construct()
@@ -739,6 +741,66 @@ class FinDeviceController extends Controller
         $filename = 'Financieras_Inventario_' . date('Ymd_His') . '.xls';
 
         header('Content-Type: application/vnd.ms-excel');
+        header("Content-Disposition: attachment;filename=\"{$filename}\"");
+        header('Cache-Control: max-age=0');
+        ob_end_clean();
+        $writer->save('php://output');
+        exit();
+    }
+
+    /**
+     * Download Excel template for device bulk import
+     */
+    public function downloadTemplate()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Plantilla Importación');
+
+        // Encabezados en el orden esperado por el importador
+        $headers = [
+            'FECHA DE LLEGADA',
+            'PROVEEDOR',
+            'UBICACIÓN',
+            'MARCA',
+            'MODELO',
+            'IMEI',
+            'COLOR',
+            'CAPACIDAD',
+        ];
+
+        foreach ($headers as $colIdx => $header) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx + 1);
+            $sheet->setCellValueByColumnAndRow($colIdx + 1, 1, $header);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        // Estilos para la fila de encabezados
+        $headerRange = 'A1:H1';
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0284C7'], // Azul corporativo
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        // Formato texto explícito para la columna F (IMEI) para evitar notación científica
+        $sheet->getStyle('F2:F5000')->getNumberFormat()->setFormatCode('@');
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'Plantilla_Importacion_Inventario.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header("Content-Disposition: attachment;filename=\"{$filename}\"");
         header('Cache-Control: max-age=0');
         ob_end_clean();

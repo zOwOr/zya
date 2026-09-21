@@ -255,6 +255,7 @@ Route::middleware(['auth', 'permission:financieras.menu'])->prefix('financieras'
         Route::get('/create', [FinDeviceController::class, 'create'])->name('create');
         Route::post('/', [FinDeviceController::class, 'store'])->name('store');
         Route::get('/export/excel', [FinDeviceController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/template/excel', [FinDeviceController::class, 'downloadTemplate'])->name('template.excel');
         Route::post('/import/excel', [FinDeviceController::class, 'importExcel'])->name('import.excel');
         Route::post('/bulk-delete', [FinDeviceController::class, 'bulkDelete'])->name('bulk-delete');
         Route::get('/{device}', [FinDeviceController::class, 'show'])->name('show');
