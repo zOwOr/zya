@@ -437,54 +437,106 @@ class FinSaleController extends Controller
             ->latest('sale_date')
             ->get();
 
-        $data = [
-            [
-                'Código Venta',
-                'Fecha',
-                'IMEI',
-                'Marca',
-                'Modelo',
-                'Sucursal',
-                'Financiera',
-                'Vendedor',
-                'Cliente',
-                'Teléfono',
-                'Email',
-                'INE',
-                'Precio ($)',
-                'Enganche ($)',
-                'Monto Crédito ($)',
-                'Plazo (Meses)',
-                'Estado',
-            ]
-        ];
-
-        foreach ($sales as $s) {
-            $data[] = [
-                $s->sale_code,
-                $s->sale_date ? $s->sale_date->format('Y-m-d H:i') : '',
-                $s->device?->imei ?? 'N/A',
-                $s->device?->brand?->name ?? 'N/A',
-                $s->device?->model ?? 'N/A',
-                $s->branch?->name ?? 'N/A',
-                $s->financiera?->name ?? 'Directo',
-                $s->seller?->name ?? 'N/A',
-                $s->customer_name ?? 'N/A',
-                $s->customer_phone ?? 'N/A',
-                $s->customer_email ?? 'N/A',
-                $s->customer_ine ?? 'N/A',
-                $s->price,
-                $s->down_payment,
-                $s->credit_amount,
-                $s->term_months,
-                ucfirst($s->status),
-            ];
-        }
-
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->getDefaultColumnDimension()->setWidth(18);
-        $sheet->fromArray($data);
+        $sheet->setTitle('Ventas Financieras');
+
+        // Encabezados en el orden solicitado
+        $headers = [
+            'FECHA DE VENTA',
+            'VENDEDOR',
+            'CLIENTE',
+            'CONTACTO',
+            'CHIP',
+            'FINANCIERA',
+            'ID/CONTRATO',
+            'MARCA',
+            'MODELO',
+            'CAPACIDAD',
+            'IMEI',
+            'PRECIO DE VENTA',
+            'ENGANCHE ORIGINAL',
+            'DESCUENTO DE ENGANCHE',
+            'PAGO INICIAL',
+            'ABONO',
+            'PLAZO',
+            'DIRECCIÓN',
+            'FACEBOOK',
+            'EMAIL',
+            'REFERENCIAS',
+        ];
+
+        foreach ($headers as $colIdx => $header) {
+            $sheet->setCellValueByColumnAndRow($colIdx + 1, 1, $header);
+        }
+
+        // Estilos para la fila de encabezados
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+        $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
+            'font' => [
+                'bold'  => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size'  => 11,
+            ],
+            'fill' => [
+                'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1D6FA4'],
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(22);
+
+        // Columna IMEI (col 11) como texto para evitar notación científica
+        $imeiCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(11);
+        $sheet->getStyle("{$imeiCol}2:{$imeiCol}60000")
+            ->getNumberFormat()->setFormatCode('@');
+
+        $rowNum = 2;
+        foreach ($sales as $s) {
+            // Concatenar las hasta 3 referencias en una sola celda
+            $refs = [];
+            if ($s->ref1_name || $s->ref1_phone) {
+                $refs[] = trim(($s->ref1_name ?? '') . ' ' . ($s->ref1_phone ?? ''));
+            }
+            if ($s->ref2_name || $s->ref2_phone) {
+                $refs[] = trim(($s->ref2_name ?? '') . ' ' . ($s->ref2_phone ?? ''));
+            }
+            if ($s->ref3_name || $s->ref3_phone) {
+                $refs[] = trim(($s->ref3_name ?? '') . ' ' . ($s->ref3_phone ?? ''));
+            }
+
+            $sheet->setCellValueByColumnAndRow(1,  $rowNum, $s->sale_date ? $s->sale_date->format('d/m/Y') : '');
+            $sheet->setCellValueByColumnAndRow(2,  $rowNum, $s->seller?->name ?? '');
+            $sheet->setCellValueByColumnAndRow(3,  $rowNum, $s->customer_name ?? '');
+            $sheet->setCellValueByColumnAndRow(4,  $rowNum, $s->customer_phone ?? '');
+            $sheet->setCellValueByColumnAndRow(5,  $rowNum, $s->customer_chip ?? '');
+            $sheet->setCellValueByColumnAndRow(6,  $rowNum, $s->financiera?->name ?? 'Directo');
+            $sheet->setCellValueByColumnAndRow(7,  $rowNum, $s->tag_contrato ?? '');
+            $sheet->setCellValueByColumnAndRow(8,  $rowNum, $s->device?->brand?->name ?? '');
+            $sheet->setCellValueByColumnAndRow(9,  $rowNum, $s->device?->model ?? '');
+            $sheet->setCellValueByColumnAndRow(10, $rowNum, $s->device?->storage ?? '');
+            $sheet->setCellValueExplicitByColumnAndRow(11, $rowNum, (string)($s->device?->imei ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValueByColumnAndRow(12, $rowNum, $s->price);
+            $sheet->setCellValueByColumnAndRow(13, $rowNum, $s->down_payment);
+            $sheet->setCellValueByColumnAndRow(14, $rowNum, $s->enganche_descuento ?? '');
+            $sheet->setCellValueByColumnAndRow(15, $rowNum, $s->credit_amount);
+            $sheet->setCellValueByColumnAndRow(16, $rowNum, $s->abono_semanal ?? '');
+            $sheet->setCellValueByColumnAndRow(17, $rowNum, $s->term_months ? $s->term_months . ' meses' : ($s->term_weeks ? $s->term_weeks . ' semanas' : ''));
+            $sheet->setCellValueByColumnAndRow(18, $rowNum, $s->customer_address ?? '');
+            $sheet->setCellValueByColumnAndRow(19, $rowNum, $s->customer_facebook ?? '');
+            $sheet->setCellValueByColumnAndRow(20, $rowNum, $s->customer_email ?? '');
+            $sheet->setCellValueByColumnAndRow(21, $rowNum, implode(' | ', $refs));
+            $rowNum++;
+        }
+
+        // Ancho automático de columnas
+        foreach (range(1, count($headers)) as $col) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
 
         $writer = new Xls($spreadsheet);
         $filename = 'Financieras_Ventas_' . date('Ymd_His') . '.xls';
