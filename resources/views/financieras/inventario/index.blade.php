@@ -8,6 +8,11 @@
                 <p class="text-muted font-size-13 mb-0">Control de equipos en almacén y sucursales, traspasos y trazabilidad.</p>
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
+                @can('financieras.inventario.delete')
+                    <button type="button" class="btn btn-outline-danger btn-sm mr-1" id="btnBulkDelete" style="display: none;" data-toggle="modal" data-target="#bulkDeleteModal">
+                        <i class="fa-solid fa-trash mr-1"></i>Eliminar seleccionados (<span id="bulkDeleteCount">0</span>)
+                    </button>
+                @endcan
                 <a href="{{ route('financieras.inventario.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm mr-1">
                     <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
                 </a>
@@ -23,34 +28,72 @@
         </div>
 
         <!-- Filters Form -->
-        <form id="filter-inventory-form" method="GET" action="{{ route('financieras.index') }}" class="bg-light p-3 rounded mb-3">
+        <form id="filter-inventory-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-4 rounded border bg-light shadow-xs">
             <input type="hidden" name="tab" value="inventario">
-            <div class="row align-items-end">
-                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Buscar (IMEI / Color)</label>
-                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar..." value="{{ request('search') }}">
+            
+            <!-- Fila 1: Búsqueda Principal, Sucursal y Estado -->
+            <div class="row align-items-end mb-3">
+                <div class="col-lg-5 col-md-12 mb-2 mb-lg-0">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-magnifying-glass mr-1 text-primary"></i>Buscar Dispositivo
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="search" class="form-control" placeholder="Buscar por IMEI, color, capacidad o notas..." value="{{ request('search') }}">
+                        @if(request('search'))
+                            <div class="input-group-append">
+                                <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'inventario'])) }}" class="btn btn-outline-secondary" title="Limpiar búsqueda">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </a>
+                            </div>
+                        @endif
+                    </div>
                 </div>
-                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Sucursal</label>
-                    <select name="branch_id" class="form-control form-control-sm">
-                        <option value="">Todas</option>
+
+                <div class="col-lg-4 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-store mr-1 text-info"></i>Sucursal / Ubicación
+                    </label>
+                    <select name="branch_id" class="form-control form-control-sm custom-select custom-select-sm">
+                        <option value="">Todas las sucursales</option>
                         @foreach ($branches as $b)
                             <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Marca</label>
-                    <select name="brand_id" class="form-control form-control-sm">
-                        <option value="">Todas</option>
+
+                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-tags mr-1 text-success"></i>Estado
+                    </label>
+                    <select name="status" class="form-control form-control-sm custom-select custom-select-sm">
+                        <option value="">Todos los estados</option>
+                        <option value="disponible" {{ request('status') == 'disponible' ? 'selected' : '' }}>Disponible</option>
+                        <option value="vendido" {{ request('status') == 'vendido' ? 'selected' : '' }}>Vendido</option>
+                        <option value="en_garantia" {{ request('status') == 'en_garantia' ? 'selected' : '' }}>En Garantía</option>
+                        <option value="robado" {{ request('status') == 'robado' ? 'selected' : '' }}>Robado</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Fila 2: Marca, Modelo, Proveedor y Acciones -->
+            <div class="row align-items-end">
+                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-copyright mr-1 text-secondary"></i>Marca
+                    </label>
+                    <select name="brand_id" class="form-control form-control-sm custom-select custom-select-sm">
+                        <option value="">Todas las marcas</option>
                         @foreach ($brands as $br)
                             <option value="{{ $br->id }}" {{ request('brand_id') == $br->id ? 'selected' : '' }}>{{ $br->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Modelo</label>
-                    <input type="text" name="model" list="modelsDatalist" class="form-control form-control-sm" placeholder="Todos o escribir..." value="{{ request('model') }}" autocomplete="off">
+
+                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-mobile-screen mr-1 text-warning"></i>Modelo
+                    </label>
+                    <input type="text" name="model" list="modelsDatalist" class="form-control form-control-sm" placeholder="Todos o escribir modelo..." value="{{ request('model') }}" autocomplete="off">
                     <datalist id="modelsDatalist">
                         @if(isset($models))
                             @foreach ($models as $m)
@@ -59,10 +102,13 @@
                         @endif
                     </datalist>
                 </div>
-                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Proveedor</label>
-                    <select name="supplier_id" class="form-control form-control-sm">
-                        <option value="">Todos</option>
+
+                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-truck-field mr-1 text-danger"></i>Proveedor
+                    </label>
+                    <select name="supplier_id" class="form-control form-control-sm custom-select custom-select-sm">
+                        <option value="">Todos los proveedores</option>
                         @if(isset($suppliers))
                             @foreach ($suppliers as $sup)
                                 <option value="{{ $sup->id }}" {{ request('supplier_id') == $sup->id ? 'selected' : '' }}>{{ $sup->name }}</option>
@@ -70,30 +116,74 @@
                         @endif
                     </select>
                 </div>
-                <div class="col-xl-1 col-lg-3 col-md-4 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Estado</label>
-                    <select name="status" class="form-control form-control-sm">
-                        <option value="">Todos</option>
-                        <option value="disponible" {{ request('status') == 'disponible' ? 'selected' : '' }}>Disponible</option>
-                        <option value="vendido" {{ request('status') == 'vendido' ? 'selected' : '' }}>Vendido</option>
-                        <option value="en_garantia" {{ request('status') == 'en_garantia' ? 'selected' : '' }}>En Garantía</option>
-                        <option value="robado" {{ request('status') == 'robado' ? 'selected' : '' }}>Robado</option>
-                    </select>
-                </div>
-                <div class="col-xl-1 col-lg-3 col-md-4 col-sm-6 mb-2 d-flex">
-                    <button type="submit" class="btn btn-primary btn-sm mr-1 flex-grow-1" title="Filtrar">
-                        <i class="fa-solid fa-filter"></i>
+
+                <div class="col-lg-3 col-md-6 col-sm-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm font-weight-bold flex-grow-1 mr-2 shadow-xs">
+                        <i class="fa-solid fa-filter mr-1"></i>Filtrar
                     </button>
-                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-light btn-sm border" title="Restablecer filtros">
-                        <i class="fa-solid fa-rotate-left"></i>
+                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-outline-secondary btn-sm px-3" title="Restablecer todos los filtros">
+                        <i class="fa-solid fa-rotate-left mr-1"></i>Limpiar
                     </a>
                 </div>
             </div>
+
+            <!-- Resumen de Filtros Activos (Pills) -->
+            @php
+                $activeFiltersCount = collect(['search', 'branch_id', 'brand_id', 'model', 'supplier_id', 'status'])
+                    ->filter(fn($key) => request()->filled($key))
+                    ->count();
+            @endphp
+            @if($activeFiltersCount > 0)
+                <div class="d-flex flex-wrap align-items-center mt-3 pt-2 border-top">
+                    <span class="font-size-12 text-muted mr-2 font-weight-bold">
+                        <i class="fa-solid fa-sliders mr-1 text-primary"></i>Filtros aplicados ({{ $activeFiltersCount }}):
+                    </span>
+                    @if(request('search'))
+                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
+                            Búsqueda: <strong>{{ request('search') }}</strong>
+                            <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
+                        </span>
+                    @endif
+                    @if(request('branch_id'))
+                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
+                            Sucursal: <strong>{{ $branches->firstWhere('id', request('branch_id'))?->name ?? request('branch_id') }}</strong>
+                            <a href="{{ route('financieras.index', array_merge(request()->except('branch_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
+                        </span>
+                    @endif
+                    @if(request('brand_id'))
+                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
+                            Marca: <strong>{{ $brands->firstWhere('id', request('brand_id'))?->name ?? request('brand_id') }}</strong>
+                            <a href="{{ route('financieras.index', array_merge(request()->except('brand_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
+                        </span>
+                    @endif
+                    @if(request('model'))
+                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
+                            Modelo: <strong>{{ request('model') }}</strong>
+                            <a href="{{ route('financieras.index', array_merge(request()->except('model'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
+                        </span>
+                    @endif
+                    @if(request('supplier_id'))
+                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
+                            Proveedor: <strong>{{ (isset($suppliers) ? $suppliers->firstWhere('id', request('supplier_id'))?->name : null) ?? request('supplier_id') }}</strong>
+                            <a href="{{ route('financieras.index', array_merge(request()->except('supplier_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
+                        </span>
+                    @endif
+                    @if(request('status'))
+                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
+                            Estado: <strong>{{ ucfirst(str_replace('_', ' ', request('status'))) }}</strong>
+                            <a href="{{ route('financieras.index', array_merge(request()->except('status'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
+                        </span>
+                    @endif
+                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-link btn-xs text-danger font-weight-bold ml-auto mb-1">
+                        <i class="fa-solid fa-trash-can mr-1"></i>Quitar todos los filtros
+                    </a>
+                </div>
+            @endif
         </form>
 
         <!-- Table Container -->
         <div id="inventory-table-container">
-            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::with(['brand', 'branch', 'supplier', 'latestSale'])->latest()->paginate(20)])
+            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::filter(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']))->with(['brand', 'branch', 'supplier', 'latestSale'])->latest()->paginate(20)->withQueryString()])
         </div>
     </div>
 </div>
@@ -206,3 +296,100 @@
         </form>
     </div>
 </div>
+
+@can('financieras.inventario.delete')
+<!-- Modal Eliminación Masiva -->
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <form id="bulkDeleteForm" method="POST" action="{{ route('financieras.inventario.bulk-delete') }}">
+            @csrf
+            <div class="modal-content border-danger shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title text-white">
+                        <i class="fa-solid fa-triangle-exclamation mr-2"></i>Eliminación Masiva de Dispositivos
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">¿Estás seguro de que deseas eliminar los <strong id="bulkModalCount" class="text-danger">0</strong> dispositivos seleccionados?</p>
+                    <div class="alert alert-warning font-size-12 mb-3">
+                        <i class="fa-solid fa-circle-exclamation mr-1"></i>
+                        Esta acción es irreversible y eliminará el registro de inventario. Los equipos con ventas activas vinculadas serán omitidos automáticamente por seguridad.
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-size-12 font-weight-bold text-muted mb-1">IMEIs a eliminar:</label>
+                        <div id="bulkImeisList" class="bg-light p-2 border rounded font-family-monospace font-size-12" style="max-height: 120px; overflow-y: auto; word-break: break-all;">
+                        </div>
+                    </div>
+                    <div id="bulkDeleteHiddenInputs"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger font-weight-bold" id="btnConfirmBulkDelete">
+                        <i class="fa-solid fa-trash mr-1"></i>Confirmar Eliminación
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function updateBulkDeleteState() {
+        var checked = $('.device-checkbox:checked');
+        var count = checked.length;
+        $('#bulkDeleteCount').text(count);
+        if (count > 0) {
+            $('#btnBulkDelete').fadeIn(150);
+        } else {
+            $('#btnBulkDelete').fadeOut(150);
+        }
+
+        var totalCheckboxes = $('.device-checkbox').length;
+        if (totalCheckboxes > 0 && count === totalCheckboxes) {
+            $('#selectAllDevices').prop('checked', true).prop('indeterminate', false);
+        } else if (count > 0) {
+            $('#selectAllDevices').prop('checked', false).prop('indeterminate', true);
+        } else {
+            $('#selectAllDevices').prop('checked', false).prop('indeterminate', false);
+        }
+    }
+
+    // Toggle seleccionar todos
+    $(document).on('change', '#selectAllDevices', function() {
+        var isChecked = $(this).is(':checked');
+        $('.device-checkbox').prop('checked', isChecked);
+        updateBulkDeleteState();
+    });
+
+    // Checkbox individual
+    $(document).on('change', '.device-checkbox', function() {
+        updateBulkDeleteState();
+    });
+
+    // Cargar datos en modal antes de mostrar
+    $('#bulkDeleteModal').on('show.bs.modal', function() {
+        var checked = $('.device-checkbox:checked');
+        var container = $('#bulkDeleteHiddenInputs');
+        var listContainer = $('#bulkImeisList');
+        container.empty();
+        listContainer.empty();
+
+        $('#bulkModalCount').text(checked.length);
+
+        var imeis = [];
+        checked.each(function() {
+            var val = $(this).val();
+            var imei = $(this).data('imei') || val;
+            container.append('<input type="hidden" name="device_ids[]" value="' + val + '">');
+            imeis.push(imei);
+        });
+
+        listContainer.text(imeis.join(', '));
+    });
+});
+</script>
+@endcan

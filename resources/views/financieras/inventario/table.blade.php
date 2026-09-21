@@ -2,6 +2,11 @@
     <table class="table table-striped table-hover mb-0">
         <thead class="bg-white text-uppercase font-size-12">
             <tr>
+                @if (auth()->user()->can('financieras.inventario.delete'))
+                    <th style="width: 38px;" class="text-center align-middle">
+                        <input type="checkbox" id="selectAllDevices" class="cursor-pointer" title="Seleccionar todos los visibles">
+                    </th>
+                @endif
                 <th>Fecha Llegada</th>
                 <th>Proveedor</th>
                 <th>Ubicación</th>
@@ -18,6 +23,17 @@
         <tbody>
             @forelse ($devices as $device)
                 <tr>
+                    @if (auth()->user()->can('financieras.inventario.delete'))
+                        <td class="text-center align-middle">
+                            @if(!$device->sales()->where('status', 'activa')->exists())
+                                <input type="checkbox" class="device-checkbox cursor-pointer" value="{{ $device->id }}" data-imei="{{ $device->imei }}">
+                            @else
+                                <span class="text-muted" title="No se puede eliminar: tiene venta activa vinculada">
+                                    <i class="fa-solid fa-lock text-secondary font-size-11"></i>
+                                </span>
+                            @endif
+                        </td>
+                    @endif
                     <td class="font-size-13 text-muted">
                         <span class="font-weight-bold text-dark">{{ $device->created_at->format('d/m/Y') }}</span>
                         <br>
@@ -117,7 +133,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" class="text-center py-4 text-muted">
+                    <td colspan="{{ auth()->user()->can('financieras.inventario.delete') ? 12 : 11 }}" class="text-center py-4 text-muted">
                         <i class="fa-solid fa-boxes-stacked fa-3x mb-2 text-secondary"></i>
                         <p class="mb-0">No se encontraron dispositivos registrados en inventario.</p>
                     </td>

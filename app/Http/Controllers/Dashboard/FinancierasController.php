@@ -59,6 +59,42 @@ class FinancierasController extends Controller
             'robos_activos' => FinTheftReport::whereIn('status', ['reportado', 'en_investigacion'])->count(),
         ];
 
+        // Cargar datos del tab activo con sus respectivos filtros aplicados
+        $devices = null;
+        $sales = null;
+        $warranties = null;
+        $thefts = null;
+
+        if ($activeTab === 'inventario') {
+            $deviceFilters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
+            $devices = FinDevice::filter($deviceFilters)
+                ->with(['brand', 'branch', 'supplier', 'latestSale'])
+                ->latest()
+                ->paginate(20)
+                ->withQueryString();
+        } elseif ($activeTab === 'ventas') {
+            $saleFilters = $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id']);
+            $sales = FinSale::filter($saleFilters)
+                ->with(['device.brand', 'financiera', 'branch', 'seller'])
+                ->latest('sale_date')
+                ->paginate(15)
+                ->withQueryString();
+        } elseif ($activeTab === 'garantias') {
+            $warrantyFilters = $request->only(['search', 'stage_id', 'branch_id', 'status']);
+            $warranties = FinWarranty::filter($warrantyFilters)
+                ->with(['device.brand', 'sale', 'branch', 'currentStage'])
+                ->latest('opened_at')
+                ->paginate(15)
+                ->withQueryString();
+        } elseif ($activeTab === 'robos') {
+            $theftFilters = $request->only(['search', 'branch_id', 'status']);
+            $thefts = FinTheftReport::filter($theftFilters)
+                ->with(['device.brand', 'sale', 'branch'])
+                ->latest('reported_at')
+                ->paginate(15)
+                ->withQueryString();
+        }
+
         return view('financieras.index', compact(
             'activeTab',
             'branches',
@@ -68,7 +104,11 @@ class FinancierasController extends Controller
             'sellers',
             'suppliers',
             'models',
-            'counts'
+            'counts',
+            'devices',
+            'sales',
+            'warranties',
+            'thefts'
         ));
     }
 

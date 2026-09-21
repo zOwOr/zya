@@ -33,6 +33,7 @@ class FinDeviceController extends Controller
         'edit' => 'edit',
         'update' => 'edit',
         'destroy' => 'delete',
+        'bulkDelete' => 'delete',
         'transfer' => 'transfer',
         'importExcel' => 'create',
         'exportExcel' => 'read',
@@ -290,14 +291,23 @@ class FinDeviceController extends Controller
             return back()->with('error', 'No se puede eliminar un dispositivo con una venta activa vinculada.');
         }
 
-        $device->delete();
+        $imei = $device->imei;
+        $id = $device->id;
+
+        // Si nunca ha tenido ventas, eliminación definitiva para liberar el IMEI en la BD
+        if ($device->sales()->exists()) {
+            $device->delete();
+        } else {
+            $device->transfers()->delete();
+            $device->forceDelete();
+        }
 
         try {
             event(new FinancierasUpdated(
                 'inventario',
                 'deleted',
-                "Dispositivo {$device->imei} eliminado de inventario",
-                ['device_id' => $device->id]
+                "Dispositivo {$imei} eliminado de inventario",
+                ['device_id' => $id]
             ));
         } catch (\Throwable $e) {
             \Log::warning('Reverb broadcast warning: ' . $e->getMessage());
@@ -305,6 +315,68 @@ class FinDeviceController extends Controller
 
         return redirect()->route('financieras.index', ['tab' => 'inventario'])
             ->with('success', 'Dispositivo eliminado del inventario.');
+    }
+
+    /**
+     * Bulk delete selected devices
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'device_ids' => 'required|array|min:1',
+            'device_ids.*' => 'exists:fin_devices,id',
+        ], [
+            'device_ids.required' => 'Debe seleccionar al menos un dispositivo para eliminar.',
+            'device_ids.min' => 'Debe seleccionar al menos un dispositivo para eliminar.',
+        ]);
+
+        $deviceIds = $request->input('device_ids');
+        $devices = FinDevice::whereIn('id', $deviceIds)->with('sales')->get();
+
+        $deletedCount = 0;
+        $blockedCount = 0;
+        $deletedIds = [];
+
+        foreach ($devices as $device) {
+            // Protección: No permitir eliminar dispositivos que tengan una venta activa
+            if ($device->sales()->where('status', 'activa')->exists()) {
+                $blockedCount++;
+                continue;
+            }
+
+            $deletedIds[] = $device->id;
+            // Si nunca ha tenido ventas, eliminación definitiva para liberar el IMEI
+            if ($device->sales()->exists()) {
+                $device->delete();
+            } else {
+                $device->transfers()->delete();
+                $device->forceDelete();
+            }
+            $deletedCount++;
+        }
+
+        if ($deletedCount > 0) {
+            try {
+                event(new FinancierasUpdated(
+                    'inventario',
+                    'deleted',
+                    "Se eliminaron masivamente {$deletedCount} dispositivos de inventario",
+                    ['deleted_ids' => $deletedIds]
+                ));
+            } catch (\Throwable $e) {
+                \Log::warning('Reverb broadcast warning: ' . $e->getMessage());
+            }
+        }
+
+        if ($blockedCount > 0) {
+            $msg = "Se eliminaron {$deletedCount} dispositivos.";
+            $msg .= " ({$blockedCount} equipos fueron omitidos porque tienen ventas activas vinculadas).";
+            return redirect()->route('financieras.index', ['tab' => 'inventario'])
+                ->with($deletedCount > 0 ? 'success' : 'error', $msg);
+        }
+
+        return redirect()->route('financieras.index', ['tab' => 'inventario'])
+            ->with('success', "Se eliminaron exitosamente {$deletedCount} dispositivos seleccionados del inventario.");
     }
 
     /**
@@ -328,7 +400,8 @@ class FinDeviceController extends Controller
             $file = $request->file('import_file');
             $spreadsheet = IOFactory::load($file->getRealPath());
             $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray(null, true, true, false);
+            // formatData = false para obtener los valores raw de las celdas y evitar que Excel los formatee como notación científica
+            $rows = $worksheet->toArray(null, true, false, false);
 
             if (count($rows) <= 1) {
                 return back()->with('error', 'El archivo no contiene registros o está vacío.');
@@ -340,6 +413,19 @@ class FinDeviceController extends Controller
                 $str = mb_strtoupper(trim((string)$str), 'UTF-8');
                 $str = strtr(utf8_decode($str), utf8_decode('ÀÁÂÃÄÅàáâãäåÒÓÔÕÖØòóôõöøÈÉÊËèéêëÇçÌÍÎÏìíîïÙÚÛÜùúûüÿÑñ'), 'AAAAAAaaaaaaOOOOOOooooooEEEEeeeeCcIIIIiiiiUUUUuuuuyNn');
                 return preg_replace('/[^A-Z0-9]/', '', $str);
+            };
+
+            // Helper robusto para formatear y limpiar el IMEI sin notación científica
+            $cleanImei = function ($val) {
+                if ($val === null || $val === '') return '';
+                if (is_float($val) || is_int($val)) {
+                    return number_format($val, 0, '', '');
+                }
+                $str = trim((string)$val);
+                if (preg_match('/^[0-9]+(\.[0-9]+)?[eE][\+\-]?[0-9]+$/i', $str) || (stripos($str, 'e+') !== false && is_numeric($str))) {
+                    return number_format((float)$str, 0, '', '');
+                }
+                return preg_replace('/[^0-9]/', '', $str);
             };
 
             // Mapear encabezados por nombre
@@ -386,48 +472,76 @@ class FinDeviceController extends Controller
 
             // Pre-cargar catálogos
             $brands = FinBrand::where('is_active', true)->get()->keyBy(fn($b) => $normalizeName($b->name));
-            $branches = Branch::where('is_active', true)->get()->keyBy(fn($b) => $normalizeName($b->name));
+            $branches = Branch::all()->keyBy(fn($b) => $normalizeName($b->name));
             $suppliers = FinSupplier::where('is_active', true)->get()->keyBy(fn($s) => $normalizeName($s->name));
 
             $defaultBranchId = $request->input('default_branch_id');
             $defaultSupplierId = $request->input('default_supplier_id');
 
-            $imported = 0;
-            $duplicates = 0;
+            $devicesToInsert = [];
+            $seenImeisInFile = [];
             $rowErrors = [];
 
             for ($i = 1; $i < count($rows); $i++) {
                 $row = $rows[$i];
                 $rowNum = $i + 1;
 
-                // IMEI: evitar notación científica y validar formato
+                // IMEI: obtener valor directo de la celda y limpiar notación científica
                 $rawImei = $row[$headerMap['imei']] ?? null;
-                if (is_float($rawImei) || is_int($rawImei)) {
-                    $rawImei = number_format($rawImei, 0, '', '');
+                if (isset($headerMap['imei'])) {
+                    try {
+                        $cellVal = $worksheet->getCellByColumnAndRow($headerMap['imei'] + 1, $rowNum)->getValue();
+                        if ($cellVal !== null && $cellVal !== '') {
+                            $rawImei = $cellVal;
+                        }
+                    } catch (\Throwable $t) {
+                        // fallback a $row
+                    }
                 }
-                $imei = trim((string)$rawImei);
+                $imei = $cleanImei($rawImei);
+
+                // Si toda la fila está vacía, ignorarla
                 if (empty($imei)) {
+                    // Si la fila tiene algún otro dato pero no tiene IMEI, es un error
+                    $hasOtherData = false;
+                    foreach ($row as $cell) {
+                        if (!empty(trim((string)$cell))) {
+                            $hasOtherData = true;
+                            break;
+                        }
+                    }
+                    if ($hasOtherData) {
+                        $rowErrors[] = "Fila {$rowNum}: La columna IMEI está vacía.";
+                    }
                     continue;
                 }
 
-                if (FinDevice::where('imei', $imei)->exists()) {
-                    $duplicates++;
+                // Validar duplicado en el mismo archivo
+                if (isset($seenImeisInFile[$imei])) {
+                    $rowErrors[] = "Fila {$rowNum}: El IMEI {$imei} está duplicado dentro del mismo archivo (aparece también en la fila {$seenImeisInFile[$imei]}).";
+                } else {
+                    $seenImeisInFile[$imei] = $rowNum;
+                }
+
+                // Validar si ya existe en la base de datos (activo)
+                $existingDevice = FinDevice::withTrashed()->where('imei', $imei)->first();
+                if ($existingDevice && !$existingDevice->trashed()) {
                     $rowErrors[] = "Fila {$rowNum}: El IMEI {$imei} ya existe en el inventario.";
-                    continue;
                 }
 
                 // 1. MARCA: Validación estricta con catálogo fin_brands
                 $rawBrand = isset($headerMap['brand']) ? trim((string)($row[$headerMap['brand']] ?? '')) : '';
+                $brandId = null;
                 if (empty($rawBrand)) {
                     $rowErrors[] = "Fila {$rowNum}: La columna MARCA está vacía.";
-                    continue;
+                } else {
+                    $brandKey = $normalizeName($rawBrand);
+                    if (!isset($brands[$brandKey])) {
+                        $rowErrors[] = "Fila {$rowNum}: La marca '{$rawBrand}' no existe en el catálogo de marcas. Regístrela previamente en Catálogos.";
+                    } else {
+                        $brandId = $brands[$brandKey]->id;
+                    }
                 }
-                $brandKey = $normalizeName($rawBrand);
-                if (!isset($brands[$brandKey])) {
-                    $rowErrors[] = "Fila {$rowNum}: La marca '{$rawBrand}' no existe en el catálogo de marcas. Regístrela previamente en Catálogos.";
-                    continue;
-                }
-                $brandId = $brands[$brandKey]->id;
 
                 // 2. MODELO
                 $model = isset($headerMap['model']) ? trim((string)($row[$headerMap['model']] ?? '')) : '';
@@ -442,16 +556,15 @@ class FinDeviceController extends Controller
                     $branchKey = $normalizeName($rawBranch);
                     if (!isset($branches[$branchKey])) {
                         $rowErrors[] = "Fila {$rowNum}: La sucursal '{$rawBranch}' no existe en el catálogo de sucursales.";
-                        continue;
+                    } else {
+                        $branchId = $branches[$branchKey]->id;
                     }
-                    $branchId = $branches[$branchKey]->id;
                 } else {
                     $branchId = $defaultBranchId;
                 }
 
                 if (!$branchId) {
                     $rowErrors[] = "Fila {$rowNum}: No se especificó ubicación ni se seleccionó una sucursal por defecto.";
-                    continue;
                 }
 
                 // 4. PROVEEDOR: Validación estricta con catálogo fin_suppliers
@@ -461,9 +574,9 @@ class FinDeviceController extends Controller
                     $supplierKey = $normalizeName($rawSupplier);
                     if (!isset($suppliers[$supplierKey])) {
                         $rowErrors[] = "Fila {$rowNum}: El proveedor '{$rawSupplier}' no existe en el catálogo de proveedores. Regístrelo previamente en Catálogos.";
-                        continue;
+                    } else {
+                        $supplierId = $suppliers[$supplierKey]->id;
                     }
-                    $supplierId = $suppliers[$supplierKey]->id;
                 } else {
                     $supplierId = $defaultSupplierId;
                 }
@@ -497,8 +610,8 @@ class FinDeviceController extends Controller
                     }
                 }
 
-                // Guardar dispositivo
-                $device = new FinDevice([
+                // Encolar datos validados si no hay errores acumulados en esta fila
+                $devicesToInsert[] = [
                     'imei' => $imei,
                     'brand_id' => $brandId,
                     'model' => $model,
@@ -508,32 +621,46 @@ class FinDeviceController extends Controller
                     'supplier_id' => $supplierId,
                     'status' => 'disponible',
                     'notes' => null,
-                ]);
-                $device->created_at = $createdAt;
-                $device->updated_at = now();
-                $device->save();
-
-                $imported++;
+                    'created_at' => $createdAt,
+                ];
             }
 
-            $successMsg = "Se importaron {$imported} dispositivos correctamente.";
-            if ($duplicates > 0) {
-                $successMsg .= " ({$duplicates} omitidos por IMEI duplicado).";
-            }
-
+            // REGLA ATÓMICA: Si existe AL MENOS UNA incidencia, NO SE IMPORTA NADA
             if (count($rowErrors) > 0) {
-                $errSample = array_slice($rowErrors, 0, 5);
-                $errorMsg = "Se encontraron " . count($rowErrors) . " incidencias: " . implode(" | ", $errSample);
-                if (count($rowErrors) > 5) {
-                    $errorMsg .= " ... y " . (count($rowErrors) - 5) . " incidencias más.";
+                $errSample = array_slice($rowErrors, 0, 8);
+                $errorMsg = "No se importó ningún dispositivo. Se encontraron " . count($rowErrors) . " incidencias que deben corregirse previamente: " . implode(" | ", $errSample);
+                if (count($rowErrors) > 8) {
+                    $errorMsg .= " ... y " . (count($rowErrors) - 8) . " incidencias más.";
                 }
 
-                if ($imported > 0) {
-                    return back()->with('success', $successMsg)->with('error', $errorMsg);
-                } else {
-                    return back()->with('error', "No se importó ningún registro. " . $errorMsg);
-                }
+                return back()->with('error', $errorMsg)->with('import_errors', $rowErrors);
             }
+
+            if (empty($devicesToInsert)) {
+                return back()->with('error', 'No se encontraron registros válidos para importar en el archivo.');
+            }
+
+            // Todas las filas son válidas: insertar todas en una transacción
+            $imported = 0;
+            DB::transaction(function () use ($devicesToInsert, &$imported) {
+                foreach ($devicesToInsert as $data) {
+                    $createdAt = $data['created_at'];
+                    unset($data['created_at']);
+
+                    // Si existía un registro eliminado para este IMEI, se purga para liberar la clave única
+                    $trashed = FinDevice::onlyTrashed()->where('imei', $data['imei'])->first();
+                    if ($trashed) {
+                        $trashed->transfers()->delete();
+                        $trashed->forceDelete();
+                    }
+
+                    $device = new FinDevice($data);
+                    $device->created_at = $createdAt;
+                    $device->updated_at = now();
+                    $device->save();
+                    $imported++;
+                }
+            });
 
             try {
                 event(new FinancierasUpdated(
@@ -546,7 +673,7 @@ class FinDeviceController extends Controller
                 \Log::warning('Reverb broadcast warning: ' . $e->getMessage());
             }
 
-            return back()->with('success', $successMsg);
+            return back()->with('success', "Se importaron exitosamente todos los {$imported} dispositivos sin ninguna incidencia.");
         } catch (\Exception $e) {
             return back()->with('error', 'Error al procesar el archivo: ' . $e->getMessage());
         }

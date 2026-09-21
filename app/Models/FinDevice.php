@@ -33,6 +33,12 @@ class FinDevice extends Model
             if (empty($device->model)) {
                 $device->model = 'Modelo no especificado';
             }
+            if (!empty($device->imei)) {
+                $str = trim((string)$device->imei);
+                if (preg_match('/^[0-9]+(\.[0-9]+)?[eE][\+\-]?[0-9]+$/', $str) || (stripos($str, 'e+') !== false && is_numeric($str))) {
+                    $device->imei = number_format((float)$str, 0, '', '');
+                }
+            }
         });
     }
 

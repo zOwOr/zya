@@ -73,6 +73,22 @@
             @if (session('error'))
                 <div class="alert text-white bg-danger alert-dismissible fade show shadow-sm" role="alert">
                     <i class="fa-solid fa-triangle-exclamation mr-2"></i>{{ session('error') }}
+                    @if (session('import_errors'))
+                        <div class="mt-2">
+                            <button class="btn btn-xs btn-light text-danger font-weight-bold" type="button" data-toggle="collapse" data-target="#collapseImportErrors" aria-expanded="false">
+                                <i class="fa-solid fa-list-ul mr-1"></i>Ver listado completo de incidencias ({{ count(session('import_errors')) }})
+                            </button>
+                            <div class="collapse mt-2" id="collapseImportErrors">
+                                <div class="card card-body bg-white text-dark p-3 font-size-12 shadow-sm" style="max-height: 220px; overflow-y: auto;">
+                                    <ul class="pl-3 mb-0">
+                                        @foreach (session('import_errors') as $err)
+                                            <li class="mb-1">{{ $err }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                     <button type="button" class="close text-white" data-dismiss="alert" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
