@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\FinBrand;
 use App\Models\FinFinanciera;
+use App\Models\FinSupplier;
 use App\Models\FinWarrantyStage;
 use Illuminate\Http\Request;
 
@@ -25,8 +26,9 @@ class FinCatalogController extends Controller
         $financieras = FinFinanciera::withCount('sales')->get();
         $brands = FinBrand::withCount('devices')->get();
         $stages = FinWarrantyStage::withCount('warranties')->orderBy('order')->get();
+        $suppliers = FinSupplier::withCount('devices')->get();
 
-        return view('financieras.catalogos.index', compact('financieras', 'brands', 'stages'));
+        return view('financieras.catalogos.index', compact('financieras', 'brands', 'stages', 'suppliers'));
     }
 
     // Financieras
@@ -150,5 +152,61 @@ class FinCatalogController extends Controller
 
         $stage->delete();
         return back()->with('success', 'Etapa eliminada.');
+    }
+
+    // Suppliers
+    public function storeSupplier(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150|unique:fin_suppliers,name',
+            'contact' => 'nullable|string|max:150',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:150',
+            'notes' => 'nullable|string',
+        ]);
+
+        FinSupplier::create([
+            'name' => trim($request->input('name')),
+            'contact' => $request->input('contact'),
+            'phone' => $request->input('phone'),
+            'email' => $request->input('email'),
+            'notes' => $request->input('notes'),
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', 'Proveedor agregado correctamente.');
+    }
+
+    public function updateSupplier(Request $request, FinSupplier $supplier)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150|unique:fin_suppliers,name,' . $supplier->id,
+            'contact' => 'nullable|string|max:150',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:150',
+            'notes' => 'nullable|string',
+            'is_active' => 'required|boolean',
+        ]);
+
+        $supplier->update([
+            'name' => trim($request->input('name')),
+            'contact' => $request->input('contact'),
+            'phone' => $request->input('phone'),
+            'email' => $request->input('email'),
+            'notes' => $request->input('notes'),
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        return back()->with('success', 'Proveedor actualizado.');
+    }
+
+    public function destroySupplier(FinSupplier $supplier)
+    {
+        if ($supplier->devices()->exists()) {
+            return back()->with('error', 'No se puede eliminar el proveedor porque tiene dispositivos registrados.');
+        }
+
+        $supplier->delete();
+        return back()->with('success', 'Proveedor eliminado.');
     }
 }

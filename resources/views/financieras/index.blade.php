@@ -203,7 +203,7 @@
 
                         <div class="py-2">
                             <a href="{{ route('financieras.catalogos.index') }}" class="btn btn-outline-dark btn-sm">
-                                <i class="fa-solid fa-layer-group mr-1"></i>Catálogos (Financieras / Marcas / Etapas)
+                                <i class="fa-solid fa-layer-group mr-1"></i>Catálogos (Financieras / Marcas / Proveedores / Etapas)
                             </a>
                         </div>
                     </div>

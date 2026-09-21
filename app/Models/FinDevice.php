@@ -18,7 +18,10 @@ class FinDevice extends Model
         'brand_id',
         'model',
         'color',
+        'storage',
+        'arrived_at',
         'branch_id',
+        'supplier_id',
         'status',
         'notes',
     ];
@@ -36,11 +39,17 @@ class FinDevice extends Model
     public $sortable = [
         'imei',
         'model',
+        'storage',
         'status',
         'created_at',
     ];
 
     protected $with = ['brand', 'branch'];
+
+    public function supplier()
+    {
+        return $this->belongsTo(FinSupplier::class, 'supplier_id');
+    }
 
     public function brand()
     {
@@ -89,14 +98,26 @@ class FinDevice extends Model
                 $q->where('imei', 'like', "%{$search}%")
                   ->orWhere('model', 'like', "%{$search}%")
                   ->orWhere('color', 'like', "%{$search}%")
+                  ->orWhere('storage', 'like', "%{$search}%")
                   ->orWhereHas('brand', function ($b) use ($search) {
                       $b->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('supplier', function ($s) use ($search) {
+                      $s->where('name', 'like', "%{$search}%");
                   });
             });
         }
 
         if ($branchId = $filters['branch_id'] ?? false) {
             $query->where('branch_id', $branchId);
+        }
+
+        if ($supplierId = $filters['supplier_id'] ?? false) {
+            $query->where('supplier_id', $supplierId);
+        }
+
+        if ($model = $filters['model'] ?? false) {
+            $query->where('model', 'like', "%{$model}%");
         }
 
         if ($status = $filters['status'] ?? false) {

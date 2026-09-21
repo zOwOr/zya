@@ -72,6 +72,30 @@
                                 @enderror
                             </div>
                             <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Capacidad / Almacenamiento</label>
+                                <input type="text" name="storage" class="form-control @error('storage') is-invalid @enderror" placeholder="Ej. 64GB, 128GB, 256GB" value="{{ old('storage') }}">
+                                @error('storage')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">Proveedor</label>
+                                <select name="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror">
+                                    <option value="">Seleccione proveedor (opcional)...</option>
+                                    @foreach ($suppliers as $sup)
+                                        <option value="{{ $sup->id }}" {{ old('supplier_id') == $sup->id ? 'selected' : '' }}>
+                                            {{ $sup->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('supplier_id')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Sucursal de Entrada <span class="text-danger">*</span></label>
                                 <select name="branch_id" class="form-control @error('branch_id') is-invalid @enderror" required>
                                     <option value="">Seleccione sucursal...</option>

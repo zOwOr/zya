@@ -53,6 +53,11 @@
                         <i class="fa-solid fa-list-check mr-2"></i>Etapas de Garantía ({{ $stages->count() }})
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link font-weight-bold px-4" id="tab-cat-proveedores" data-toggle="pill" href="#cat-proveedores" role="tab">
+                        <i class="fa-solid fa-truck-field mr-2"></i>Proveedores ({{ $suppliers->count() }})
+                    </a>
+                </li>
             </ul>
 
             <div class="tab-content" id="pills-tabContent">
@@ -224,6 +229,74 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 4. PROVEEDORES -->
+                <div class="tab-pane fade" id="cat-proveedores" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="font-weight-bold mb-0 text-primary">Catálogo de Proveedores</h6>
+                                <small class="text-muted">Proveedores de equipos celulares para inventario de financieras.</small>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalCreateSupplier">
+                                <i class="fa-solid fa-plus mr-1"></i>Nuevo Proveedor
+                            </button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>Nombre del Proveedor</th>
+                                            <th>Contacto</th>
+                                            <th>Teléfono</th>
+                                            <th>Email</th>
+                                            <th>Equipos en Inventario</th>
+                                            <th>Estado</th>
+                                            <th class="text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse ($suppliers as $sup)
+                                            <tr>
+                                                <td class="font-weight-bold">{{ $sup->name }}</td>
+                                                <td>{{ $sup->contact ?: '-' }}</td>
+                                                <td>{{ $sup->phone ?: '-' }}</td>
+                                                <td>{{ $sup->email ?: '-' }}</td>
+                                                <td><span class="badge badge-light border">{{ $sup->devices_count }} equipos</span></td>
+                                                <td>
+                                                    <span class="badge badge-{{ $sup->is_active ? 'success' : 'secondary' }}">
+                                                        {{ $sup->is_active ? 'Activo' : 'Inactivo' }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-right">
+                                                    <button type="button" class="btn btn-xs btn-outline-primary mr-1"
+                                                        data-toggle="modal"
+                                                        data-target="#modalEditSupplier{{ $sup->id }}"
+                                                        title="Editar Proveedor">
+                                                        <i class="fa-solid fa-pen"></i>
+                                                    </button>
+                                                    @if ($sup->devices_count == 0)
+                                                        <form action="{{ route('financieras.catalogos.suppliers.destroy', $sup->id) }}" method="POST" class="d-inline"
+                                                            onsubmit="return confirm('¿Eliminar proveedor {{ $sup->name }}?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button class="btn btn-xs btn-outline-danger" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                                        </form>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="7" class="text-center py-4 text-muted">No hay proveedores registrados aún.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -331,4 +404,101 @@
         </form>
     </div>
 </div>
+
+<!-- Modal Create Supplier -->
+<div class="modal fade" id="modalCreateSupplier" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <form action="{{ route('financieras.catalogos.suppliers.store') }}" method="POST">
+            @csrf
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title text-white"><i class="fa-solid fa-truck-field mr-2"></i>Nuevo Proveedor</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label class="font-weight-bold">Nombre de la Empresa / Proveedor <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required placeholder="Ej. Telcel Mayorista, Distribuidora Móvil MX">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="font-weight-bold">Nombre del Contacto / Agente</label>
+                        <input type="text" name="contact" class="form-control" placeholder="Ej. Carlos Mendoza">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="font-weight-bold">Teléfono</label>
+                            <input type="text" name="phone" class="form-control" placeholder="Ej. 5512345678">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="font-weight-bold">Email</label>
+                            <input type="email" name="email" class="form-control" placeholder="ventas@proveedor.com">
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Notas adicionales</label>
+                        <textarea name="notes" rows="2" class="form-control" placeholder="Condiciones de entrega, crédito, etc."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Proveedor</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modales Edit Supplier -->
+@foreach ($suppliers as $sup)
+<div class="modal fade" id="modalEditSupplier{{ $sup->id }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <form action="{{ route('financieras.catalogos.suppliers.update', $sup->id) }}" method="POST">
+            @csrf
+            @method('PUT')
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title text-white"><i class="fa-solid fa-pen mr-2"></i>Editar Proveedor: {{ $sup->name }}</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label class="font-weight-bold">Nombre de la Empresa / Proveedor <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" value="{{ $sup->name }}" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="font-weight-bold">Nombre del Contacto / Agente</label>
+                        <input type="text" name="contact" class="form-control" value="{{ $sup->contact }}">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="font-weight-bold">Teléfono</label>
+                            <input type="text" name="phone" class="form-control" value="{{ $sup->phone }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="font-weight-bold">Email</label>
+                            <input type="email" name="email" class="form-control" value="{{ $sup->email }}">
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="font-weight-bold">Notas adicionales</label>
+                        <textarea name="notes" rows="2" class="form-control">{{ $sup->notes }}</textarea>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Estado</label>
+                        <select name="is_active" class="form-control">
+                            <option value="1" {{ $sup->is_active ? 'selected' : '' }}>Activo</option>
+                            <option value="0" {{ !$sup->is_active ? 'selected' : '' }}>Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Actualizar Proveedor</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endforeach
+
 @endsection

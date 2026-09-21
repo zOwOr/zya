@@ -2,34 +2,59 @@
     <table class="table table-striped table-hover mb-0">
         <thead class="bg-white text-uppercase font-size-12">
             <tr>
+                <th>Fecha Llegada</th>
+                <th>Proveedor</th>
+                <th>Ubicación</th>
+                <th>Marca</th>
+                <th>Modelo</th>
                 <th>IMEI</th>
-                <th>Marca / Modelo</th>
                 <th>Color</th>
-                <th>Sucursal Actual</th>
+                <th>Capacidad</th>
                 <th>Estado</th>
                 <th>Venta Vinculada</th>
-                <th>Fecha Registro</th>
                 <th class="text-right">Acciones</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($devices as $device)
                 <tr>
-                    <td>
-                        <a href="{{ route('financieras.inventario.history', $device->id) }}" class="font-weight-bold font-size-15 text-dark" title="Ver historial de movimientos">
-                            {{ $device->imei }}
-                        </a>
-                    </td>
-                    <td>
-                        <span class="font-weight-bold">{{ $device->brand?->name ?? 'Sin Marca' }}</span>
+                    <td class="font-size-13 text-muted">
+                        <span class="font-weight-bold text-dark">{{ $device->created_at->format('d/m/Y') }}</span>
                         <br>
-                        <small class="text-muted">{{ $device->model }}</small>
+                        <small class="text-muted">{{ $device->created_at->format('H:i') }}</small>
                     </td>
-                    <td>{{ $device->color ?: '-' }}</td>
+                    <td>
+                        @if ($device->supplier)
+                            <span class="badge badge-light border font-size-12" title="{{ $device->supplier->contact ? 'Contacto: ' . $device->supplier->contact : '' }}">
+                                <i class="fa-solid fa-truck-field mr-1 text-secondary"></i>{{ $device->supplier->name }}
+                            </span>
+                        @else
+                            <span class="text-muted font-size-12">-</span>
+                        @endif
+                    </td>
                     <td>
                         <span class="badge badge-light border font-size-12">
                             <i class="fa-solid fa-store mr-1 text-primary"></i>{{ $device->branch?->name ?? 'N/A' }}
                         </span>
+                    </td>
+                    <td class="font-weight-bold">
+                        {{ $device->brand?->name ?? 'Sin Marca' }}
+                    </td>
+                    <td>
+                        <span>{{ $device->model }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ route('financieras.inventario.history', $device->id) }}" class="font-weight-bold font-size-14 text-dark" title="Ver historial de movimientos">
+                            {{ $device->imei }}
+                        </a>
+                    </td>
+                    <td>{{ $device->color ?: '-' }}</td>
+                    <td>
+                        @if ($device->storage)
+                            <span class="badge badge-info-light font-weight-bold border px-2 py-1">{{ $device->storage }}</span>
+                        @else
+                            <span class="text-muted font-size-12">-</span>
+                        @endif
                     </td>
                     <td>
                         @switch($device->status)
@@ -57,9 +82,6 @@
                         @else
                             <span class="text-muted font-size-12">Sin venta</span>
                         @endif
-                    </td>
-                    <td class="font-size-13 text-muted">
-                        {{ $device->created_at->format('d/m/Y') }}
                     </td>
                     <td class="text-right">
                         <div class="d-inline-flex">
@@ -95,7 +117,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="text-center py-4 text-muted">
+                    <td colspan="11" class="text-center py-4 text-muted">
                         <i class="fa-solid fa-boxes-stacked fa-3x mb-2 text-secondary"></i>
                         <p class="mb-0">No se encontraron dispositivos registrados en inventario.</p>
                     </td>

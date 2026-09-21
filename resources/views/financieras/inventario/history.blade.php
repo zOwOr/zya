@@ -34,7 +34,11 @@
                         @endswitch
                     </div>
                     <p class="text-muted mb-0 font-size-13 mt-1">
-                        {{ $device->brand?->name }} {{ $device->model }} | Sucursal Actual: <strong>{{ $device->branch?->name }}</strong>
+                        {{ $device->brand?->name }} {{ $device->model }}
+                        @if($device->storage) | Capacidad: <strong>{{ $device->storage }}</strong> @endif
+                        @if($device->color) | Color: <strong>{{ $device->color }}</strong> @endif
+                        | Sucursal Actual: <strong>{{ $device->branch?->name }}</strong>
+                        @if($device->supplier) | Proveedor: <strong>{{ $device->supplier->name }}</strong> @endif
                     </p>
                 </div>
                 <div class="mt-3 mt-md-0">

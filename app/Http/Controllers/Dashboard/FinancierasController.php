@@ -9,6 +9,7 @@ use App\Models\FinBrand;
 use App\Models\FinDevice;
 use App\Models\FinFinanciera;
 use App\Models\FinSale;
+use App\Models\FinSupplier;
 use App\Models\FinWarranty;
 use App\Models\FinWarrantyStage;
 use App\Models\FinTheftReport;
@@ -47,6 +48,8 @@ class FinancierasController extends Controller
         $financieras = FinFinanciera::where('is_active', true)->orderBy('name')->get();
         $warrantyStages = FinWarrantyStage::orderBy('order')->get();
         $sellers = User::orderBy('name')->get();
+        $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
+        $models = FinDevice::distinct()->whereNotNull('model')->where('model', '!=', '')->orderBy('model')->pluck('model');
 
         // Counts for tabs summary
         $counts = [
@@ -63,6 +66,8 @@ class FinancierasController extends Controller
             'financieras',
             'warrantyStages',
             'sellers',
+            'suppliers',
+            'models',
             'counts'
         ));
     }

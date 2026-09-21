@@ -9,8 +9,11 @@ use App\Models\Branch;
 use App\Models\FinBrand;
 use App\Models\FinDevice;
 use App\Models\FinDeviceTransfer;
+use App\Models\FinSupplier;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xls;
@@ -42,10 +45,10 @@ class FinDeviceController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'branch_id', 'status', 'brand_id']);
+        $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
 
         $devices = FinDevice::filter($filters)
-            ->with(['brand', 'branch', 'latestSale'])
+            ->with(['brand', 'branch', 'supplier', 'latestSale'])
             ->latest()
             ->paginate(20)
             ->withQueryString();
@@ -56,16 +59,19 @@ class FinDeviceController extends Controller
 
         $branches = Branch::all();
         $brands = FinBrand::where('is_active', true)->get();
+        $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
+        $models = FinDevice::distinct()->whereNotNull('model')->where('model', '!=', '')->orderBy('model')->pluck('model');
 
-        return view('financieras.inventario.index', compact('devices', 'branches', 'brands'));
+        return view('financieras.inventario.index', compact('devices', 'branches', 'brands', 'suppliers', 'models'));
     }
 
     public function create()
     {
         $branches = Branch::all();
         $brands = FinBrand::where('is_active', true)->get();
+        $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
 
-        return view('financieras.inventario.create', compact('branches', 'brands'));
+        return view('financieras.inventario.create', compact('branches', 'brands', 'suppliers'));
     }
 
     public function store(Request $request)
@@ -76,7 +82,9 @@ class FinDeviceController extends Controller
             'brand_name' => 'nullable|string|max:100',
             'model' => 'required|string|max:150',
             'color' => 'nullable|string|max:50',
+            'storage' => 'nullable|string|max:50',
             'branch_id' => 'required|exists:branches,id',
+            'supplier_id' => 'nullable|exists:fin_suppliers,id',
             'notes' => 'nullable|string|max:1000',
         ], [
             'imei.required' => 'El número de IMEI es obligatorio.',
@@ -84,6 +92,7 @@ class FinDeviceController extends Controller
             'model.required' => 'El modelo del dispositivo es obligatorio.',
             'branch_id.required' => 'Debe seleccionar la sucursal de entrada.',
             'branch_id.exists' => 'La sucursal seleccionada no es válida.',
+            'supplier_id.exists' => 'El proveedor seleccionado no es válido.',
         ]);
 
         $brandId = $request->input('brand_id');
@@ -97,7 +106,9 @@ class FinDeviceController extends Controller
             'brand_id' => $brandId,
             'model' => trim($request->input('model')),
             'color' => $request->input('color'),
+            'storage' => $request->input('storage'),
             'branch_id' => $request->input('branch_id'),
+            'supplier_id' => $request->input('supplier_id'),
             'status' => 'disponible',
             'notes' => $request->input('notes'),
         ]);
@@ -122,6 +133,7 @@ class FinDeviceController extends Controller
         $device->load([
             'brand',
             'branch',
+            'supplier',
             'transfers.fromBranch',
             'transfers.toBranch',
             'transfers.user',
@@ -138,8 +150,9 @@ class FinDeviceController extends Controller
     {
         $branches = Branch::all();
         $brands = FinBrand::where('is_active', true)->get();
+        $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
 
-        return view('financieras.inventario.edit', compact('device', 'branches', 'brands'));
+        return view('financieras.inventario.edit', compact('device', 'branches', 'brands', 'suppliers'));
     }
 
     public function update(Request $request, FinDevice $device)
@@ -150,7 +163,9 @@ class FinDeviceController extends Controller
             'brand_name' => 'nullable|string|max:100',
             'model' => 'required|string|max:150',
             'color' => 'nullable|string|max:50',
+            'storage' => 'nullable|string|max:50',
             'branch_id' => 'required|exists:branches,id',
+            'supplier_id' => 'nullable|exists:fin_suppliers,id',
             'status' => 'required|in:disponible,vendido,en_garantia,robado',
             'notes' => 'nullable|string|max:1000',
         ], [
@@ -159,6 +174,7 @@ class FinDeviceController extends Controller
             'model.required' => 'El modelo del dispositivo es obligatorio.',
             'branch_id.required' => 'Debe seleccionar la sucursal.',
             'branch_id.exists' => 'La sucursal seleccionada no es válida.',
+            'supplier_id.exists' => 'El proveedor seleccionado no es válido.',
             'status.required' => 'El estado del dispositivo es obligatorio.',
             'status.in' => 'El estado seleccionado no es válido.',
         ]);
@@ -174,7 +190,9 @@ class FinDeviceController extends Controller
             'brand_id' => $brandId,
             'model' => trim($request->input('model')),
             'color' => $request->input('color'),
+            'storage' => $request->input('storage'),
             'branch_id' => $request->input('branch_id'),
+            'supplier_id' => $request->input('supplier_id'),
             'status' => $request->input('status'),
             'notes' => $request->input('notes'),
         ]);
@@ -251,6 +269,7 @@ class FinDeviceController extends Controller
         $device->load([
             'brand',
             'branch',
+            'supplier',
             'transfers.fromBranch',
             'transfers.toBranch',
             'transfers.user',
@@ -295,69 +314,225 @@ class FinDeviceController extends Controller
     {
         $request->validate([
             'import_file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
-            'default_branch_id' => 'required|exists:branches,id',
+            'default_branch_id' => 'nullable|exists:branches,id',
+            'default_supplier_id' => 'nullable|exists:fin_suppliers,id',
         ], [
             'import_file.required' => 'Debe seleccionar un archivo Excel o CSV.',
             'import_file.mimes' => 'El formato del archivo debe ser .xlsx, .xls o .csv.',
             'import_file.max' => 'El tamaño máximo permitido es de 10 MB.',
-            'default_branch_id.required' => 'Debe indicar la sucursal asignada.',
             'default_branch_id.exists' => 'La sucursal seleccionada no es válida.',
+            'default_supplier_id.exists' => 'El proveedor seleccionado no es válido.',
         ]);
 
         try {
             $file = $request->file('import_file');
             $spreadsheet = IOFactory::load($file->getRealPath());
             $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
+            $rows = $worksheet->toArray(null, true, true, false);
 
             if (count($rows) <= 1) {
                 return back()->with('error', 'El archivo no contiene registros o está vacío.');
             }
 
-            // Headers row 0: IMEI, Marca, Modelo, Color, Notas
+            // Normalizador de texto para encabezados (remueve espacios, acentos y símbolos)
+            $normalizeHeader = function ($str) {
+                if ($str === null || $str === '') return '';
+                $str = mb_strtoupper(trim((string)$str), 'UTF-8');
+                $str = strtr(utf8_decode($str), utf8_decode('ÀÁÂÃÄÅàáâãäåÒÓÔÕÖØòóôõöøÈÉÊËèéêëÇçÌÍÎÏìíîïÙÚÛÜùúûüÿÑñ'), 'AAAAAAaaaaaaOOOOOOooooooEEEEeeeeCcIIIIiiiiUUUUuuuuyNn');
+                return preg_replace('/[^A-Z0-9]/', '', $str);
+            };
+
+            // Mapear encabezados por nombre
+            $headerMap = [];
+            foreach ($rows[0] as $colIdx => $colVal) {
+                $cleaned = $normalizeHeader($colVal);
+                if (empty($cleaned)) continue;
+
+                if (in_array($cleaned, ['IMEI'])) {
+                    $headerMap['imei'] = $colIdx;
+                } elseif (in_array($cleaned, ['MARCA', 'BRAND'])) {
+                    $headerMap['brand'] = $colIdx;
+                } elseif (in_array($cleaned, ['MODELO', 'MODEL'])) {
+                    $headerMap['model'] = $colIdx;
+                } elseif (in_array($cleaned, ['FECHADELLEGADA', 'FECHAINGRESO', 'FECHA', 'LLEGADA', 'FECHAREGISTRO', 'DATE'])) {
+                    $headerMap['date'] = $colIdx;
+                } elseif (in_array($cleaned, ['PROVEEDOR', 'PROVEEDORES', 'SUPPLIER'])) {
+                    $headerMap['supplier'] = $colIdx;
+                } elseif (in_array($cleaned, ['UBICACION', 'SUCURSAL', 'BRANCH'])) {
+                    $headerMap['branch'] = $colIdx;
+                } elseif (in_array($cleaned, ['COLOR', 'COLOUR'])) {
+                    $headerMap['color'] = $colIdx;
+                } elseif (in_array($cleaned, ['CAPACIDAD', 'ALMACENAMIENTO', 'STORAGE', 'MEMORIA'])) {
+                    $headerMap['storage'] = $colIdx;
+                }
+            }
+
+            // Validar que existan las columnas mínimas requeridas
+            $missingCols = [];
+            if (!isset($headerMap['imei'])) $missingCols[] = 'IMEI';
+            if (!isset($headerMap['brand'])) $missingCols[] = 'MARCA';
+            if (!isset($headerMap['model'])) $missingCols[] = 'MODELO';
+
+            if (!empty($missingCols)) {
+                return back()->with('error', 'El archivo no contiene las columnas requeridas: ' . implode(', ', $missingCols) . '. Verifique los encabezados del archivo Excel.');
+            }
+
+            // Normalizador para búsqueda exacta en catálogos (case-insensitive, sin acentos)
+            $normalizeName = function ($str) {
+                $str = mb_strtolower(trim((string)$str), 'UTF-8');
+                $str = strtr(utf8_decode($str), utf8_decode('àáâãäåòóôõöøèéêëçìíîïùúûüñ'), 'aaaaaaooooooeeeeciiiiuuuun');
+                return preg_replace('/\s+/', ' ', $str);
+            };
+
+            // Pre-cargar catálogos
+            $brands = FinBrand::where('is_active', true)->get()->keyBy(fn($b) => $normalizeName($b->name));
+            $branches = Branch::where('is_active', true)->get()->keyBy(fn($b) => $normalizeName($b->name));
+            $suppliers = FinSupplier::where('is_active', true)->get()->keyBy(fn($s) => $normalizeName($s->name));
+
+            $defaultBranchId = $request->input('default_branch_id');
+            $defaultSupplierId = $request->input('default_supplier_id');
+
             $imported = 0;
             $duplicates = 0;
-            $defaultBranchId = $request->input('default_branch_id');
+            $rowErrors = [];
 
             for ($i = 1; $i < count($rows); $i++) {
                 $row = $rows[$i];
-                $imei = isset($row[0]) ? trim((string)$row[0]) : '';
+                $rowNum = $i + 1;
+
+                // IMEI: evitar notación científica y validar formato
+                $rawImei = $row[$headerMap['imei']] ?? null;
+                if (is_float($rawImei) || is_int($rawImei)) {
+                    $rawImei = number_format($rawImei, 0, '', '');
+                }
+                $imei = trim((string)$rawImei);
                 if (empty($imei)) {
                     continue;
                 }
 
                 if (FinDevice::where('imei', $imei)->exists()) {
                     $duplicates++;
+                    $rowErrors[] = "Fila {$rowNum}: El IMEI {$imei} ya existe en el inventario.";
                     continue;
                 }
 
-                $brandName = isset($row[1]) ? trim((string)$row[1]) : '';
-                $model = isset($row[2]) ? trim((string)$row[2]) : 'Modelo no especificado';
-                $color = isset($row[3]) ? trim((string)$row[3]) : null;
-                $notes = isset($row[4]) ? trim((string)$row[4]) : null;
+                // 1. MARCA: Validación estricta con catálogo fin_brands
+                $rawBrand = isset($headerMap['brand']) ? trim((string)($row[$headerMap['brand']] ?? '')) : '';
+                if (empty($rawBrand)) {
+                    $rowErrors[] = "Fila {$rowNum}: La columna MARCA está vacía.";
+                    continue;
+                }
+                $brandKey = $normalizeName($rawBrand);
+                if (!isset($brands[$brandKey])) {
+                    $rowErrors[] = "Fila {$rowNum}: La marca '{$rawBrand}' no existe en el catálogo de marcas. Regístrela previamente en Catálogos.";
+                    continue;
+                }
+                $brandId = $brands[$brandKey]->id;
 
-                $brandId = null;
-                if (!empty($brandName)) {
-                    $brand = FinBrand::firstOrCreate(['name' => $brandName]);
-                    $brandId = $brand->id;
+                // 2. MODELO
+                $model = isset($headerMap['model']) ? trim((string)($row[$headerMap['model']] ?? '')) : '';
+                if (empty($model)) {
+                    $model = 'Modelo no especificado';
                 }
 
-                FinDevice::create([
+                // 3. UBICACIÓN: Validación estricta con catálogo branches
+                $branchId = null;
+                if (isset($headerMap['branch']) && !empty(trim((string)($row[$headerMap['branch']] ?? '')))) {
+                    $rawBranch = trim((string)$row[$headerMap['branch']]);
+                    $branchKey = $normalizeName($rawBranch);
+                    if (!isset($branches[$branchKey])) {
+                        $rowErrors[] = "Fila {$rowNum}: La sucursal '{$rawBranch}' no existe en el catálogo de sucursales.";
+                        continue;
+                    }
+                    $branchId = $branches[$branchKey]->id;
+                } else {
+                    $branchId = $defaultBranchId;
+                }
+
+                if (!$branchId) {
+                    $rowErrors[] = "Fila {$rowNum}: No se especificó ubicación ni se seleccionó una sucursal por defecto.";
+                    continue;
+                }
+
+                // 4. PROVEEDOR: Validación estricta con catálogo fin_suppliers
+                $supplierId = null;
+                if (isset($headerMap['supplier']) && !empty(trim((string)($row[$headerMap['supplier']] ?? '')))) {
+                    $rawSupplier = trim((string)$row[$headerMap['supplier']]);
+                    $supplierKey = $normalizeName($rawSupplier);
+                    if (!isset($suppliers[$supplierKey])) {
+                        $rowErrors[] = "Fila {$rowNum}: El proveedor '{$rawSupplier}' no existe en el catálogo de proveedores. Regístrelo previamente en Catálogos.";
+                        continue;
+                    }
+                    $supplierId = $suppliers[$supplierKey]->id;
+                } else {
+                    $supplierId = $defaultSupplierId;
+                }
+
+                // 5. COLOR y CAPACIDAD (storage)
+                $color = isset($headerMap['color']) ? trim((string)($row[$headerMap['color']] ?? '')) : null;
+                $storage = isset($headerMap['storage']) ? trim((string)($row[$headerMap['storage']] ?? '')) : null;
+
+                // 6. FECHA DE LLEGADA -> created_at
+                $createdAt = now();
+                if (isset($headerMap['date']) && !empty($row[$headerMap['date']])) {
+                    $rawDate = $row[$headerMap['date']];
+                    if (is_numeric($rawDate)) {
+                        try {
+                            $createdAt = Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($rawDate));
+                        } catch (\Throwable $t) {
+                            $createdAt = now();
+                        }
+                    } else {
+                        try {
+                            $strDate = trim((string)$rawDate);
+                            if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{2,4}/', $strDate)) {
+                                $datePart = explode(' ', $strDate)[0];
+                                $createdAt = Carbon::createFromFormat('d/m/Y', $datePart);
+                            } else {
+                                $createdAt = Carbon::parse($strDate);
+                            }
+                        } catch (\Throwable $t) {
+                            $createdAt = now();
+                        }
+                    }
+                }
+
+                // Guardar dispositivo
+                $device = new FinDevice([
                     'imei' => $imei,
                     'brand_id' => $brandId,
                     'model' => $model,
-                    'color' => $color,
-                    'branch_id' => $defaultBranchId,
+                    'color' => !empty($color) ? $color : null,
+                    'storage' => !empty($storage) ? $storage : null,
+                    'branch_id' => $branchId,
+                    'supplier_id' => $supplierId,
                     'status' => 'disponible',
-                    'notes' => $notes,
+                    'notes' => null,
                 ]);
+                $device->created_at = $createdAt;
+                $device->updated_at = now();
+                $device->save();
 
                 $imported++;
             }
 
-            $msg = "Se importaron {$imported} dispositivos correctamente.";
+            $successMsg = "Se importaron {$imported} dispositivos correctamente.";
             if ($duplicates > 0) {
-                $msg .= " ({$duplicates} omitidos por IMEI duplicado).";
+                $successMsg .= " ({$duplicates} omitidos por IMEI duplicado).";
+            }
+
+            if (count($rowErrors) > 0) {
+                $errSample = array_slice($rowErrors, 0, 5);
+                $errorMsg = "Se encontraron " . count($rowErrors) . " incidencias: " . implode(" | ", $errSample);
+                if (count($rowErrors) > 5) {
+                    $errorMsg .= " ... y " . (count($rowErrors) - 5) . " incidencias más.";
+                }
+
+                if ($imported > 0) {
+                    return back()->with('success', $successMsg)->with('error', $errorMsg);
+                } else {
+                    return back()->with('error', "No se importó ningún registro. " . $errorMsg);
+                }
             }
 
             try {
@@ -371,7 +546,7 @@ class FinDeviceController extends Controller
                 \Log::warning('Reverb broadcast warning: ' . $e->getMessage());
             }
 
-            return back()->with('success', $msg);
+            return back()->with('success', $successMsg);
         } catch (\Exception $e) {
             return back()->with('error', 'Error al procesar el archivo: ' . $e->getMessage());
         }
@@ -386,42 +561,52 @@ class FinDeviceController extends Controller
         ini_set('memory_limit', '1024M');
 
         $devices = FinDevice::filter($request->all())
-            ->with(['brand', 'branch', 'latestSale'])
+            ->with(['brand', 'branch', 'supplier', 'latestSale'])
             ->latest()
             ->get();
 
-        $data = [
-            [
-                'IMEI',
-                'Marca',
-                'Modelo',
-                'Color',
-                'Sucursal',
-                'Estado',
-                'Venta Vinculada',
-                'Notas',
-                'Fecha Registro',
-            ]
-        ];
-
-        foreach ($devices as $d) {
-            $data[] = [
-                $d->imei,
-                $d->brand?->name ?? 'N/A',
-                $d->model,
-                $d->color ?? '',
-                $d->branch?->name ?? 'N/A',
-                ucfirst(str_replace('_', ' ', $d->status)),
-                $d->latestSale ? $d->latestSale->sale_code : 'Sin Venta',
-                $d->notes ?? '',
-                $d->created_at->format('Y-m-d H:i'),
-            ];
-        }
-
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Inventario Financieras');
+
+        // Columnas en el orden solicitado:
+        // FECHA DE LLEGADA | PROVEEDOR | UBICACIÓN | MARCA | MODELO | IMEI | COLOR | CAPACIDAD | ESTADO | VENTA VINCULADA | NOTAS
+        $headers = [
+            'FECHA DE LLEGADA',
+            'PROVEEDOR',
+            'UBICACIÓN',
+            'MARCA',
+            'MODELO',
+            'IMEI',
+            'COLOR',
+            'CAPACIDAD',
+            'ESTADO',
+            'VENTA VINCULADA',
+            'NOTAS',
+        ];
+
+        foreach ($headers as $colIdx => $header) {
+            $sheet->setCellValueByColumnAndRow($colIdx + 1, 1, $header);
+        }
+
+        $rowNum = 2;
+        foreach ($devices as $d) {
+            $sheet->setCellValueByColumnAndRow(1, $rowNum, $d->created_at ? $d->created_at->format('d/m/Y H:i') : '');
+            $sheet->setCellValueByColumnAndRow(2, $rowNum, $d->supplier?->name ?? 'N/A');
+            $sheet->setCellValueByColumnAndRow(3, $rowNum, $d->branch?->name ?? 'N/A');
+            $sheet->setCellValueByColumnAndRow(4, $rowNum, $d->brand?->name ?? 'N/A');
+            $sheet->setCellValueByColumnAndRow(5, $rowNum, $d->model);
+            // IMEI como DataType::TYPE_STRING para evitar notación científica en Excel
+            $sheet->setCellValueExplicitByColumnAndRow(6, $rowNum, (string)$d->imei, DataType::TYPE_STRING);
+            $sheet->setCellValueByColumnAndRow(7, $rowNum, $d->color ?? '');
+            $sheet->setCellValueByColumnAndRow(8, $rowNum, $d->storage ?? '');
+            $sheet->setCellValueByColumnAndRow(9, $rowNum, ucfirst(str_replace('_', ' ', $d->status)));
+            $sheet->setCellValueByColumnAndRow(10, $rowNum, $d->latestSale ? $d->latestSale->sale_code : 'Sin Venta');
+            $sheet->setCellValueByColumnAndRow(11, $rowNum, $d->notes ?? '');
+            $rowNum++;
+        }
+
         $sheet->getDefaultColumnDimension()->setWidth(18);
-        $sheet->fromArray($data);
 
         $writer = new Xls($spreadsheet);
         $filename = 'Financieras_Inventario_' . date('Ymd_His') . '.xls';

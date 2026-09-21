@@ -25,12 +25,12 @@
         <!-- Filters Form -->
         <form id="filter-inventory-form" method="GET" action="{{ route('financieras.index') }}" class="bg-light p-3 rounded mb-3">
             <input type="hidden" name="tab" value="inventario">
-            <div class="row">
-                <div class="col-md-3 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Buscar (IMEI, Modelo, Color)</label>
+            <div class="row align-items-end">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
+                    <label class="font-size-12 font-weight-bold text-muted mb-1">Buscar (IMEI / Color)</label>
                     <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar..." value="{{ request('search') }}">
                 </div>
-                <div class="col-md-2 col-sm-6 mb-2">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
                     <label class="font-size-12 font-weight-bold text-muted mb-1">Sucursal</label>
                     <select name="branch_id" class="form-control form-control-sm">
                         <option value="">Todas</option>
@@ -39,7 +39,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2 col-sm-6 mb-2">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
                     <label class="font-size-12 font-weight-bold text-muted mb-1">Marca</label>
                     <select name="brand_id" class="form-control form-control-sm">
                         <option value="">Todas</option>
@@ -48,7 +48,29 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2 col-sm-6 mb-2">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
+                    <label class="font-size-12 font-weight-bold text-muted mb-1">Modelo</label>
+                    <input type="text" name="model" list="modelsDatalist" class="form-control form-control-sm" placeholder="Todos o escribir..." value="{{ request('model') }}" autocomplete="off">
+                    <datalist id="modelsDatalist">
+                        @if(isset($models))
+                            @foreach ($models as $m)
+                                <option value="{{ $m }}"></option>
+                            @endforeach
+                        @endif
+                    </datalist>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
+                    <label class="font-size-12 font-weight-bold text-muted mb-1">Proveedor</label>
+                    <select name="supplier_id" class="form-control form-control-sm">
+                        <option value="">Todos</option>
+                        @if(isset($suppliers))
+                            @foreach ($suppliers as $sup)
+                                <option value="{{ $sup->id }}" {{ request('supplier_id') == $sup->id ? 'selected' : '' }}>{{ $sup->name }}</option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+                <div class="col-xl-1 col-lg-3 col-md-4 col-sm-6 mb-2">
                     <label class="font-size-12 font-weight-bold text-muted mb-1">Estado</label>
                     <select name="status" class="form-control form-control-sm">
                         <option value="">Todos</option>
@@ -58,11 +80,11 @@
                         <option value="robado" {{ request('status') == 'robado' ? 'selected' : '' }}>Robado</option>
                     </select>
                 </div>
-                <div class="col-md-3 col-sm-12 d-flex align-items-end mb-2">
-                    <button type="submit" class="btn btn-primary btn-sm mr-2 flex-grow-1">
-                        <i class="fa-solid fa-filter mr-1"></i>Filtrar
+                <div class="col-xl-1 col-lg-3 col-md-4 col-sm-6 mb-2 d-flex">
+                    <button type="submit" class="btn btn-primary btn-sm mr-1 flex-grow-1" title="Filtrar">
+                        <i class="fa-solid fa-filter"></i>
                     </button>
-                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-light btn-sm border">
+                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-light btn-sm border" title="Restablecer filtros">
                         <i class="fa-solid fa-rotate-left"></i>
                     </a>
                 </div>
@@ -71,7 +93,7 @@
 
         <!-- Table Container -->
         <div id="inventory-table-container">
-            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::with(['brand', 'branch', 'latestSale'])->latest()->paginate(20)])
+            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::with(['brand', 'branch', 'supplier', 'latestSale'])->latest()->paginate(20)])
         </div>
     </div>
 </div>
@@ -136,26 +158,47 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p class="font-size-13 text-muted mb-3">
-                        Suba un archivo <code>.xlsx</code> o <code>.csv</code> con columnas: <strong>IMEI, Marca, Modelo, Color, Notas</strong>.
-                    </p>
+                    <div class="alert alert-light border font-size-12 mb-3">
+                        <p class="font-weight-bold mb-1 text-primary">Encabezados soportados en el archivo:</p>
+                        <p class="mb-1 font-family-monospace text-dark">
+                            <code>FECHA DE LLEGADA | PROVEEDOR | UBICACIÓN | MARCA | MODELO | IMEI | COLOR | CAPACIDAD</code>
+                        </p>
+                        <ul class="pl-3 mb-0 text-muted">
+                            <li><strong>MARCA</strong>: debe existir previamente en el Catálogo de Marcas.</li>
+                            <li><strong>UBICACIÓN</strong>: debe existir en el Catálogo de Sucursales.</li>
+                            <li><strong>PROVEEDOR</strong>: debe existir en el Catálogo de Proveedores.</li>
+                            <li><strong>FECHA DE LLEGADA</strong>: se registrará como fecha de entrada del equipo.</li>
+                        </ul>
+                    </div>
+
                     <div class="form-group mb-3">
-                        <label class="font-weight-bold">Sucursal para la importación <span class="text-danger">*</span></label>
-                        <select name="default_branch_id" class="form-control" required>
-                            <option value="">Seleccione sucursal...</option>
+                        <label class="font-weight-bold">Sucursal por defecto <small class="text-muted">(si el archivo no tiene columna Ubicación)</small></label>
+                        <select name="default_branch_id" class="form-control">
+                            <option value="">Seleccione sucursal de respaldo...</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}">{{ $b->name }}</option>
                             @endforeach
                         </select>
                     </div>
+
+                    <div class="form-group mb-3">
+                        <label class="font-weight-bold">Proveedor por defecto <small class="text-muted">(si el archivo no tiene columna Proveedor)</small></label>
+                        <select name="default_supplier_id" class="form-control">
+                            <option value="">Seleccione proveedor de respaldo (opcional)...</option>
+                            @foreach ($suppliers as $sup)
+                                <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <div class="form-group mb-0">
-                        <label class="font-weight-bold">Archivo Excel <span class="text-danger">*</span></label>
+                        <label class="font-weight-bold">Archivo Excel / CSV <span class="text-danger">*</span></label>
                         <input type="file" name="import_file" class="form-control-file" accept=".xlsx,.xls,.csv" required>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-info">
+                    <button type="submit" class="btn btn-info font-weight-bold">
                         <i class="fa-solid fa-upload mr-1"></i>Subir e Importar
                     </button>
                 </div>

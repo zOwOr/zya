@@ -304,6 +304,10 @@ Route::middleware(['auth', 'permission:financieras.menu'])->prefix('financieras'
         Route::post('/warranty-stages', [FinCatalogController::class, 'storeWarrantyStage'])->name('warranty-stages.store');
         Route::put('/warranty-stages/{stage}', [FinCatalogController::class, 'updateWarrantyStage'])->name('warranty-stages.update');
         Route::delete('/warranty-stages/{stage}', [FinCatalogController::class, 'destroyWarrantyStage'])->name('warranty-stages.destroy');
+
+        Route::post('/suppliers', [FinCatalogController::class, 'storeSupplier'])->name('suppliers.store');
+        Route::put('/suppliers/{supplier}', [FinCatalogController::class, 'updateSupplier'])->name('suppliers.update');
+        Route::delete('/suppliers/{supplier}', [FinCatalogController::class, 'destroySupplier'])->name('suppliers.destroy');
     });
 });
 
