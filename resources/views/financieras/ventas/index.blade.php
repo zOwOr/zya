@@ -66,7 +66,7 @@
 
         <!-- Table Partial Container -->
         <div id="sales-table-container">
-            @include('financieras.ventas.table', ['sales' => $sales ?? App\Models\FinSale::with(['device.brand', 'financiera', 'branch', 'seller'])->latest('sale_date')->paginate(15)])
+            @include('financieras.ventas.table', ['sales' => $sales ?? App\Models\FinSale::with(['device.brand', 'financiera', 'branch', 'seller'])->latest('sale_date')->paginate(15)->appends(['tab' => 'ventas'])])
         </div>
     </div>
 </div>

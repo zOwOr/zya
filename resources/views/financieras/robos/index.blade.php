@@ -59,7 +59,7 @@
 
         <!-- Table Container -->
         <div id="thefts-table-container">
-            @include('financieras.robos.table', ['theftReports' => $theftReports ?? App\Models\FinTheftReport::with(['device.brand', 'sale', 'branch'])->latest('incident_date')->paginate(15)])
+            @include('financieras.robos.table', ['theftReports' => $theftReports ?? App\Models\FinTheftReport::with(['device.brand', 'sale', 'branch'])->latest('incident_date')->paginate(15)->appends(['tab' => 'robos'])])
         </div>
     </div>
 </div>

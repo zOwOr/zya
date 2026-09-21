@@ -67,32 +67,31 @@ class FinancierasController extends Controller
 
         if ($activeTab === 'inventario') {
             $deviceFilters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
-            $devices = FinDevice::filter($deviceFilters)
-                ->with(['brand', 'branch', 'supplier', 'latestSale'])
-                ->latest()
-                ->paginate(20)
-                ->withQueryString();
+            $deviceQuery = FinDevice::filter($deviceFilters)
+                ->with(['brand', 'branch', 'supplier', 'latestSale']);
+            // Ocultar vendidos si no hay filtro de estado explícito
+            if (empty($deviceFilters['status'])) {
+                $deviceQuery->where('status', '!=', 'vendido');
+            }
+            $devices = $deviceQuery->latest()->paginate(20)->appends(array_merge($deviceFilters, ['tab' => 'inventario']));
         } elseif ($activeTab === 'ventas') {
             $saleFilters = $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id']);
             $sales = FinSale::filter($saleFilters)
                 ->with(['device.brand', 'financiera', 'branch', 'seller'])
                 ->latest('sale_date')
-                ->paginate(15)
-                ->withQueryString();
+                ->paginate(15)->appends(array_merge($saleFilters, ['tab' => 'ventas']));
         } elseif ($activeTab === 'garantias') {
             $warrantyFilters = $request->only(['search', 'stage_id', 'branch_id', 'status']);
             $warranties = FinWarranty::filter($warrantyFilters)
                 ->with(['device.brand', 'sale', 'branch', 'currentStage'])
                 ->latest('opened_at')
-                ->paginate(15)
-                ->withQueryString();
+                ->paginate(15)->appends(array_merge($warrantyFilters, ['tab' => 'garantias']));
         } elseif ($activeTab === 'robos') {
             $theftFilters = $request->only(['search', 'branch_id', 'status']);
             $thefts = FinTheftReport::filter($theftFilters)
                 ->with(['device.brand', 'sale', 'branch'])
                 ->latest('reported_at')
-                ->paginate(15)
-                ->withQueryString();
+                ->paginate(15)->appends(array_merge($theftFilters, ['tab' => 'robos']));
         }
 
         return view('financieras.index', compact(

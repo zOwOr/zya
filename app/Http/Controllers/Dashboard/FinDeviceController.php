@@ -50,11 +50,15 @@ class FinDeviceController extends Controller
     {
         $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
 
-        $devices = FinDevice::filter($filters)
-            ->with(['brand', 'branch', 'supplier', 'latestSale'])
-            ->latest()
-            ->paginate(20)
-            ->withQueryString();
+        $query = FinDevice::filter($filters)
+            ->with(['brand', 'branch', 'supplier', 'latestSale']);
+
+        // Si no se aplica un filtro de estado explícito, ocultar los dispositivos vendidos
+        if (empty($filters['status'])) {
+            $query->where('status', '!=', 'vendido');
+        }
+
+        $devices = $query->latest()->paginate(20)->appends(array_merge($filters, ['tab' => 'inventario']));
 
         if ($request->ajax()) {
             return view('financieras.inventario.table', compact('devices'))->render();

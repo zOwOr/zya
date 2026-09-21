@@ -68,7 +68,7 @@
 
         <!-- Table Container -->
         <div id="warranties-table-container">
-            @include('financieras.garantias.table', ['warranties' => $warranties ?? App\Models\FinWarranty::with(['device.brand', 'sale', 'branch', 'currentStage'])->latest('opened_at')->paginate(15)])
+            @include('financieras.garantias.table', ['warranties' => $warranties ?? App\Models\FinWarranty::with(['device.brand', 'sale', 'branch', 'currentStage'])->latest('opened_at')->paginate(15)->appends(['tab' => 'garantias'])])
         </div>
     </div>
 </div>

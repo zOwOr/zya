@@ -183,7 +183,7 @@
 
         <!-- Table Container -->
         <div id="inventory-table-container">
-            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::filter(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']))->with(['brand', 'branch', 'supplier', 'latestSale'])->latest()->paginate(20)->withQueryString()])
+            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::filter(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']))->with(['brand', 'branch', 'supplier', 'latestSale'])->when(empty(request('status')), fn($q) => $q->where('status', '!=', 'vendido'))->latest()->paginate(20)->appends(array_merge(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']), ['tab' => 'inventario']))])
         </div>
     </div>
 </div>

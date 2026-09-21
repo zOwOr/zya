@@ -284,12 +284,15 @@
 
 <script>
 $(document).ready(function() {
-    // Preservar tab activo en URL
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        let tab = $(e.target).data('tab-name');
+    // Navegación real al cambiar de tab: garantiza tab correcto en URL y resetea page=1
+    $('a[data-toggle="tab"]').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        let tab = $(this).data('tab-name');
         let url = new URL(window.location);
         url.searchParams.set('tab', tab);
-        window.history.replaceState({}, '', url);
+        url.searchParams.delete('page'); // Reset a página 1 al cambiar de sección
+        window.location.href = url.toString();
     });
 
     // Búsqueda cruzada de IMEI
