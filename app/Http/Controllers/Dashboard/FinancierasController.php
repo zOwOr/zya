@@ -67,13 +67,11 @@ class FinancierasController extends Controller
 
         if ($activeTab === 'inventario') {
             $deviceFilters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
-            $deviceQuery = FinDevice::filter($deviceFilters)
-                ->with(['brand', 'branch', 'supplier', 'latestSale']);
-            // Ocultar vendidos si no hay filtro de estado explícito
-            if (empty($deviceFilters['status'])) {
-                $deviceQuery->where('status', '!=', 'vendido');
-            }
-            $devices = $deviceQuery->latest()->paginate(20)->appends(array_merge($deviceFilters, ['tab' => 'inventario']));
+            $devices = FinDevice::filter($deviceFilters)
+                ->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])
+                ->latest()
+                ->paginate(20)
+                ->appends(array_merge($deviceFilters, ['tab' => 'inventario']));
         } elseif ($activeTab === 'ventas') {
             $saleFilters = $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id']);
             $sales = FinSale::filter($saleFilters)

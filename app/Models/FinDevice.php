@@ -126,7 +126,22 @@ class FinDevice extends Model
             $query->where('model', 'like', "%{$model}%");
         }
 
-        if ($status = $filters['status'] ?? false) {
+        $status = !empty($filters['status']) ? $filters['status'] : 'disponible';
+        if ($status === 'todos') {
+            // No se filtra por estado para mostrar todos los dispositivos
+        } elseif ($status === 'disponible') {
+            $query->where('status', 'disponible')
+                ->whereDoesntHave('sales', function ($q) {
+                    $q->where('status', 'activa');
+                });
+        } elseif ($status === 'vendido') {
+            $query->where(function ($q) {
+                $q->where('status', 'vendido')
+                    ->orWhereHas('sales', function ($sq) {
+                        $sq->where('status', 'activa');
+                    });
+            });
+        } else {
             $query->where('status', $status);
         }
 

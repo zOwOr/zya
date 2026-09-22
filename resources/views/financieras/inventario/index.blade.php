@@ -13,7 +13,7 @@
                         <i class="fa-solid fa-trash mr-1"></i>Eliminar seleccionados (<span id="bulkDeleteCount">0</span>)
                     </button>
                 @endcan
-                <a href="{{ route('financieras.inventario.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm mr-1">
+                <a href="{{ route('financieras.inventario.export.excel', array_merge(['status' => request('status', 'disponible')], request()->only(['search', 'branch_id', 'brand_id', 'model', 'supplier_id', 'status']))) }}" class="btn btn-outline-success btn-sm mr-1">
                     <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
                 </a>
                 @if (auth()->user()->can('financieras.inventario.create'))
@@ -66,11 +66,9 @@
                         <i class="fa-solid fa-tags mr-1 text-success"></i>Estado
                     </label>
                     <select name="status" class="form-control form-control-sm custom-select custom-select-sm">
-                        <option value="">Todos los estados</option>
-                        <option value="disponible" {{ request('status') == 'disponible' ? 'selected' : '' }}>Disponible</option>
+                        <option value="disponible" {{ request('status', 'disponible') == 'disponible' ? 'selected' : '' }}>Disponible (Por defecto)</option>
                         <option value="vendido" {{ request('status') == 'vendido' ? 'selected' : '' }}>Vendido</option>
-                        <option value="en_garantia" {{ request('status') == 'en_garantia' ? 'selected' : '' }}>En Garantía</option>
-                        <option value="robado" {{ request('status') == 'robado' ? 'selected' : '' }}>Robado</option>
+                        <option value="todos" {{ request('status') == 'todos' ? 'selected' : '' }}>Todos</option>
                     </select>
                 </div>
             </div>
@@ -129,9 +127,12 @@
 
             <!-- Resumen de Filtros Activos (Pills) -->
             @php
-                $activeFiltersCount = collect(['search', 'branch_id', 'brand_id', 'model', 'supplier_id', 'status'])
+                $activeFiltersCount = collect(['search', 'branch_id', 'brand_id', 'model', 'supplier_id'])
                     ->filter(fn($key) => request()->filled($key))
                     ->count();
+                if (request('status') && request('status') !== 'disponible') {
+                    $activeFiltersCount++;
+                }
             @endphp
             @if($activeFiltersCount > 0)
                 <div class="d-flex flex-wrap align-items-center mt-3 pt-2 border-top">
@@ -168,7 +169,7 @@
                             <a href="{{ route('financieras.index', array_merge(request()->except('supplier_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
                         </span>
                     @endif
-                    @if(request('status'))
+                    @if(request('status') && request('status') !== 'disponible')
                         <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
                             Estado: <strong>{{ ucfirst(str_replace('_', ' ', request('status'))) }}</strong>
                             <a href="{{ route('financieras.index', array_merge(request()->except('status'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
@@ -183,7 +184,7 @@
 
         <!-- Table Container -->
         <div id="inventory-table-container">
-            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::filter(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']))->with(['brand', 'branch', 'supplier', 'latestSale'])->when(empty(request('status')), fn($q) => $q->where('status', '!=', 'vendido'))->latest()->paginate(20)->appends(array_merge(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']), ['tab' => 'inventario']))])
+            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::filter(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']))->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])->latest()->paginate(20)->appends(array_merge(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']), ['tab' => 'inventario']))])
         </div>
     </div>
 </div>

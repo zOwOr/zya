@@ -50,15 +50,11 @@ class FinDeviceController extends Controller
     {
         $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
 
-        $query = FinDevice::filter($filters)
-            ->with(['brand', 'branch', 'supplier', 'latestSale']);
-
-        // Si no se aplica un filtro de estado explícito, ocultar los dispositivos vendidos
-        if (empty($filters['status'])) {
-            $query->where('status', '!=', 'vendido');
-        }
-
-        $devices = $query->latest()->paginate(20)->appends(array_merge($filters, ['tab' => 'inventario']));
+        $devices = FinDevice::filter($filters)
+            ->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])
+            ->latest()
+            ->paginate(20)
+            ->appends(array_merge($filters, ['tab' => 'inventario']));
 
         if ($request->ajax()) {
             return view('financieras.inventario.table', compact('devices'))->render();
@@ -693,56 +689,178 @@ class FinDeviceController extends Controller
         ini_set('max_execution_time', 0);
         ini_set('memory_limit', '1024M');
 
-        $devices = FinDevice::filter($request->all())
-            ->with(['brand', 'branch', 'supplier', 'latestSale'])
+        $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
+
+        $devices = FinDevice::filter($filters)
+            ->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])
             ->latest()
             ->get();
+
+        $status = !empty($filters['status']) ? $filters['status'] : 'disponible';
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Inventario Financieras');
 
-        // Columnas en el orden solicitado:
-        // FECHA DE LLEGADA | PROVEEDOR | UBICACIÓN | MARCA | MODELO | IMEI | COLOR | CAPACIDAD | ESTADO | VENTA VINCULADA | NOTAS
-        $headers = [
-            'FECHA DE LLEGADA',
-            'PROVEEDOR',
-            'UBICACIÓN',
-            'MARCA',
-            'MODELO',
-            'IMEI',
-            'COLOR',
-            'CAPACIDAD',
-            'ESTADO',
-            'VENTA VINCULADA',
-            'NOTAS',
-        ];
+        if (in_array($status, ['todos', 'vendido'])) {
+            // Formato solicitado para 'todos' y 'vendido' (con PROVEEDOR incluido tal como en disponible):
+            // FECHA DE LLEGADA | PROVEEDOR | UBICACIÓN | MARCA | MODELO | IMEI | COLOR | CAPACIDAD | FECHA DE VENTA | DEVICE ID/CONTRATO | OBSERVACIONES
+            $headers = [
+                'FECHA DE LLEGADA',
+                'PROVEEDOR',
+                'UBICACIÓN',
+                'MARCA',
+                'MODELO',
+                'IMEI',
+                'COLOR',
+                'CAPACIDAD',
+                'FECHA DE VENTA',
+                'DEVICE ID/CONTRATO',
+                'OBSERVACIONES',
+            ];
 
-        foreach ($headers as $colIdx => $header) {
-            $sheet->setCellValueByColumnAndRow($colIdx + 1, 1, $header);
+            foreach ($headers as $colIdx => $header) {
+                $sheet->setCellValueByColumnAndRow($colIdx + 1, 1, $header);
+            }
+
+            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+            $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
+                'font' => [
+                    'bold'  => true,
+                    'color' => ['rgb' => '000000'],
+                    'size'  => 11,
+                ],
+                'fill' => [
+                    'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'C6E0B4'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+            $sheet->getRowDimension(1)->setRowHeight(24);
+            $sheet->setAutoFilter("A1:{$lastCol}1");
+
+            // Formato de texto para columna IMEI (columna 6)
+            $imeiCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(6);
+            $sheet->getStyle("{$imeiCol}2:{$imeiCol}60000")
+                ->getNumberFormat()->setFormatCode('@');
+
+            $rowNum = 2;
+            foreach ($devices as $d) {
+                $sale = $d->activeSale ?? $d->latestSale;
+
+                $saleDate = '';
+                if ($sale && $sale->sale_date) {
+                    $saleDate = $sale->sale_date instanceof \Carbon\Carbon
+                        ? $sale->sale_date->format('d/m/Y')
+                        : date('d/m/Y', strtotime($sale->sale_date));
+                }
+
+                $contract = $sale ? ($sale->tag_contrato ?: $sale->sale_code) : '';
+
+                $obs = [];
+                if (!empty($d->notes)) {
+                    $obs[] = $d->notes;
+                }
+                if ($sale && $sale->status === 'cancelada' && !empty($sale->cancellation_reason)) {
+                    $obs[] = 'CANCELACION: ' . $sale->cancellation_reason;
+                } elseif ($sale && !empty($sale->cancellation_reason)) {
+                    $obs[] = $sale->cancellation_reason;
+                }
+                $observaciones = mb_strtoupper(implode(' | ', $obs));
+
+                $sheet->setCellValueByColumnAndRow(1, $rowNum, $d->created_at ? $d->created_at->format('d/m/Y') : '');
+                $sheet->setCellValueByColumnAndRow(2, $rowNum, $d->supplier?->name ?? 'N/A');
+                $sheet->setCellValueByColumnAndRow(3, $rowNum, mb_strtoupper($d->branch?->name ?? ''));
+                $sheet->setCellValueByColumnAndRow(4, $rowNum, mb_strtoupper($d->brand?->name ?? ''));
+                $sheet->setCellValueByColumnAndRow(5, $rowNum, mb_strtoupper($d->model ?? ''));
+                $sheet->setCellValueExplicitByColumnAndRow(6, $rowNum, (string)$d->imei, DataType::TYPE_STRING);
+                $sheet->setCellValueByColumnAndRow(7, $rowNum, mb_strtoupper($d->color ?? ''));
+                $sheet->setCellValueByColumnAndRow(8, $rowNum, mb_strtoupper($d->storage ?? ''));
+                $sheet->setCellValueByColumnAndRow(9, $rowNum, $saleDate);
+                $sheet->setCellValueByColumnAndRow(10, $rowNum, $contract);
+                $sheet->setCellValueByColumnAndRow(11, $rowNum, $observaciones);
+
+                // Resaltar en rosa si es cancelación (como en fila 799 de la imagen)
+                if (($sale && $sale->status === 'cancelada') || stripos($observaciones, 'CANCEL') !== false) {
+                    $sheet->getStyle("A{$rowNum}:K{$rowNum}")->applyFromArray([
+                        'fill' => [
+                            'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'F2DCDB'],
+                        ],
+                    ]);
+                }
+
+                $rowNum++;
+            }
+
+            foreach (range(1, count($headers)) as $col) {
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+            }
+        } else {
+            // Formato para 'disponible': únicamente las columnas visualizadas en la tabla (sin estatus)
+            $headers = [
+                'FECHA DE LLEGADA',
+                'PROVEEDOR',
+                'UBICACIÓN',
+                'MARCA',
+                'MODELO',
+                'IMEI',
+                'COLOR',
+                'CAPACIDAD',
+            ];
+
+            foreach ($headers as $colIdx => $header) {
+                $sheet->setCellValueByColumnAndRow($colIdx + 1, 1, $header);
+            }
+
+            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+            $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
+                'font' => [
+                    'bold'  => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                    'size'  => 11,
+                ],
+                'fill' => [
+                    'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '1D6FA4'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+            $sheet->getRowDimension(1)->setRowHeight(22);
+            $sheet->setAutoFilter("A1:{$lastCol}1");
+
+            $imeiCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(6);
+            $sheet->getStyle("{$imeiCol}2:{$imeiCol}60000")
+                ->getNumberFormat()->setFormatCode('@');
+
+            $rowNum = 2;
+            foreach ($devices as $d) {
+                $sheet->setCellValueByColumnAndRow(1, $rowNum, $d->created_at ? $d->created_at->format('d/m/Y') : '');
+                $sheet->setCellValueByColumnAndRow(2, $rowNum, $d->supplier?->name ?? 'N/A');
+                $sheet->setCellValueByColumnAndRow(3, $rowNum, $d->branch?->name ?? 'N/A');
+                $sheet->setCellValueByColumnAndRow(4, $rowNum, $d->brand?->name ?? 'N/A');
+                $sheet->setCellValueByColumnAndRow(5, $rowNum, $d->model);
+                $sheet->setCellValueExplicitByColumnAndRow(6, $rowNum, (string)$d->imei, DataType::TYPE_STRING);
+                $sheet->setCellValueByColumnAndRow(7, $rowNum, $d->color ?? '');
+                $sheet->setCellValueByColumnAndRow(8, $rowNum, $d->storage ?? '');
+                $rowNum++;
+            }
+
+            foreach (range(1, count($headers)) as $col) {
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+            }
         }
-
-        $rowNum = 2;
-        foreach ($devices as $d) {
-            $sheet->setCellValueByColumnAndRow(1, $rowNum, $d->created_at ? $d->created_at->format('d/m/Y H:i') : '');
-            $sheet->setCellValueByColumnAndRow(2, $rowNum, $d->supplier?->name ?? 'N/A');
-            $sheet->setCellValueByColumnAndRow(3, $rowNum, $d->branch?->name ?? 'N/A');
-            $sheet->setCellValueByColumnAndRow(4, $rowNum, $d->brand?->name ?? 'N/A');
-            $sheet->setCellValueByColumnAndRow(5, $rowNum, $d->model);
-            // IMEI como DataType::TYPE_STRING para evitar notación científica en Excel
-            $sheet->setCellValueExplicitByColumnAndRow(6, $rowNum, (string)$d->imei, DataType::TYPE_STRING);
-            $sheet->setCellValueByColumnAndRow(7, $rowNum, $d->color ?? '');
-            $sheet->setCellValueByColumnAndRow(8, $rowNum, $d->storage ?? '');
-            $sheet->setCellValueByColumnAndRow(9, $rowNum, ucfirst(str_replace('_', ' ', $d->status)));
-            $sheet->setCellValueByColumnAndRow(10, $rowNum, $d->latestSale ? $d->latestSale->sale_code : 'Sin Venta');
-            $sheet->setCellValueByColumnAndRow(11, $rowNum, $d->notes ?? '');
-            $rowNum++;
-        }
-
-        $sheet->getDefaultColumnDimension()->setWidth(18);
 
         $writer = new Xls($spreadsheet);
-        $filename = 'Financieras_Inventario_' . date('Ymd_His') . '.xls';
+        $filename = 'Financieras_Inventario_' . ($status ?: 'general') . '_' . date('Ymd_His') . '.xls';
 
         header('Content-Type: application/vnd.ms-excel');
         header("Content-Disposition: attachment;filename=\"{$filename}\"");

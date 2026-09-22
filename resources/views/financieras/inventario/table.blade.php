@@ -1,3 +1,6 @@
+@php
+    $isVendidoOrTodos = in_array(request('status'), ['todos', 'vendido']);
+@endphp
 <div class="table-responsive">
     <table class="table table-striped table-hover mb-0">
         <thead class="bg-white text-uppercase font-size-12">
@@ -15,13 +18,31 @@
                 <th>IMEI</th>
                 <th>Color</th>
                 <th>Capacidad</th>
-                <th>Estado</th>
+                @if($isVendidoOrTodos)
+                    <th>Fecha de Venta</th>
+                    <th>Device ID/Contrato</th>
+                    <th>Observaciones</th>
+                @endif
                 <th class="text-right">Acciones</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($devices as $device)
-                <tr>
+                @php
+                    $sale = $device->activeSale ?? $device->latestSale;
+                    $saleDate = $sale && $sale->sale_date ? ($sale->sale_date instanceof \Carbon\Carbon ? $sale->sale_date->format('d/m/Y') : date('d/m/Y', strtotime($sale->sale_date))) : '';
+                    $contract = $sale ? ($sale->tag_contrato ?: $sale->sale_code) : '';
+                    $obs = [];
+                    if (!empty($device->notes)) { $obs[] = $device->notes; }
+                    if ($sale && $sale->status === 'cancelada' && !empty($sale->cancellation_reason)) {
+                        $obs[] = 'CANCELACION: ' . $sale->cancellation_reason;
+                    } elseif ($sale && !empty($sale->cancellation_reason)) {
+                        $obs[] = $sale->cancellation_reason;
+                    }
+                    $observaciones = mb_strtoupper(implode(' | ', $obs));
+                    $isCancelled = ($sale && $sale->status === 'cancelada') || stripos($observaciones, 'CANCEL') !== false;
+                @endphp
+                <tr style="{{ $isCancelled && $isVendidoOrTodos ? 'background-color: #fce8e6;' : '' }}">
                     @if (auth()->user()->can('financieras.inventario.delete'))
                         <td class="text-center align-middle">
                             @if(!$device->sales()->where('status', 'activa')->exists())
@@ -35,8 +56,6 @@
                     @endif
                     <td class="font-size-13 text-muted">
                         <span class="font-weight-bold text-dark">{{ $device->created_at->format('d/m/Y') }}</span>
-                        <br>
-                        <small class="text-muted">{{ $device->created_at->format('H:i') }}</small>
                     </td>
                     <td>
                         @if ($device->supplier)
@@ -71,24 +90,29 @@
                             <span class="text-muted font-size-12">-</span>
                         @endif
                     </td>
-                    <td>
-                        @switch($device->status)
-                            @case('disponible')
-                                <span class="badge badge-success px-2 py-1">Disponible</span>
-                                @break
-                            @case('vendido')
-                                <span class="badge badge-secondary px-2 py-1">Vendido</span>
-                                @break
-                            @case('en_garantia')
-                                <span class="badge badge-warning text-white px-2 py-1">En Garantía</span>
-                                @break
-                            @case('robado')
-                                <span class="badge badge-danger px-2 py-1">Robado</span>
-                                @break
-                            @default
-                                <span class="badge badge-light">{{ $device->status }}</span>
-                        @endswitch
-                    </td>
+                    @if($isVendidoOrTodos)
+                        <td>
+                            @if($saleDate)
+                                <span class="font-weight-bold text-dark font-size-13">{{ $saleDate }}</span>
+                            @else
+                                <span class="text-muted font-size-12">-</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($contract)
+                                <span class="badge badge-primary font-size-12 font-weight-bold">{{ $contract }}</span>
+                            @else
+                                <span class="text-muted font-size-12">-</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($observaciones)
+                                <span class="font-size-11 {{ $isCancelled ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ $observaciones }}</span>
+                            @else
+                                <span class="text-muted font-size-12">-</span>
+                            @endif
+                        </td>
+                    @endif
                     <td class="text-right">
                         <div class="d-inline-flex">
                             <a href="{{ route('financieras.inventario.history', $device->id) }}" class="btn btn-sm btn-info mr-1" title="Historial Completo">
@@ -123,7 +147,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ auth()->user()->can('financieras.inventario.delete') ? 11 : 10 }}" class="text-center py-4 text-muted">
+                    <td colspan="{{ (auth()->user()->can('financieras.inventario.delete') ? 1 : 0) + ($isVendidoOrTodos ? 12 : 9) }}" class="text-center py-4 text-muted">
                         <i class="fa-solid fa-boxes-stacked fa-3x mb-2 text-secondary"></i>
                         <p class="mb-0">No se encontraron dispositivos registrados en inventario.</p>
                     </td>

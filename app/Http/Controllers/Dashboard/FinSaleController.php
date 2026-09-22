@@ -447,7 +447,7 @@ class FinSaleController extends Controller
             'VENDEDOR',
             'CLIENTE',
             'CONTACTO',
-            'CHIP',
+            'CHIP INGRESADO',
             'FINANCIERA',
             'ID/CONTRATO',
             'MARCA',
