@@ -20,7 +20,7 @@
                 <th>Capacidad</th>
                 @if($isVendidoOrTodos)
                     <th>Fecha de Venta</th>
-                    <th>Device ID/Contrato</th>
+                    <th>Device ID / TAG</th>
                     <th>Observaciones</th>
                 @endif
                 <th class="text-right">Acciones</th>
@@ -100,7 +100,13 @@
                         </td>
                         <td>
                             @if($contract)
-                                <span class="badge badge-primary font-size-12 font-weight-bold">{{ $contract }}</span>
+                                @if($sale)
+                                    <a href="{{ route('financieras.ventas.show', $sale->id) }}" class="badge badge-primary font-size-12 font-weight-bold" title="Ver venta {{ $sale->sale_code }}">
+                                        <i class="fa-solid fa-tag mr-1 font-size-10"></i>{{ $contract }}
+                                    </a>
+                                @else
+                                    <span class="badge badge-primary font-size-12 font-weight-bold">{{ $contract }}</span>
+                                @endif
                             @else
                                 <span class="text-muted font-size-12">-</span>
                             @endif

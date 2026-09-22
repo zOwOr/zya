@@ -31,9 +31,12 @@
         <form id="filter-inventory-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-4 rounded border bg-light shadow-xs">
             <input type="hidden" name="tab" value="inventario">
             
-            <!-- Fila 1: Búsqueda Principal, Sucursal y Estado -->
+            <!-- Fila 1: Búsqueda Principal, Sucursal, Estado y Device ID / TAG -->
+            @php
+                $showTagFilter = in_array(request('status'), ['vendido', 'todos']) || request()->filled('tag');
+            @endphp
             <div class="row align-items-end mb-3">
-                <div class="col-lg-5 col-md-12 mb-2 mb-lg-0">
+                <div class="{{ $showTagFilter ? 'col-lg-4' : 'col-lg-5' }} col-md-12 mb-2 mb-lg-0" id="col-search-main">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
                         <i class="fa-solid fa-magnifying-glass mr-1 text-primary"></i>Buscar Dispositivo
                     </label>
@@ -49,7 +52,7 @@
                     </div>
                 </div>
 
-                <div class="col-lg-4 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                <div class="{{ $showTagFilter ? 'col-lg-3' : 'col-lg-4' }} col-md-6 col-sm-6 mb-2 mb-lg-0" id="col-branch-main">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
                         <i class="fa-solid fa-store mr-1 text-info"></i>Sucursal / Ubicación
                     </label>
@@ -61,15 +64,31 @@
                     </select>
                 </div>
 
-                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                <div class="{{ $showTagFilter ? 'col-lg-2' : 'col-lg-3' }} col-md-6 col-sm-6 mb-2 mb-lg-0" id="col-status-main">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
                         <i class="fa-solid fa-tags mr-1 text-success"></i>Estado
                     </label>
-                    <select name="status" class="form-control form-control-sm custom-select custom-select-sm">
+                    <select name="status" id="statusFilterSelect" class="form-control form-control-sm custom-select custom-select-sm">
                         <option value="disponible" {{ request('status', 'disponible') == 'disponible' ? 'selected' : '' }}>Disponible (Por defecto)</option>
                         <option value="vendido" {{ request('status') == 'vendido' ? 'selected' : '' }}>Vendido</option>
                         <option value="todos" {{ request('status') == 'todos' ? 'selected' : '' }}>Todos</option>
                     </select>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0" id="container-filter-tag" style="{{ $showTagFilter ? '' : 'display: none;' }}">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-tag mr-1 text-primary"></i>Device ID / TAG
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="tag" id="input-filter-tag" class="form-control" placeholder="Buscar por TAG o Contrato..." value="{{ request('tag') }}">
+                        @if(request('tag'))
+                            <div class="input-group-append">
+                                <a href="{{ route('financieras.index', array_merge(request()->except('tag'), ['tab' => 'inventario'])) }}" class="btn btn-outline-secondary" title="Limpiar filtro TAG">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </a>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -127,7 +146,7 @@
 
             <!-- Resumen de Filtros Activos (Pills) -->
             @php
-                $activeFiltersCount = collect(['search', 'branch_id', 'brand_id', 'model', 'supplier_id'])
+                $activeFiltersCount = collect(['search', 'branch_id', 'brand_id', 'model', 'supplier_id', 'tag'])
                     ->filter(fn($key) => request()->filled($key))
                     ->count();
                 if (request('status') && request('status') !== 'disponible') {
@@ -169,6 +188,12 @@
                             <a href="{{ route('financieras.index', array_merge(request()->except('supplier_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
                         </span>
                     @endif
+                    @if(request('tag'))
+                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
+                            Device ID / TAG: <strong>{{ request('tag') }}</strong>
+                            <a href="{{ route('financieras.index', array_merge(request()->except('tag'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
+                        </span>
+                    @endif
                     @if(request('status') && request('status') !== 'disponible')
                         <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
                             Estado: <strong>{{ ucfirst(str_replace('_', ' ', request('status'))) }}</strong>
@@ -184,7 +209,7 @@
 
         <!-- Table Container -->
         <div id="inventory-table-container">
-            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::filter(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']))->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])->latest()->paginate(20)->appends(array_merge(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']), ['tab' => 'inventario']))])
+            @include('financieras.inventario.table', ['devices' => $devices ?? App\Models\FinDevice::filter(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']))->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])->latest()->paginate(20)->appends(array_merge(request()->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']), ['tab' => 'inventario']))])
         </div>
     </div>
 </div>
@@ -396,3 +421,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endcan
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mostrar/ocultar dinámicamente el filtro Device ID / TAG al cambiar el estado
+    $('#statusFilterSelect').on('change', function() {
+        var statusVal = $(this).val();
+        if (statusVal === 'vendido' || statusVal === 'todos') {
+            $('#col-search-main').removeClass('col-lg-5').addClass('col-lg-4');
+            $('#col-branch-main').removeClass('col-lg-4').addClass('col-lg-3');
+            $('#col-status-main').removeClass('col-lg-3').addClass('col-lg-2');
+            $('#container-filter-tag').fadeIn(200);
+            $('#input-filter-tag').focus();
+        } else {
+            $('#container-filter-tag').hide();
+            $('#input-filter-tag').val('');
+            $('#col-search-main').removeClass('col-lg-4').addClass('col-lg-5');
+            $('#col-branch-main').removeClass('col-lg-3').addClass('col-lg-4');
+            $('#col-status-main').removeClass('col-lg-2').addClass('col-lg-3');
+        }
+    });
+});
+</script>

@@ -48,7 +48,7 @@ class FinDeviceController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
+        $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']);
 
         $devices = FinDevice::filter($filters)
             ->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])
@@ -689,7 +689,7 @@ class FinDeviceController extends Controller
         ini_set('max_execution_time', 0);
         ini_set('memory_limit', '1024M');
 
-        $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
+        $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']);
 
         $devices = FinDevice::filter($filters)
             ->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])

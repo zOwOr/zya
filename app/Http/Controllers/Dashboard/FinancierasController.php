@@ -66,7 +66,7 @@ class FinancierasController extends Controller
         $thefts = null;
 
         if ($activeTab === 'inventario') {
-            $deviceFilters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model']);
+            $deviceFilters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']);
             $devices = FinDevice::filter($deviceFilters)
                 ->with(['brand', 'branch', 'supplier', 'activeSale', 'latestSale'])
                 ->latest()

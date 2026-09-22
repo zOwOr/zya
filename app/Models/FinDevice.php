@@ -148,5 +148,14 @@ class FinDevice extends Model
         if ($brandId = $filters['brand_id'] ?? false) {
             $query->where('brand_id', $brandId);
         }
+
+        if ($tag = $filters['tag'] ?? false) {
+            $query->whereHas('sales', function ($sq) use ($tag) {
+                $sq->where(function ($q) use ($tag) {
+                    $q->where('tag_contrato', 'like', "%{$tag}%")
+                      ->orWhere('sale_code', 'like', "%{$tag}%");
+                });
+            });
+        }
     }
 }
