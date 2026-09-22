@@ -155,13 +155,18 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Vendedor</label>
-                                <select name="seller_id" class="form-control">
-                                    @foreach ($sellers as $s)
-                                        <option value="{{ $s->id }}" {{ old('seller_id', $sale->seller_id) == $s->id ? 'selected' : '' }}>
-                                            {{ $s->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @if(auth()->user()?->isSuperAdmin())
+                                    <select name="seller_id" class="form-control">
+                                        @foreach ($sellers as $s)
+                                            <option value="{{ $s->id }}" {{ old('seller_id', $sale->seller_id) == $s->id ? 'selected' : '' }}>
+                                                {{ $s->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input type="text" class="form-control bg-light" value="{{ $sale->seller?->name ?? 'Sin asignar' }}" readonly>
+                                    <small class="text-muted"><i class="fa-solid fa-lock mr-1"></i>Solo lectura (solo SuperAdmin puede modificar)</small>
+                                @endif
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">TAG / No. Contrato</label>

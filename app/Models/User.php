@@ -104,4 +104,8 @@ class User extends Authenticatable
         return $this->belongsTo(Branch::class);
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole(['SuperAdmin', 'Super Administrador', 'superadmin', 'Superadmin']) || $this->id === 1;
+    }
 }

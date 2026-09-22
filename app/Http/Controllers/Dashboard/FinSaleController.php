@@ -85,6 +85,8 @@ class FinSaleController extends Controller
 
     public function store(Request $request)
     {
+        $isSuperAdmin = auth()->check() && auth()->user()->isSuperAdmin();
+
         $request->validate([
             'device_id' => 'nullable|exists:fin_devices,id',
             'imei' => 'required_without:device_id|nullable|string|max:50',
@@ -94,7 +96,7 @@ class FinSaleController extends Controller
             'color' => 'nullable|string|max:50',
             'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
-            'seller_id' => 'required|exists:users,id',
+            'seller_id' => $isSuperAdmin ? 'required|exists:users,id' : 'nullable',
             'price' => 'required|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0|lte:price',
             'enganche_descuento' => 'nullable|numeric|min:0',
@@ -187,12 +189,14 @@ class FinSaleController extends Controller
                 ? (float) $request->input('credit_amount')
                 : max(0, $price - $downPayment);
 
+            $sellerId = $isSuperAdmin ? ($request->input('seller_id') ?: auth()->id()) : auth()->id();
+
             $sale = FinSale::create([
                 'sale_code' => $saleCode,
                 'device_id' => $device->id,
                 'financiera_id' => $request->input('financiera_id'),
                 'branch_id' => $request->input('branch_id', $device->branch_id),
-                'seller_id' => $request->input('seller_id', auth()->id()),
+                'seller_id' => $sellerId,
                 // Datos del cliente
                 'customer_name' => $request->input('customer_name'),
                 'customer_phone' => $request->input('customer_phone'),
@@ -280,10 +284,12 @@ class FinSaleController extends Controller
 
     public function update(Request $request, FinSale $sale)
     {
+        $isSuperAdmin = auth()->check() && auth()->user()->isSuperAdmin();
+
         $request->validate([
             'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
-            'seller_id' => 'nullable|exists:users,id',
+            'seller_id' => $isSuperAdmin ? 'nullable|exists:users,id' : 'nullable',
             'tag_contrato' => 'nullable|string|max:100',
             'price' => 'nullable|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0',
@@ -308,10 +314,9 @@ class FinSaleController extends Controller
             'ref3_phone' => 'nullable|string|max:30',
         ]);
 
-        $sale->update($request->only([
+        $updateData = $request->only([
             'financiera_id',
             'branch_id',
-            'seller_id',
             'tag_contrato',
             'customer_name',
             'customer_phone',
@@ -331,7 +336,14 @@ class FinSaleController extends Controller
             'term_months',
             'term_weeks',
             'sale_date',
-        ]));
+        ]);
+
+        // Únicamente el SuperAdmin puede editar el vendedor
+        if ($isSuperAdmin && $request->filled('seller_id')) {
+            $updateData['seller_id'] = $request->input('seller_id');
+        }
+
+        $sale->update($updateData);
 
         try {
             event(new FinancierasUpdated(

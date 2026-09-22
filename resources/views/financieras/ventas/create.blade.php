@@ -88,13 +88,19 @@
 
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Vendedor <span class="text-danger">*</span></label>
-                                <select name="seller_id" class="form-control @error('seller_id') is-invalid @enderror" required>
-                                    @foreach ($sellers as $s)
-                                        <option value="{{ $s->id }}" {{ (old('seller_id', auth()->id()) == $s->id) ? 'selected' : '' }}>
-                                            {{ $s->name }} ({{ $s->username ?? 'User' }})
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @if(auth()->user()?->isSuperAdmin())
+                                    <select name="seller_id" class="form-control @error('seller_id') is-invalid @enderror" required>
+                                        @foreach ($sellers as $s)
+                                            <option value="{{ $s->id }}" {{ (old('seller_id', auth()->id()) == $s->id) ? 'selected' : '' }}>
+                                                {{ $s->name }} ({{ $s->username ?? 'User' }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input type="text" class="form-control bg-light" value="{{ auth()->user()->name }}" readonly>
+                                    <input type="hidden" name="seller_id" value="{{ auth()->id() }}">
+                                    <small class="text-muted"><i class="fa-solid fa-lock mr-1"></i>Asignado automáticamente a tu usuario</small>
+                                @endif
                                 @error('seller_id')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
