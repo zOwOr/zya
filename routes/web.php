@@ -55,14 +55,17 @@ Route::middleware('auth')->group(function () {
 });
 
 // ====== USERS ======
-Route::middleware(['permission:user.menu'])->group(function () {
+Route::middleware(['permission:user.menu|user.read'])->group(function () {
     Route::resource('/users', UserController::class)->except(['show']);
-    Route::resource('branches', BranchController::class)->names('branches');
+});
 
+// ====== BRANCHES ======
+Route::middleware(['permission:branch.menu|branch.read'])->group(function () {
+    Route::resource('branches', BranchController::class)->names('branches');
 });
 
 // ====== CUSTOMERS ======
-Route::middleware(['permission:customer.menu'])->group(function () {
+Route::middleware(['permission:customer.menu|customer.read'])->group(function () {
     Route::get('/customers/check-phone', [CustomerController::class, 'checkPhone'])->name('customers.check-phone');
     Route::get('/customers/check-name', [CustomerController::class, 'checkName'])->name('customers.check-name');
     Route::get('/customers/search', [CustomerController::class, 'search'])->name('customers.search');
@@ -71,22 +74,22 @@ Route::middleware(['permission:customer.menu'])->group(function () {
 });
 
 // ====== SUPPLIERS ======
-Route::middleware(['permission:supplier.menu'])->group(function () {
+Route::middleware(['permission:supplier.menu|supplier.read'])->group(function () {
     Route::resource('/suppliers', SupplierController::class);
 });
 
 // ====== EMPLOYEES ======
-Route::middleware(['permission:employee.menu'])->group(function () {
+Route::middleware(['permission:employee.menu|employee.read'])->group(function () {
     Route::resource('/employees', EmployeeController::class);
 });
 
 // ====== EMPLOYEE ATTENDENCE ======
-Route::middleware(['permission:attendence.menu'])->group(function () {
+Route::middleware(['permission:attendence.menu|attendence.read|attendence.create'])->group(function () {
     Route::resource('/employee/attendence', AttendenceController::class)->except(['show', 'update', 'destroy']);
 });
 
 // ====== SALARY EMPLOYEE ======
-Route::middleware(['permission:salary.menu'])->group(function () {
+Route::middleware(['permission:salary.menu|salary.read|salary.create'])->group(function () {
     // PaySalary
     Route::resource('/pay-salary', PaySalaryController::class)->except(['show', 'create', 'edit', 'update']);
     Route::get('/pay-salary/history', [PaySalaryController::class, 'payHistory'])->name('pay-salary.payHistory');
@@ -98,7 +101,7 @@ Route::middleware(['permission:salary.menu'])->group(function () {
 });
 
 // ====== PRODUCTS ======
-Route::middleware(['permission:product.menu'])->group(function () {
+Route::middleware(['permission:product.menu|product.read|product.create'])->group(function () {
     Route::get('/products/import', [ProductController::class, 'importView'])->name('products.importView');
     Route::post('/products/import', [ProductController::class, 'importStore'])->name('products.importStore');
     Route::get('/products/export', [ProductController::class, 'exportData'])->name('products.exportData');
@@ -106,12 +109,12 @@ Route::middleware(['permission:product.menu'])->group(function () {
 });
 
 // ====== CATEGORY PRODUCTS ======
-Route::middleware(['permission:category.menu'])->group(function () {
+Route::middleware(['permission:category.menu|category.read'])->group(function () {
     Route::resource('/categories', CategoryController::class);
 });
 
 // ====== POS ======
-Route::middleware(['permission:pos.menu'])->group(function () {
+Route::middleware(['permission:pos.menu|pos.read'])->group(function () {
     Route::get('/pos', [PosController::class,'index'])->name('pos.index');
     Route::post('/pos/add', [PosController::class, 'addCart'])->name('pos.addCart');
     Route::post('/pos/add-dynamic', [PosController::class, 'addDynamicProduct'])->name('pos.addDynamicProduct');
@@ -128,14 +131,14 @@ Route::middleware(['permission:pos.menu'])->group(function () {
 
 });
 
-Route::middleware(['permission:repairs.menu'])->group(function () {
+Route::middleware(['permission:repairs.menu|repairs.read'])->group(function () {
 
     Route::resource('repairs', RepairsController::class);
     Route::get('/buscar-opciones', [RepairsController::class, 'buscarOpciones'])->name('buscar.opciones');
 });
 
 
-Route::middleware(['permission:tandas.menu'])->group(function () {
+Route::middleware(['permission:tandas.menu|tandas.read'])->group(function () {
 
     Route::resource('tandas', TandaController::class);
     Route::patch('/tanda-periods/{period}', [TandaPeriodController::class, 'updatePayment'])->name('tanda-periods.updatePayment');
@@ -145,7 +148,7 @@ Route::middleware(['permission:tandas.menu'])->group(function () {
 
 
 });
-Route::middleware(['permission:cash.menu'])->group(function () {
+Route::middleware(['permission:cash.menu|cash.read'])->group(function () {
 
     Route::get('/cash', [CashController::class, 'index'])->name('cash.index');
 
@@ -165,7 +168,7 @@ Route::middleware(['permission:cash.menu'])->group(function () {
 });
 
 // ====== ORDERS ======
-Route::middleware(['permission:orders.menu'])->group(function () {
+Route::middleware(['permission:orders.menu|orders.read'])->group(function () {
     Route::get('/orders/pending', [OrderController::class, 'pendingOrders'])->name('order.pendingOrders');
     Route::get('/orders/complete', [OrderController::class, 'completeOrders'])->name('order.completeOrders');
     Route::get('/orders/details/{order_id}', [OrderController::class, 'orderDetails'])->name('order.orderDetails');
@@ -193,7 +196,7 @@ Route::get('/orders/{id}/contract', [OrderController::class, 'contract'])->name(
 });
 
 // ====== DATABASE BACKUP ======
-Route::middleware(['permission:database.menu'])->group(function () {
+Route::middleware(['permission:database.menu|database.read'])->group(function () {
     Route::get('/database/backup', [DatabaseBackupController::class, 'index'])->name('backup.index');
     Route::get('/database/backup/now', [DatabaseBackupController::class, 'create'])->name('backup.create');
     Route::get('/database/backup/download/{getFileName}', [DatabaseBackupController::class, 'download'])->name('backup.download');
@@ -201,7 +204,7 @@ Route::middleware(['permission:database.menu'])->group(function () {
 });
 
 // ====== ROLE CONTROLLER ======
-Route::middleware(['permission:roles.menu'])->group(function () {
+Route::middleware(['permission:roles.menu|roles.read|roles.edit|permissions.menu|permissions.read'])->group(function () {
     // Permissions
     Route::get('/permission', [RoleController::class, 'permissionIndex'])->name('permission.index');
     Route::get('/permission/create', [RoleController::class, 'permissionCreate'])->name('permission.create');
@@ -228,7 +231,7 @@ Route::middleware(['permission:roles.menu'])->group(function () {
 });
 
 // ====== FINANCIERAS ======
-Route::middleware(['auth', 'permission:financieras.menu'])->prefix('financieras')->name('financieras.')->group(function () {
+Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financieras.ventas.menu|financieras.inventario.menu|financieras.garantias.menu|financieras.robos.menu|financieras.catalogos.menu'])->prefix('financieras')->name('financieras.')->group(function () {
     Route::get('/', [FinancierasController::class, 'index'])->name('index');
     Route::get('/brands/autocomplete', [FinancierasController::class, 'autocompleteBrands'])->name('brands.autocomplete');
     Route::get('/devices/autocomplete-imei', [FinancierasController::class, 'autocompleteImeis'])->name('devices.autocomplete-imei');

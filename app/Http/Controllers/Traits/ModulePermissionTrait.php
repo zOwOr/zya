@@ -41,6 +41,9 @@ trait ModulePermissionTrait
             $permission = $this->permissionForAction($action);
 
             if ($permission && !auth()->user()?->can($permission)) {
+                if (in_array($action, ['index', 'show']) && (auth()->user()?->can("{$resource}.menu") || auth()->user()?->can("{$resource}.read"))) {
+                    return $next($request);
+                }
                 abort(403);
             }
 

@@ -24,7 +24,7 @@
                     </a>
                 </li>
 
-                @if (auth()->user()->can('pos.menu'))
+                @if (auth()->user()->can('pos.menu') || auth()->user()->can('pos.read'))
                     <li class="{{ Request::is('pos*') ? 'active' : '' }}">
                         <a href="{{ route('pos.index') }}" class="svg-icon">
                             <i class="fa-solid fa-cart-shopping text-success"></i>
@@ -34,12 +34,12 @@
                 @endif
 
                 {{-- ===================== 2. OPERACIONES ===================== --}}
-                @if (auth()->user()->can('cash.menu') || auth()->user()->can('orders.menu') || auth()->user()->can('repairs.menu') || auth()->user()->can('tandas.menu'))
+                @if (auth()->user()->can('cash.menu') || auth()->user()->can('cash.read') || auth()->user()->can('orders.menu') || auth()->user()->can('orders.read') || auth()->user()->can('repairs.menu') || auth()->user()->can('repairs.read') || auth()->user()->can('tandas.menu') || auth()->user()->can('tandas.read'))
                     <li class="sidebar-section-title">
                         <span>Operaciones</span>
                     </li>
 
-                    @if (auth()->user()->can('cash.menu'))
+                    @if (auth()->user()->can('cash.menu') || auth()->user()->can('cash.read'))
                         <li class="{{ Request::is('cash*') ? 'active' : '' }}">
                             <a href="{{ route('cash.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-vault text-info"></i>
@@ -48,7 +48,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('orders.menu'))
+                    @if (auth()->user()->can('orders.menu') || auth()->user()->can('orders.read'))
                         @php
                             $isOrdersActive = Request::is('orders*') || Request::is('pending*');
                         @endphp
@@ -66,26 +66,28 @@
                             </a>
                             <ul id="orders" class="iq-submenu collapse {{ $isOrdersActive ? 'show' : '' }}"
                                 data-parent="#iq-sidebar-toggle">
-                                <li class="{{ Request::is('orders/pending*') ? 'active' : '' }}">
-                                    <a href="{{ route('order.pendingOrders') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Pendientes</span>
-                                    </a>
-                                </li>
-                                <li class="{{ Request::is('orders/complete*') ? 'active' : '' }}">
-                                    <a href="{{ route('order.completeOrders') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Aprobadas</span>
-                                    </a>
-                                </li>
-                                <li class="{{ Request::is('pending/due*') ? 'active' : '' }}">
-                                    <a href="{{ route('order.pendingDue') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Pendiente de Pago</span>
-                                    </a>
-                                </li>
+                                @if (auth()->user()->can('orders.read') || auth()->user()->can('orders.menu'))
+                                    <li class="{{ Request::is('orders/pending*') ? 'active' : '' }}">
+                                        <a href="{{ route('order.pendingOrders') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Pendientes</span>
+                                        </a>
+                                    </li>
+                                    <li class="{{ Request::is('orders/complete*') ? 'active' : '' }}">
+                                        <a href="{{ route('order.completeOrders') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Aprobadas</span>
+                                        </a>
+                                    </li>
+                                    <li class="{{ Request::is('pending/due*') ? 'active' : '' }}">
+                                        <a href="{{ route('order.pendingDue') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Pendiente de Pago</span>
+                                        </a>
+                                    </li>
+                                @endif
                             </ul>
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('repairs.menu'))
+                    @if (auth()->user()->can('repairs.menu') || auth()->user()->can('repairs.read'))
                         <li class="{{ Request::is('repairs*') ? 'active' : '' }}">
                             <a href="{{ route('repairs.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-screwdriver-wrench text-danger"></i>
@@ -94,7 +96,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('tandas.menu'))
+                    @if (auth()->user()->can('tandas.menu') || auth()->user()->can('tandas.read'))
                         <li class="{{ Request::is('tandas*') ? 'active' : '' }}">
                             <a href="{{ route('tandas.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-piggy-bank text-secondary"></i>
@@ -105,79 +107,26 @@
                 @endif
 
                 {{-- ===================== 3. MÓDULO FINANCIERAS ===================== --}}
-                @if (auth()->user()->can('financieras.menu'))
+                @if (auth()->user()->can('financieras.menu') || auth()->user()->can('financieras.read') || auth()->user()->can('financieras.ventas.menu') || auth()->user()->can('financieras.inventario.menu') || auth()->user()->can('financieras.garantias.menu') || auth()->user()->can('financieras.robos.menu') || auth()->user()->can('financieras.catalogos.menu'))
                     <li class="sidebar-section-title">
                         <span>Financiamiento</span>
                     </li>
 
-                    @php
-                        $isFinActive = Request::is('financieras*');
-                    @endphp
-                    <li class="{{ $isFinActive ? 'active' : '' }}">
-                        <a href="#financieras" class="{{ $isFinActive ? '' : 'collapsed' }}" data-toggle="collapse"
-                            aria-expanded="{{ $isFinActive ? 'true' : 'false' }}">
+                    <li class="{{ Request::is('financieras*') ? 'active' : '' }}">
+                        <a href="{{ route('financieras.index') }}" class="svg-icon">
                             <i class="fa-solid fa-landmark text-primary"></i>
                             <span class="ml-3">Financieras</span>
-                            <svg class="svg-icon iq-arrow-right arrow-active" width="20" height="20"
-                                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="10 15 15 20 20 15"></polyline>
-                                <path d="M4 4h7a4 4 0 0 1 4 4v12"></path>
-                            </svg>
                         </a>
-                        <ul id="financieras" class="iq-submenu collapse {{ $isFinActive ? 'show' : '' }}"
-                            data-parent="#iq-sidebar-toggle">
-                            <li class="{{ Request::is('financieras') && !request()->has('tab') ? 'active' : '' }}">
-                                <a href="{{ route('financieras.index') }}">
-                                    <i class="fa-solid fa-arrow-right"></i><span>Panel General</span>
-                                </a>
-                            </li>
-                            @if (auth()->user()->can('financieras.ventas.menu') || auth()->user()->can('financieras.ventas.read'))
-                                <li class="{{ Request::is('financieras/ventas*') || (Request::is('financieras*') && request('tab') == 'ventas') ? 'active' : '' }}">
-                                    <a href="{{ route('financieras.index', ['tab' => 'ventas']) }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Ventas y Créditos</span>
-                                    </a>
-                                </li>
-                            @endif
-                            @if (auth()->user()->can('financieras.inventario.menu') || auth()->user()->can('financieras.inventario.read'))
-                                <li class="{{ Request::is('financieras/inventario*') || (Request::is('financieras*') && request('tab') == 'inventario') ? 'active' : '' }}">
-                                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Inventario Equipos</span>
-                                    </a>
-                                </li>
-                            @endif
-                            @if (auth()->user()->can('financieras.garantias.menu') || auth()->user()->can('financieras.garantias.read'))
-                                <li class="{{ Request::is('financieras/garantias*') || (Request::is('financieras*') && request('tab') == 'garantias') ? 'active' : '' }}">
-                                    <a href="{{ route('financieras.index', ['tab' => 'garantias']) }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Garantías</span>
-                                    </a>
-                                </li>
-                            @endif
-                            @if (auth()->user()->can('financieras.robos.menu') || auth()->user()->can('financieras.robos.read'))
-                                <li class="{{ Request::is('financieras/robos*') || (Request::is('financieras*') && request('tab') == 'robos') ? 'active' : '' }}">
-                                    <a href="{{ route('financieras.index', ['tab' => 'robos']) }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Reportes de Robo</span>
-                                    </a>
-                                </li>
-                            @endif
-                            @if (auth()->user()->can('financieras.catalogos.menu') || auth()->user()->can('financieras.catalogos.read'))
-                                <li class="{{ Request::is('financieras/catalogos*') ? 'active' : '' }}">
-                                    <a href="{{ route('financieras.catalogos.index') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Catálogos</span>
-                                    </a>
-                                </li>
-                            @endif
-                        </ul>
                     </li>
                 @endif
 
                 {{-- ===================== 4. CATÁLOGO & STOCK ===================== --}}
-                @if (auth()->user()->can('product.menu') || auth()->user()->can('stock.menu'))
+                @if (auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('category.menu') || auth()->user()->can('category.read') || auth()->user()->can('stock.menu') || auth()->user()->can('stock.read'))
                     <li class="sidebar-section-title">
                         <span>Inventario</span>
                     </li>
 
-                    @if (auth()->user()->can('product.menu'))
+                    @if (auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('category.menu') || auth()->user()->can('category.read'))
                         @php
                             $isProductsActive = Request::is('products*') || Request::is('categories*');
                         @endphp
@@ -195,11 +144,13 @@
                             </a>
                             <ul id="products" class="iq-submenu collapse {{ $isProductsActive ? 'show' : '' }}"
                                 data-parent="#iq-sidebar-toggle">
-                                <li class="{{ Request::is('products') ? 'active' : '' }}">
-                                    <a href="{{ route('products.index') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Catálogo</span>
-                                    </a>
-                                </li>
+                                @if (auth()->user()->can('product.menu') || auth()->user()->can('product.read'))
+                                    <li class="{{ Request::is('products') ? 'active' : '' }}">
+                                        <a href="{{ route('products.index') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Catálogo</span>
+                                        </a>
+                                    </li>
+                                @endif
                                 @if (auth()->user()->can('product.create'))
                                     <li class="{{ Request::is('products/create') ? 'active' : '' }}">
                                         <a href="{{ route('products.create') }}">
@@ -207,7 +158,7 @@
                                         </a>
                                     </li>
                                 @endif
-                                @if (auth()->user()->can('category.read'))
+                                @if (auth()->user()->can('category.menu') || auth()->user()->can('category.read'))
                                     <li class="{{ Request::is('categories*') ? 'active' : '' }}">
                                         <a href="{{ route('categories.index') }}">
                                             <i class="fa-solid fa-arrow-right"></i><span>Categorías</span>
@@ -218,7 +169,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('stock.menu'))
+                    @if (auth()->user()->can('stock.menu') || auth()->user()->can('stock.read'))
                         <li class="{{ Request::is('stock*') || Request::is('order/stock*') ? 'active' : '' }}">
                             <a href="{{ route('order.stockManage') }}" class="svg-icon">
                                 <i class="fa-solid fa-warehouse text-warning"></i>
@@ -229,12 +180,12 @@
                 @endif
 
                 {{-- ===================== 5. DIRECTORIO & RRHH ===================== --}}
-                @if (auth()->user()->can('customer.menu') || auth()->user()->can('supplier.menu') || auth()->user()->can('employee.menu') || auth()->user()->can('salary.menu') || auth()->user()->can('attendence.menu'))
+                @if (auth()->user()->can('customer.menu') || auth()->user()->can('customer.read') || auth()->user()->can('supplier.menu') || auth()->user()->can('supplier.read') || auth()->user()->can('employee.menu') || auth()->user()->can('employee.read') || auth()->user()->can('salary.menu') || auth()->user()->can('salary.read') || auth()->user()->can('salary.create') || auth()->user()->can('attendence.menu') || auth()->user()->can('attendence.read') || auth()->user()->can('attendence.create'))
                     <li class="sidebar-section-title">
                         <span>Directorio & Personal</span>
                     </li>
 
-                    @if (auth()->user()->can('customer.menu'))
+                    @if (auth()->user()->can('customer.menu') || auth()->user()->can('customer.read'))
                         <li class="{{ Request::is('customers*') ? 'active' : '' }}">
                             <a href="{{ route('customers.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-users text-success"></i>
@@ -243,7 +194,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('supplier.menu'))
+                    @if (auth()->user()->can('supplier.menu') || auth()->user()->can('supplier.read'))
                         <li class="{{ Request::is('suppliers*') ? 'active' : '' }}">
                             <a href="{{ route('suppliers.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-truck-field text-secondary"></i>
@@ -252,7 +203,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('employee.menu'))
+                    @if (auth()->user()->can('employee.menu') || auth()->user()->can('employee.read'))
                         <li class="{{ Request::is('employees*') ? 'active' : '' }}">
                             <a href="{{ route('employees.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-id-badge text-primary"></i>
@@ -261,7 +212,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('salary.menu'))
+                    @if (auth()->user()->can('salary.menu') || auth()->user()->can('salary.read') || auth()->user()->can('salary.create'))
                         @php
                             $isSalaryActive = Request::is('advance-salary*') || Request::is('pay-salary*');
                         @endphp
@@ -279,26 +230,32 @@
                             </a>
                             <ul id="salary-menu" class="iq-submenu collapse {{ $isSalaryActive ? 'show' : '' }}"
                                 data-parent="#iq-sidebar-toggle">
-                                <li class="{{ Request::is('advance-salary*') ? 'active' : '' }}">
-                                    <a href="{{ route('advance-salary.index') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Anticipos</span>
-                                    </a>
-                                </li>
-                                <li class="{{ Request::is('pay-salary') ? 'active' : '' }}">
-                                    <a href="{{ route('pay-salary.index') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Pagar Salario</span>
-                                    </a>
-                                </li>
-                                <li class="{{ Request::is('pay-salary/history*') ? 'active' : '' }}">
-                                    <a href="{{ route('pay-salary.payHistory') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Historial de Pagos</span>
-                                    </a>
-                                </li>
+                                @if (auth()->user()->can('salary.read') || auth()->user()->can('salary.menu'))
+                                    <li class="{{ Request::is('advance-salary*') ? 'active' : '' }}">
+                                        <a href="{{ route('advance-salary.index') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Anticipos</span>
+                                        </a>
+                                    </li>
+                                @endif
+                                @if (auth()->user()->can('salary.create'))
+                                    <li class="{{ Request::is('pay-salary') ? 'active' : '' }}">
+                                        <a href="{{ route('pay-salary.index') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Pagar Salario</span>
+                                        </a>
+                                    </li>
+                                @endif
+                                @if (auth()->user()->can('salary.read') || auth()->user()->can('salary.menu'))
+                                    <li class="{{ Request::is('pay-salary/history*') ? 'active' : '' }}">
+                                        <a href="{{ route('pay-salary.payHistory') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Historial de Pagos</span>
+                                        </a>
+                                    </li>
+                                @endif
                             </ul>
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('attendence.menu'))
+                    @if (auth()->user()->can('attendence.menu') || auth()->user()->can('attendence.read') || auth()->user()->can('attendence.create'))
                         @php
                             $isAttendenceActive = Request::is('employee/attendence*');
                         @endphp
@@ -316,23 +273,27 @@
                             </a>
                             <ul id="attendence-menu" class="iq-submenu collapse {{ $isAttendenceActive ? 'show' : '' }}"
                                 data-parent="#iq-sidebar-toggle">
-                                <li class="{{ Request::is('employee/attendence') ? 'active' : '' }}">
-                                    <a href="{{ route('attendence.index') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Ver Asistencias</span>
-                                    </a>
-                                </li>
-                                <li class="{{ Request::is('employee/attendence/create*') ? 'active' : '' }}">
-                                    <a href="{{ route('attendence.create') }}">
-                                        <i class="fa-solid fa-arrow-right"></i><span>Registrar Asistencia</span>
-                                    </a>
-                                </li>
+                                @if (auth()->user()->can('attendence.read') || auth()->user()->can('attendence.menu'))
+                                    <li class="{{ Request::is('employee/attendence') ? 'active' : '' }}">
+                                        <a href="{{ route('attendence.index') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Ver Asistencias</span>
+                                        </a>
+                                    </li>
+                                @endif
+                                @if (auth()->user()->can('attendence.create'))
+                                    <li class="{{ Request::is('employee/attendence/create*') ? 'active' : '' }}">
+                                        <a href="{{ route('attendence.create') }}">
+                                            <i class="fa-solid fa-arrow-right"></i><span>Registrar Asistencia</span>
+                                        </a>
+                                    </li>
+                                @endif
                             </ul>
                         </li>
                     @endif
                 @endif
 
                 {{-- ===================== 6. ADMINISTRACIÓN & SISTEMA ===================== --}}
-                @if (auth()->user()->can('branch.menu') || auth()->user()->can('branch.read') || auth()->user()->can('user.menu') || auth()->user()->can('user.read') || auth()->user()->can('roles.menu') || auth()->user()->can('database.menu'))
+                @if (auth()->user()->can('branch.menu') || auth()->user()->can('branch.read') || auth()->user()->can('user.menu') || auth()->user()->can('user.read') || auth()->user()->can('roles.menu') || auth()->user()->can('roles.read') || auth()->user()->can('roles.edit') || auth()->user()->can('permissions.menu') || auth()->user()->can('permissions.read') || auth()->user()->can('database.menu') || auth()->user()->can('database.read'))
                     <li class="sidebar-section-title">
                         <span>Sistema & Ajustes</span>
                     </li>
@@ -355,7 +316,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->can('roles.menu'))
+                    @if (auth()->user()->can('roles.menu') || auth()->user()->can('roles.read') || auth()->user()->can('roles.edit') || auth()->user()->can('permissions.menu') || auth()->user()->can('permissions.read'))
                         @php
                             $isRolesActive = Request::is('role*') || Request::is('permission*');
                         @endphp
@@ -373,14 +334,14 @@
                             </a>
                             <ul id="permission" class="iq-submenu collapse {{ $isRolesActive ? 'show' : '' }}"
                                 data-parent="#iq-sidebar-toggle">
-                                @if (auth()->user()->can('permissions.read'))
+                                @if (auth()->user()->can('permissions.read') || auth()->user()->can('permissions.menu'))
                                     <li class="{{ Request::is(['permission', 'permission/create', 'permission/edit/*']) ? 'active' : '' }}">
                                         <a href="{{ route('permission.index') }}">
                                             <i class="fa-solid fa-arrow-right"></i><span>Catálogo Permisos</span>
                                         </a>
                                     </li>
                                 @endif
-                                @if (auth()->user()->can('roles.read'))
+                                @if (auth()->user()->can('roles.read') || auth()->user()->can('roles.menu'))
                                     <li class="{{ Request::is(['role', 'role/create', 'role/edit/*']) ? 'active' : '' }}">
                                         <a href="{{ route('role.index') }}">
                                             <i class="fa-solid fa-arrow-right"></i><span>Catálogo Roles</span>
@@ -395,6 +356,15 @@
                                     </li>
                                 @endif
                             </ul>
+                        </li>
+                    @endif
+
+                    @if (auth()->user()->can('database.menu') || auth()->user()->can('database.read'))
+                        <li class="{{ Request::is('database/backup*') ? 'active' : '' }}">
+                            <a href="{{ route('backup.index') }}" class="svg-icon">
+                                <i class="fa-solid fa-database text-info"></i>
+                                <span class="ml-3">Copia de Seguridad</span>
+                            </a>
                         </li>
                     @endif
 

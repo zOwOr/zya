@@ -76,8 +76,23 @@ if (!function_exists('filePreviewHtml')) {
                             <div class="ml-3">
                                 <h4 class="mb-1">{{ $customer->tit_name }}</h4>
                                 <p class="mb-2">{{ $customer->tit_facebook }}</p>
-
-                                <a href="{{ route('customers.index') }}" class="btn btn-danger font-size-14">Regresar</a>
+                                <div class="mt-2">
+                                    <a href="{{ route('customers.index') }}" class="btn btn-danger font-size-14">Regresar</a>
+                                    @can('customer.edit')
+                                        <a href="{{ route('customers.edit', $customer->id) }}" class="btn btn-primary font-size-14 ml-1">
+                                            <i class="ri-pencil-line mr-1"></i>Editar
+                                        </a>
+                                    @endcan
+                                    @can('customer.delete')
+                                        <form action="{{ route('customers.destroy', $customer->id) }}" method="POST" class="d-inline-block ml-1" onsubmit="return confirm('¿Estás seguro de eliminar este registro?')">
+                                            @csrf
+                                            @method('delete')
+                                            <button type="submit" class="btn btn-warning font-size-14 text-white">
+                                                <i class="ri-delete-bin-line mr-1"></i>Eliminar
+                                            </button>
+                                        </form>
+                                    @endcan
+                                </div>
                             </div>
                         </div>
                         <ul class="list-inline p-0 m-0">
@@ -593,9 +608,11 @@ if (!function_exists('filePreviewHtml')) {
         </div>
     </div>
 
-            <div class="text-center my-4 no-print">
+        @can('customer.export')
+        <div class="text-center my-4 no-print">
             <button class="btn btn-primary" onclick="imprimirCliente()">🖨️ Imprimir información del cliente</button>
         </div>
+        @endcan
 @endsection
 
 @section('specificpagescripts')

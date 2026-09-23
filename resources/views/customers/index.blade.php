@@ -24,8 +24,10 @@
                         <a href="{{ route('customers.exportData') }}" class="btn btn-success add-list mr-2"><i
                                 class="fa-solid fa-file-excel mr-2"></i>Exportar Excel</a>
                         @endcan
+                        @can('customer.create')
                         <a href="{{ route('customers.create') }}" class="btn btn-primary add-list"><i
                                 class="fa-solid fa-plus mr-3"></i>Nuevo Cliente</a>
+                        @endcan
                         <a href="{{ route('customers.index') }}" class="btn btn-danger add-list"><i
                                 class="fa-solid fa-trash mr-3"></i>Limpiar Busqueda</a>
                     </div>
@@ -80,7 +82,9 @@
                                 <th>@sortablelink('Email')</th>
                                 <th>@sortablelink('Teléfono')</th>
                                 <th>@sortablelink('Facebook')</th>
-                                <th>Accion</th>
+                                @canany(['customer.read', 'customer.edit', 'customer.delete'])
+                                <th>Acción</th>
+                                @endcanany
                             </tr>
                         </thead>
                         <tbody class="ligth-body">
@@ -95,51 +99,40 @@
                                     <td>{{ $customer->tit_email }}</td>
                                     <td>{{ $customer->tit_phone }}</td>
                                     <td>{{ $customer->tit_facebook }}</td>
+                                    @canany(['customer.read', 'customer.edit', 'customer.delete'])
                                     <td>
                                         <div class="d-flex align-items-center list-action">
-
+                                            @can('customer.read')
                                             <a class="badge badge-info mr-2" data-toggle="tooltip" data-placement="top"
-                                                title="" data-original-title="View"
+                                                title="" data-original-title="Ver"
                                                 href="{{ route('customers.show', $customer->id) }}"><i
                                                     class="ri-eye-line mr-0"></i>
                                             </a>
-                                            @if (auth()->user()->hasRole('Visitante'))
-                                                <a class="badge bg-success mr-2" data-toggle="tooltip" data-placement="top" hidden
-                                                    title="" data-original-title="Edit"
-                                                    href="{{ route('customers.edit', $customer->id) }}"><i
-                                                        class="ri-pencil-line mr-0"></i>
-                                                </a>
-                                                <form action="{{ route('customers.destroy', $customer->id) }}"
-                                                    method="POST" style="margin-bottom: 5px">
-                                                    @method('delete')
-                                                    @csrf
-                                                    <button type="submit" class="badge bg-warning mr-2 border-none" hidden
-                                                        onclick="return confirm('Estas seguro de eliminar este registro?')"
-                                                        data-toggle="tooltip" data-placement="top" title=""
-                                                        data-original-title="Delete"><i
-                                                            class="ri-delete-bin-line mr-0"></i></button>
-                                                </form>
-                                            @else
-                                                <a class="badge bg-success mr-2" data-toggle="tooltip" data-placement="top"
-                                                    title="" data-original-title="Edit"
-                                                    href="{{ route('customers.edit', $customer->id) }}"><i
-                                                        class="ri-pencil-line mr-0"></i>
-                                                </a>
-                                                <form action="{{ route('customers.destroy', $customer->id) }}"
-                                                    method="POST" style="margin-bottom: 5px">
-                                                    @method('delete')
-                                                    @csrf
-                                                    <button type="submit" class="badge bg-warning mr-2 border-none"
-                                                        onclick="return confirm('Estas seguro de eliminar este registro?')"
-                                                        data-toggle="tooltip" data-placement="top" title=""
-                                                        data-original-title="Delete"><i
-                                                            class="ri-delete-bin-line mr-0"></i></button>
-                                                </form>
-                                            @endif
+                                            @endcan
 
+                                            @can('customer.edit')
+                                            <a class="badge bg-success mr-2" data-toggle="tooltip" data-placement="top"
+                                                title="" data-original-title="Editar"
+                                                href="{{ route('customers.edit', $customer->id) }}"><i
+                                                    class="ri-pencil-line mr-0"></i>
+                                            </a>
+                                            @endcan
 
+                                            @can('customer.delete')
+                                            <form action="{{ route('customers.destroy', $customer->id) }}"
+                                                method="POST" style="margin-bottom: 5px">
+                                                @method('delete')
+                                                @csrf
+                                                <button type="submit" class="badge bg-warning mr-2 border-none"
+                                                    onclick="return confirm('¿Estás seguro de eliminar este registro?')"
+                                                    data-toggle="tooltip" data-placement="top" title=""
+                                                    data-original-title="Eliminar"><i
+                                                        class="ri-delete-bin-line mr-0"></i></button>
+                                            </form>
+                                            @endcan
                                         </div>
                                     </td>
+                                    @endcanany
                                 </tr>
                             @endforeach
                         </tbody>
