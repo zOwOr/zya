@@ -38,7 +38,7 @@
                         <div class="font-weight-bold">{{ $sale->customer_name ?: 'Sin registrar' }}</div>
                         <small class="text-muted">{{ $sale->customer_phone }}</small>
                     </td>
-                    <td>{{ $sale->seller?->name ?? 'N/A' }}</td>
+                    <td>{{ $sale->seller_display_name }}</td>
                     <td>
                         <span class="font-weight-bold text-success">${{ number_format($sale->price, 2) }}</span>
                         <br>

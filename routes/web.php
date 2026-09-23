@@ -243,6 +243,8 @@ Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financi
         Route::get('/create', [FinSaleController::class, 'create'])->name('create');
         Route::post('/', [FinSaleController::class, 'store'])->name('store');
         Route::get('/export/excel', [FinSaleController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/template/excel', [FinSaleController::class, 'downloadTemplate'])->name('template.excel');
+        Route::post('/import/excel', [FinSaleController::class, 'importExcel'])->name('import.excel');
         Route::get('/{sale}', [FinSaleController::class, 'show'])->name('show');
         Route::get('/{sale}/edit', [FinSaleController::class, 'edit'])->name('edit');
         Route::put('/{sale}', [FinSaleController::class, 'update'])->name('update');

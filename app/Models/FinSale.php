@@ -19,6 +19,7 @@ class FinSale extends Model
         'financiera_id',
         'branch_id',
         'seller_id',
+        'seller_name',
         // Datos cliente
         'customer_name',
         'customer_phone',
@@ -87,6 +88,15 @@ class FinSale extends Model
         return $this->belongsTo(User::class, 'seller_id');
     }
 
+    public function getSellerDisplayNameAttribute()
+    {
+        if ($this->seller_id && $this->seller) {
+            return $this->seller->name;
+        }
+
+        return !empty($this->seller_name) ? $this->seller_name : 'N/A';
+    }
+
     public function canceller()
     {
         return $this->belongsTo(User::class, 'cancelled_by');
@@ -116,6 +126,7 @@ class FinSale extends Model
                   ->orWhere('customer_phone', 'like', "%{$search}%")
                   ->orWhere('customer_email', 'like', "%{$search}%")
                   ->orWhere('customer_ine', 'like', "%{$search}%")
+                  ->orWhere('seller_name', 'like', "%{$search}%")
                   ->orWhereHas('device', function ($d) use ($search) {
                       $d->where('imei', 'like', "%{$search}%")
                         ->orWhere('model', 'like', "%{$search}%");

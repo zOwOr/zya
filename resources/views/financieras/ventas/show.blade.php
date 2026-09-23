@@ -104,7 +104,7 @@
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <span class="text-muted font-size-12 d-block">Vendedor Asignado</span>
-                                    <span class="font-weight-bold">{{ $sale->seller?->name ?? 'N/A' }}</span>
+                                    <span class="font-weight-bold">{{ $sale->seller_display_name }}</span>
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <span class="text-muted font-size-12 d-block">Acciones cruzadas</span>
