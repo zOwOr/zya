@@ -6,11 +6,9 @@
     <style>
         @page {
             size: letter portrait;
-            margin: 8mm 12mm 8mm 12mm;
+            margin: 15mm 16mm 14mm 16mm;
         }
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
         body {
@@ -18,6 +16,8 @@
             font-size: 8.5pt;
             color: #111;
             line-height: 1.3;
+            margin: 0;
+            padding: 0;
         }
 
         /* Header */
@@ -235,9 +235,10 @@
         .clausulas-box {
             border: 1.5px solid #000;
             border-radius: 4px;
-            padding: 6px 10px 6px 8px;
+            padding: 6px 12px 6px 8px;
             margin-bottom: 12px;
             background-color: #fafafa;
+            overflow: hidden;
         }
         .clausulas-title {
             font-size: 8pt;
@@ -247,13 +248,14 @@
             border-bottom: 1px solid #000;
             text-align: center;
             background-color: #f0f0f0;
-            margin: -6px -10px 5px -8px;
+            margin: -6px -12px 5px -8px;
             padding: 3px 8px;
             color: #000;
         }
         .clausulas-list {
-            margin: 0;
+            margin: 0 14px 0 0;
             padding-left: 14px;
+            padding-right: 12px;
             font-size: 7.8pt;
             line-height: 1.38;
             text-align: justify;
@@ -265,7 +267,7 @@
         /* Firmas */
         .firmas-table {
             width: 100%;
-            margin-top: 20px;
+            margin-top: 10px;
             page-break-inside: avoid;
         }
         .firma-col {
@@ -277,7 +279,7 @@
             width: 12%;
         }
         .firma-space {
-            height: 60px; /* Espacio amplio de 60px para firma física o sello */
+            height: 45px;
             width: 100%;
         }
         .firma-line {
@@ -370,10 +372,8 @@
                 <th style="width:18%;">MODELO / EQUIPO</th>
                 <th style="width:17%;">IMEI</th>
                 <th style="width:11%;">CONTRATO / ID</th>
-                <th style="width:10%;">PRECIO TOTAL</th>
                 <th style="width:9%;">ENGANCHE</th>
                 <th style="width:9%;">DESCTO. ENG.</th>
-                <th style="width:10%;">CRÉDITO</th>
                 <th style="width:8%;">ABONO</th>
                 <th style="width:8%;">PLAZO</th>
             </tr>
@@ -388,10 +388,8 @@
                 </td>
                 <td style="font-weight:bold;">{{ $sale->device?->imei ?? 'N/D' }}</td>
                 <td>{{ $sale->tag_contrato ?: 'N/D' }}</td>
-                <td><strong>${{ number_format($sale->price, 2) }}</strong></td>
                 <td>${{ number_format($sale->down_payment, 2) }}</td>
                 <td>{{ $sale->enganche_descuento ? '$'.number_format($sale->enganche_descuento, 2) : '-' }}</td>
-                <td>${{ number_format($sale->credit_amount, 2) }}</td>
                 <td>{{ $sale->abono_semanal ? '$'.number_format($sale->abono_semanal, 2) : '-' }}</td>
                 <td>{{ $sale->term_weeks ? $sale->term_weeks . ' sem.' : ($sale->term_months ? $sale->term_months . ' mes.' : '-') }}</td>
             </tr>

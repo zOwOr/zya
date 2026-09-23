@@ -41,7 +41,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('financieras.ventas.store') }}" method="POST" id="saleForm">
+            <form action="{{ route('financieras.ventas.store') }}" method="POST" id="saleForm" autocomplete="off">
                 @csrf
 
                 <!-- SECCIÓN 1: DATOS DEL EQUIPO (IMEI) -->
@@ -127,14 +127,14 @@
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Modelo <span class="text-danger">*</span></label>
-                                <input type="text" name="model" id="modelInput" class="form-control @error('model') is-invalid @enderror" placeholder="Ej. Galaxy A54, iPhone 13" value="{{ old('model') }}" required>
+                                <input type="text" name="model" id="modelInput" class="form-control @error('model') is-invalid @enderror" placeholder="Ej. Galaxy A54, iPhone 13" value="{{ old('model') }}" required autocomplete="off">
                                 @error('model')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Color</label>
-                                <input type="text" name="color" id="colorInput" class="form-control" placeholder="Ej. Negro, Azul" value="{{ old('color') }}">
+                                <input type="text" name="color" id="colorInput" class="form-control" placeholder="Ej. Negro, Azul" value="{{ old('color') }}" autocomplete="off">
                             </div>
                         </div>
                     </div>
@@ -154,31 +154,31 @@
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Nombre Completo del Cliente</label>
-                                <input type="text" name="customer_name" class="form-control" placeholder="Nombre completo" value="{{ old('customer_name') }}">
+                                <input type="text" name="customer_name" class="form-control" placeholder="Nombre completo" value="{{ old('customer_name') }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Teléfono de Contacto</label>
-                                <input type="text" name="customer_phone" class="form-control" placeholder="10 dígitos" value="{{ old('customer_phone') }}">
+                                <input type="text" name="customer_phone" class="form-control" placeholder="10 dígitos" value="{{ old('customer_phone') }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Correo Electrónico</label>
-                                <input type="email" name="customer_email" class="form-control" placeholder="cliente@correo.com" value="{{ old('customer_email') }}">
+                                <input type="email" name="customer_email" class="form-control" placeholder="cliente@correo.com" value="{{ old('customer_email') }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Folio de INE / Identificación</label>
-                                <input type="text" name="customer_ine" class="form-control" placeholder="Clave de elector o folio" value="{{ old('customer_ine') }}">
+                                <input type="text" name="customer_ine" class="form-control" placeholder="Clave de elector o folio" value="{{ old('customer_ine') }}" autocomplete="off">
                             </div>
                             <div class="col-md-8 mb-3">
                                 <label class="font-weight-bold">Dirección / Domicilio</label>
-                                <input type="text" name="customer_address" class="form-control" placeholder="Calle, número, colonia, ciudad" value="{{ old('customer_address') }}">
+                                <input type="text" name="customer_address" class="form-control" placeholder="Calle, número, colonia, ciudad" value="{{ old('customer_address') }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Chip Ingresado (SIM)</label>
-                                <input type="text" name="customer_chip" class="form-control" placeholder="Operadora / Número de SIM" value="{{ old('customer_chip') }}">
+                                <input type="text" name="customer_chip" class="form-control" placeholder="Operadora / Número de SIM" value="{{ old('customer_chip') }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Facebook</label>
-                                <input type="text" name="customer_facebook" class="form-control" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook') }}">
+                                <input type="text" name="customer_facebook" class="form-control" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook') }}" autocomplete="off">
                             </div>
                         </div>
 
@@ -187,27 +187,27 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #1 — Nombre</label>
-                                <input type="text" name="ref1_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref1_name') }}">
+                                <input type="text" name="ref1_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref1_name') }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #1 — Celular</label>
-                                <input type="text" name="ref1_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref1_phone') }}">
+                                <input type="text" name="ref1_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref1_phone') }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #2 — Nombre</label>
-                                <input type="text" name="ref2_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref2_name') }}">
+                                <input type="text" name="ref2_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref2_name') }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #2 — Celular</label>
-                                <input type="text" name="ref2_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref2_phone') }}">
+                                <input type="text" name="ref2_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref2_phone') }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #3 — Nombre</label>
-                                <input type="text" name="ref3_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref3_name') }}">
+                                <input type="text" name="ref3_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref3_name') }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #3 — Celular</label>
-                                <input type="text" name="ref3_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref3_phone') }}">
+                                <input type="text" name="ref3_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref3_phone') }}" autocomplete="off">
                             </div>
                         </div>
                     </div>
@@ -238,13 +238,17 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">TAG / No. Contrato</label>
-                                <input type="text" name="tag_contrato" class="form-control" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato') }}">
+                                <input type="text" name="tag_contrato" id="tagContratoInput" class="form-control @error('tag_contrato') is-invalid @enderror" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato') }}" autocomplete="off">
+                                @error('tag_contrato')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
+                                <div id="tagFeedback" class="mt-1"></div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Precio Total ($) <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="price" id="priceInput" class="form-control font-weight-bold text-success font-size-16 @error('price') is-invalid @enderror" value="{{ old('price') }}" placeholder="0.00" required>
+                                    <input type="number" step="0.01" min="0" name="price" id="priceInput" class="form-control font-weight-bold text-success font-size-16 @error('price') is-invalid @enderror" value="{{ old('price') }}" placeholder="0.00" required autocomplete="off">
                                 </div>
                                 @error('price')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
@@ -254,45 +258,45 @@
                                 <label class="font-weight-bold">Enganche Inicial ($)</label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="down_payment" id="downPaymentInput" class="form-control font-weight-bold" value="{{ old('down_payment', 0) }}">
+                                    <input type="number" step="0.01" min="0" name="down_payment" id="downPaymentInput" class="form-control font-weight-bold" value="{{ old('down_payment', 0) }}" autocomplete="off">
                                 </div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Enganche con Descuento ($)</label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', 0) }}" placeholder="0.00">
+                                    <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', 0) }}" placeholder="0.00" autocomplete="off">
                                 </div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Monto Financiado ($)</label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="credit_amount" id="creditAmountInput" class="form-control font-weight-bold text-primary" value="{{ old('credit_amount', 0) }}">
+                                    <input type="number" step="0.01" min="0" name="credit_amount" id="creditAmountInput" class="form-control font-weight-bold text-primary" value="{{ old('credit_amount', 0) }}" autocomplete="off">
                                 </div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Abono Semanal ($)</label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control" value="{{ old('abono_semanal', 0) }}" placeholder="0.00">
+                                    <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control" value="{{ old('abono_semanal', 0) }}" placeholder="0.00" autocomplete="off">
                                 </div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Plazo en Semanas</label>
-                                <input type="number" min="1" max="104" name="term_weeks" class="form-control" placeholder="Ej. 12, 24, 52" value="{{ old('term_weeks') }}">
+                                <input type="number" min="1" max="104" name="term_weeks" class="form-control" placeholder="Ej. 12, 24, 52" value="{{ old('term_weeks') }}" autocomplete="off">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Plazo en Meses</label>
-                                <input type="number" min="1" max="72" name="term_months" class="form-control" placeholder="Ej. 6, 12, 18, 24" value="{{ old('term_months') }}">
+                                <input type="number" min="1" max="72" name="term_months" class="form-control" placeholder="Ej. 6, 12, 18, 24" value="{{ old('term_months') }}" autocomplete="off">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Fecha de Venta</label>
-                                <input type="datetime-local" name="sale_date" class="form-control" value="{{ old('sale_date', now()->format('Y-m-d\TH:i')) }}">
+                                <input type="datetime-local" name="sale_date" class="form-control" value="{{ old('sale_date', now()->format('Y-m-d\TH:i')) }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Nota Libre / Observaciones de Venta</label>
-                                <textarea name="initial_note" class="form-control" rows="2" placeholder="Cualquier acuerdo particular, número de contrato externa o comentario...">{{ old('initial_note') }}</textarea>
+                                <textarea name="initial_note" class="form-control" rows="2" placeholder="Cualquier acuerdo particular, número de contrato externa o comentario..." autocomplete="off">{{ old('initial_note') }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -313,6 +317,9 @@
 @section('specificpagescripts')
 <script>
 $(document).ready(function() {
+    // Desactivar sugerencias / historial de autocompletado en todos los campos
+    $('#saleForm').attr('autocomplete', 'off').find('input, textarea').attr('autocomplete', 'off');
+
     // Live IMEI Verification
     $('#btnVerifyImei, #imeiInput').on('blur change click', function(e) {
         if (e.type === 'click' && this.id !== 'btnVerifyImei') return;
@@ -395,6 +402,43 @@ $(document).ready(function() {
     $(document).on('click', function(e) {
         if (!$(e.target).closest('#brandInput, #brandSuggestions').length) {
             $('#brandSuggestions').hide();
+        }
+    });
+
+    // Verificación en vivo de duplicados para TAG / No. Contrato
+    $('#tagContratoInput').on('blur change', function() {
+        let tag = $(this).val().trim();
+        if (!tag) {
+            $('#tagFeedback').html('');
+            $('#tagContratoInput').removeClass('is-invalid');
+            return;
+        }
+
+        $.get("{{ route('financieras.ventas.check-tag') }}", { tag: tag }, function(res) {
+            if (res.exists) {
+                $('#tagFeedback').html('<div class="text-danger font-size-12 font-weight-bold mt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>El TAG ya está registrado en la venta ' + (res.sale_code || '') + '. No se permiten duplicados.</div>');
+                $('#tagContratoInput').addClass('is-invalid');
+            } else {
+                $('#tagFeedback').html('<div class="text-success font-size-12 mt-1"><i class="fa-solid fa-circle-check mr-1"></i>TAG disponible.</div>');
+                $('#tagContratoInput').removeClass('is-invalid');
+            }
+        });
+    });
+
+    // Evitar registrar duplicados al enviar el formulario
+    $('#saleForm').on('submit', function(e) {
+        if ($('#tagContratoInput').hasClass('is-invalid')) {
+            e.preventDefault();
+            alert('El TAG / No. Contrato ingresado ya existe en otra venta. Por favor ingrese un TAG único.');
+            $('#tagContratoInput').focus();
+            return false;
+        }
+
+        if ($('#imeiFeedback .alert-danger').length > 0) {
+            e.preventDefault();
+            alert('No se puede registrar la venta: el dispositivo ya ha sido vendido o presenta un reporte.');
+            $('#imeiInput').focus();
+            return false;
         }
     });
 });

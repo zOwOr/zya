@@ -28,7 +28,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('financieras.ventas.update', $sale->id) }}" method="POST">
+            <form action="{{ route('financieras.ventas.update', $sale->id) }}" method="POST" id="saleEditForm" autocomplete="off">
                 @csrf
                 @method('PUT')
 
@@ -71,34 +71,34 @@
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Nombre Completo</label>
-                                <input type="text" name="customer_name" class="form-control" value="{{ old('customer_name', $sale->customer_name) }}">
+                                <input type="text" name="customer_name" class="form-control" value="{{ old('customer_name', $sale->customer_name) }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Teléfono</label>
-                                <input type="text" name="customer_phone" class="form-control" value="{{ old('customer_phone', $sale->customer_phone) }}">
+                                <input type="text" name="customer_phone" class="form-control" value="{{ old('customer_phone', $sale->customer_phone) }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Email</label>
-                                <input type="email" name="customer_email" class="form-control @error('customer_email') is-invalid @enderror" value="{{ old('customer_email', $sale->customer_email) }}">
+                                <input type="email" name="customer_email" class="form-control @error('customer_email') is-invalid @enderror" value="{{ old('customer_email', $sale->customer_email) }}" autocomplete="off">
                                 @error('customer_email')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">INE / Folio</label>
-                                <input type="text" name="customer_ine" class="form-control" value="{{ old('customer_ine', $sale->customer_ine) }}">
+                                <input type="text" name="customer_ine" class="form-control" value="{{ old('customer_ine', $sale->customer_ine) }}" autocomplete="off">
                             </div>
                             <div class="col-md-8 mb-3">
                                 <label class="font-weight-bold">Dirección</label>
-                                <input type="text" name="customer_address" class="form-control" value="{{ old('customer_address', $sale->customer_address) }}">
+                                <input type="text" name="customer_address" class="form-control" value="{{ old('customer_address', $sale->customer_address) }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Chip Ingresado (SIM)</label>
-                                <input type="text" name="customer_chip" class="form-control" placeholder="Operadora / Número SIM" value="{{ old('customer_chip', $sale->customer_chip) }}">
+                                <input type="text" name="customer_chip" class="form-control" placeholder="Operadora / Número SIM" value="{{ old('customer_chip', $sale->customer_chip) }}" autocomplete="off">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Facebook</label>
-                                <input type="text" name="customer_facebook" class="form-control" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook', $sale->customer_facebook) }}">
+                                <input type="text" name="customer_facebook" class="form-control" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook', $sale->customer_facebook) }}" autocomplete="off">
                             </div>
                         </div>
 
@@ -107,27 +107,27 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #1 — Nombre</label>
-                                <input type="text" name="ref1_name" class="form-control" value="{{ old('ref1_name', $sale->ref1_name) }}">
+                                <input type="text" name="ref1_name" class="form-control" value="{{ old('ref1_name', $sale->ref1_name) }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #1 — Celular</label>
-                                <input type="text" name="ref1_phone" class="form-control" value="{{ old('ref1_phone', $sale->ref1_phone) }}">
+                                <input type="text" name="ref1_phone" class="form-control" value="{{ old('ref1_phone', $sale->ref1_phone) }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #2 — Nombre</label>
-                                <input type="text" name="ref2_name" class="form-control" value="{{ old('ref2_name', $sale->ref2_name) }}">
+                                <input type="text" name="ref2_name" class="form-control" value="{{ old('ref2_name', $sale->ref2_name) }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #2 — Celular</label>
-                                <input type="text" name="ref2_phone" class="form-control" value="{{ old('ref2_phone', $sale->ref2_phone) }}">
+                                <input type="text" name="ref2_phone" class="form-control" value="{{ old('ref2_phone', $sale->ref2_phone) }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #3 — Nombre</label>
-                                <input type="text" name="ref3_name" class="form-control" value="{{ old('ref3_name', $sale->ref3_name) }}">
+                                <input type="text" name="ref3_name" class="form-control" value="{{ old('ref3_name', $sale->ref3_name) }}" autocomplete="off">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Referencia #3 — Celular</label>
-                                <input type="text" name="ref3_phone" class="form-control" value="{{ old('ref3_phone', $sale->ref3_phone) }}">
+                                <input type="text" name="ref3_phone" class="form-control" value="{{ old('ref3_phone', $sale->ref3_phone) }}" autocomplete="off">
                             </div>
                         </div>
                     </div>
@@ -170,48 +170,52 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">TAG / No. Contrato</label>
-                                <input type="text" name="tag_contrato" class="form-control" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato', $sale->tag_contrato) }}">
+                                <input type="text" name="tag_contrato" id="tagContratoInput" class="form-control @error('tag_contrato') is-invalid @enderror" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato', $sale->tag_contrato) }}" autocomplete="off">
+                                @error('tag_contrato')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
+                                <div id="tagFeedback" class="mt-1"></div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Precio Total ($)</label>
-                                <input type="number" step="0.01" min="0" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $sale->price) }}">
+                                <input type="number" step="0.01" min="0" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $sale->price) }}" autocomplete="off">
                                 @error('price')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Enganche ($)</label>
-                                <input type="number" step="0.01" min="0" name="down_payment" class="form-control @error('down_payment') is-invalid @enderror" value="{{ old('down_payment', $sale->down_payment) }}">
+                                <input type="number" step="0.01" min="0" name="down_payment" class="form-control @error('down_payment') is-invalid @enderror" value="{{ old('down_payment', $sale->down_payment) }}" autocomplete="off">
                                 @error('down_payment')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Enganche con Descuento ($)</label>
-                                <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', $sale->enganche_descuento) }}" placeholder="0.00">
+                                <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', $sale->enganche_descuento) }}" placeholder="0.00" autocomplete="off">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Crédito ($)</label>
-                                <input type="number" step="0.01" min="0" name="credit_amount" class="form-control @error('credit_amount') is-invalid @enderror" value="{{ old('credit_amount', $sale->credit_amount) }}">
+                                <input type="number" step="0.01" min="0" name="credit_amount" class="form-control @error('credit_amount') is-invalid @enderror" value="{{ old('credit_amount', $sale->credit_amount) }}" autocomplete="off">
                                 @error('credit_amount')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Abono Semanal ($)</label>
-                                <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control" value="{{ old('abono_semanal', $sale->abono_semanal) }}" placeholder="0.00">
+                                <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control" value="{{ old('abono_semanal', $sale->abono_semanal) }}" placeholder="0.00" autocomplete="off">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Plazo (Semanas)</label>
-                                <input type="number" min="1" max="104" name="term_weeks" class="form-control" value="{{ old('term_weeks', $sale->term_weeks) }}">
+                                <input type="number" min="1" max="104" name="term_weeks" class="form-control" value="{{ old('term_weeks', $sale->term_weeks) }}" autocomplete="off">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Plazo (Meses)</label>
-                                <input type="number" min="1" max="72" name="term_months" class="form-control" value="{{ old('term_months', $sale->term_months) }}">
+                                <input type="number" min="1" max="72" name="term_months" class="form-control" value="{{ old('term_months', $sale->term_months) }}" autocomplete="off">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Fecha de Venta</label>
-                                <input type="datetime-local" name="sale_date" class="form-control" value="{{ old('sale_date', $sale->sale_date ? $sale->sale_date->format('Y-m-d\TH:i') : '') }}">
+                                <input type="datetime-local" name="sale_date" class="form-control" value="{{ old('sale_date', $sale->sale_date ? $sale->sale_date->format('Y-m-d\TH:i') : '') }}" autocomplete="off">
                             </div>
                         </div>
                     </div>
@@ -227,4 +231,43 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('specificpagescripts')
+<script>
+$(document).ready(function() {
+    // Desactivar sugerencias / historial de autocompletado en todos los campos
+    $('#saleEditForm').attr('autocomplete', 'off').find('input, textarea').attr('autocomplete', 'off');
+
+    // Verificación en vivo de duplicados para TAG / No. Contrato (excluyendo la venta actual)
+    $('#tagContratoInput').on('blur change', function() {
+        let tag = $(this).val().trim();
+        if (!tag) {
+            $('#tagFeedback').html('');
+            $('#tagContratoInput').removeClass('is-invalid');
+            return;
+        }
+
+        $.get("{{ route('financieras.ventas.check-tag') }}", { tag: tag, exclude_id: {{ $sale->id }} }, function(res) {
+            if (res.exists) {
+                $('#tagFeedback').html('<div class="text-danger font-size-12 font-weight-bold mt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>El TAG ya está registrado en la venta ' + (res.sale_code || '') + '. No se permiten duplicados.</div>');
+                $('#tagContratoInput').addClass('is-invalid');
+            } else {
+                $('#tagFeedback').html('<div class="text-success font-size-12 mt-1"><i class="fa-solid fa-circle-check mr-1"></i>TAG disponible.</div>');
+                $('#tagContratoInput').removeClass('is-invalid');
+            }
+        });
+    });
+
+    // Evitar guardar si hay un TAG duplicado
+    $('#saleEditForm').on('submit', function(e) {
+        if ($('#tagContratoInput').hasClass('is-invalid')) {
+            e.preventDefault();
+            alert('El TAG / No. Contrato ingresado ya existe en otra venta. Por favor ingrese un TAG único.');
+            $('#tagContratoInput').focus();
+            return false;
+        }
+    });
+});
+</script>
 @endsection

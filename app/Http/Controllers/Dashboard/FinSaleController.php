@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -40,6 +41,7 @@ class FinSaleController extends Controller
         'addNote' => 'create',
         'exportExcel' => 'export',
         'exportPdf' => 'read',
+        'checkTag' => 'read',
     ];
 
     public function __construct()
@@ -133,10 +135,19 @@ class FinSaleController extends Controller
             $request->merge(['branch_id' => auth()->user()->branch_id]);
         }
 
+        if ($request->filled('tag_contrato')) {
+            $request->merge(['tag_contrato' => trim($request->input('tag_contrato'))]);
+        }
+
         $canAssignSeller = $this->canAssignSeller();
 
         $request->validate([
-            'device_id' => 'nullable|exists:fin_devices,id',
+            'device_id' => [
+                'nullable',
+                'exists:fin_devices,id',
+                Rule::unique('fin_sales', 'device_id')
+                    ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
+            ],
             'imei' => 'required_without:device_id|nullable|string|max:50',
             'model' => 'required_without:device_id|nullable|string|max:150',
             'brand_id' => 'nullable|exists:fin_brands,id',
@@ -152,7 +163,13 @@ class FinSaleController extends Controller
             'abono_semanal' => 'nullable|numeric|min:0',
             'term_months' => 'nullable|integer|min:1|max:120',
             'term_weeks' => 'nullable|integer|min:1|max:520',
-            'tag_contrato' => 'nullable|string|max:100',
+            'tag_contrato' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('fin_sales', 'tag_contrato')
+                    ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
+            ],
             'sale_date' => 'nullable|date',
             'customer_name' => 'nullable|string|max:150',
             'customer_phone' => 'nullable|string|max:30',
@@ -169,6 +186,8 @@ class FinSaleController extends Controller
             'ref3_phone' => 'nullable|string|max:30',
             'initial_note' => 'nullable|string|max:2000',
         ], [
+            'device_id.unique' => 'El dispositivo seleccionado ya cuenta con una venta registrada activa.',
+            'tag_contrato.unique' => 'El TAG / No. de Contrato ya se encuentra registrado en otra venta.',
             'imei.required_without' => 'El IMEI es obligatorio.',
             'model.required_without' => 'El modelo del equipo es obligatorio.',
             'branch_id.required' => 'La sucursal es obligatoria.',
@@ -224,8 +243,19 @@ class FinSaleController extends Controller
         }
 
         $device = FinDevice::findOrFail($deviceId);
-        if ($device->status === 'vendido') {
-            return back()->withInput()->with('error', 'El dispositivo con IMEI ' . $device->imei . ' ya ha sido vendido.');
+
+        // Validar que el dispositivo no tenga ya una venta activa o esté vendido
+        $existingSale = FinSale::where('device_id', $device->id)
+            ->whereNull('deleted_at')
+            ->where('status', '!=', 'cancelada')
+            ->first();
+
+        if ($existingSale || $device->status === 'vendido') {
+            $saleCode = $existingSale ? ' (' . $existingSale->sale_code . ')' : '';
+            return back()->withInput()->withErrors([
+                'imei' => 'El dispositivo con IMEI ' . $device->imei . ' ya cuenta con una venta registrada' . $saleCode . '. No se permiten ventas duplicadas.',
+                'device_id' => 'El dispositivo ya cuenta con una venta registrada.'
+            ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' ya ha sido vendido o cuenta con una venta registrada.');
         }
 
         $sale = DB::transaction(function () use ($request, $device, $canAssignSeller) {
@@ -342,13 +372,31 @@ class FinSaleController extends Controller
             $request->merge(['branch_id' => auth()->user()->branch_id]);
         }
 
+        if ($request->filled('tag_contrato')) {
+            $request->merge(['tag_contrato' => trim($request->input('tag_contrato'))]);
+        }
+
         $canAssignSeller = $this->canAssignSeller();
 
         $request->validate([
             'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
             'seller_id' => $canAssignSeller ? 'nullable|exists:users,id' : 'nullable',
-            'tag_contrato' => 'nullable|string|max:100',
+            'tag_contrato' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('fin_sales', 'tag_contrato')
+                    ->ignore($sale->id)
+                    ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
+            ],
+            'device_id' => [
+                'nullable',
+                'exists:fin_devices,id',
+                Rule::unique('fin_sales', 'device_id')
+                    ->ignore($sale->id)
+                    ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
+            ],
             'price' => 'nullable|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0',
             'enganche_descuento' => 'nullable|numeric|min:0',
@@ -370,6 +418,9 @@ class FinSaleController extends Controller
             'ref2_phone' => 'nullable|string|max:30',
             'ref3_name' => 'nullable|string|max:150',
             'ref3_phone' => 'nullable|string|max:30',
+        ], [
+            'tag_contrato.unique' => 'El TAG / No. de Contrato ya se encuentra registrado en otra venta.',
+            'device_id.unique' => 'El dispositivo ya cuenta con otra venta registrada activa.',
         ]);
 
         $updateData = $request->only([
@@ -396,6 +447,30 @@ class FinSaleController extends Controller
             'sale_date',
         ]);
 
+        if ($request->filled('device_id') && $request->input('device_id') != $sale->device_id) {
+            $newDeviceId = $request->input('device_id');
+            $existingSale = FinSale::where('device_id', $newDeviceId)
+                ->where('id', '!=', $sale->id)
+                ->whereNull('deleted_at')
+                ->where('status', '!=', 'cancelada')
+                ->first();
+
+            if ($existingSale) {
+                return back()->withInput()->withErrors([
+                    'device_id' => 'El dispositivo seleccionado ya cuenta con otra venta registrada (' . $existingSale->sale_code . ').'
+                ])->with('error', 'El dispositivo ya está registrado en otra venta.');
+            }
+
+            if ($sale->device && $sale->device->status === 'vendido') {
+                $sale->device->update(['status' => 'disponible']);
+            }
+            $newDevice = FinDevice::find($newDeviceId);
+            if ($newDevice) {
+                $newDevice->update(['status' => 'vendido']);
+            }
+            $updateData['device_id'] = $newDeviceId;
+        }
+
         // Únicamente usuarios con permiso pueden editar el vendedor
         if ($canAssignSeller && $request->filled('seller_id')) {
             $updateData['seller_id'] = $request->input('seller_id');
@@ -416,6 +491,35 @@ class FinSaleController extends Controller
 
         return redirect()->route('financieras.ventas.show', $sale->id)
             ->with('success', 'Venta actualizada correctamente.');
+    }
+
+    /**
+     * AJAX check if TAG / contrato is already in use
+     */
+    public function checkTag(Request $request)
+    {
+        $tag = trim($request->query('tag', ''));
+        $excludeId = $request->query('exclude_id');
+
+        if (!$tag) {
+            return response()->json(['exists' => false]);
+        }
+
+        $query = FinSale::where('tag_contrato', $tag)
+            ->whereNull('deleted_at')
+            ->where('status', '!=', 'cancelada');
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        $existing = $query->first();
+
+        return response()->json([
+            'exists' => !is_null($existing),
+            'sale_code' => $existing?->sale_code,
+            'customer_name' => $existing?->customer_name,
+        ]);
     }
 
     /**
