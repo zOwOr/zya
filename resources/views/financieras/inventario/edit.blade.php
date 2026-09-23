@@ -100,13 +100,18 @@
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Sucursal Actual <span class="text-danger">*</span></label>
-                                <select name="branch_id" class="form-control @error('branch_id') is-invalid @enderror" required>
-                                    @foreach ($branches as $b)
-                                        <option value="{{ $b->id }}" {{ old('branch_id', $device->branch_id) == $b->id ? 'selected' : '' }}>
-                                            {{ $b->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @can('financieras.inventario.all_branches')
+                                    <select name="branch_id" class="form-control @error('branch_id') is-invalid @enderror" required>
+                                        @foreach ($branches as $b)
+                                            <option value="{{ $b->id }}" {{ old('branch_id', $device->branch_id) == $b->id ? 'selected' : '' }}>
+                                                {{ $b->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input type="text" class="form-control bg-light" value="{{ $device->branch?->name ?? 'Sin Sucursal' }}" readonly title="Para mover a otra sucursal, utilice la opción de Traspaso">
+                                    <input type="hidden" name="branch_id" value="{{ $device->branch_id }}">
+                                @endcan
                                 @error('branch_id')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror

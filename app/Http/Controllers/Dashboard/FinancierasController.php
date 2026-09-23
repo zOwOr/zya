@@ -49,12 +49,20 @@ class FinancierasController extends Controller
         $warrantyStages = FinWarrantyStage::orderBy('order')->get();
         $sellers = User::orderBy('name')->get();
         $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
-        $models = FinDevice::distinct()->whereNotNull('model')->where('model', '!=', '')->orderBy('model')->pluck('model');
+        $modelsQuery = FinDevice::distinct()->whereNotNull('model')->where('model', '!=', '');
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $modelsQuery->where('branch_id', auth()->user()->branch_id);
+        }
+        $models = $modelsQuery->orderBy('model')->pluck('model');
 
         // Counts for tabs summary
         $counts = [
             'ventas' => FinSale::where('status', 'activa')->count(),
-            'inventario_disponible' => FinDevice::where('status', 'disponible')->count(),
+            'inventario_disponible' => FinDevice::where('status', 'disponible')
+                ->when(auth()->check() && !auth()->user()->can('financieras.inventario.all_branches'), function ($q) {
+                    $q->where('branch_id', auth()->user()->branch_id);
+                })
+                ->count(),
             'garantias_activas' => FinWarranty::whereIn('status', ['abierta', 'en_proceso'])->count(),
             'robos_activos' => FinTheftReport::whereIn('status', ['reportado', 'en_investigacion'])->count(),
         ];
@@ -133,6 +141,9 @@ class FinancierasController extends Controller
         $status = $request->query('status');
 
         $devices = FinDevice::with(['brand', 'branch'])
+            ->when(auth()->check() && !auth()->user()->can('financieras.inventario.all_branches'), function ($query) {
+                $query->where('branch_id', auth()->user()->branch_id);
+            })
             ->when($q, fn($query) => $query->where('imei', 'like', "%{$q}%"))
             ->when($status, fn($query) => $query->where('status', $status))
             ->limit(20)

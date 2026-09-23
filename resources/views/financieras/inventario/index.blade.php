@@ -58,12 +58,17 @@
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
                         <i class="fa-solid fa-store mr-1 text-info"></i>Sucursal / Ubicación
                     </label>
-                    <select name="branch_id" class="form-control form-control-sm custom-select custom-select-sm">
-                        <option value="">Todas las sucursales</option>
-                        @foreach ($branches as $b)
-                            <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                        @endforeach
-                    </select>
+                    @can('financieras.inventario.all_branches')
+                        <select name="branch_id" class="form-control form-control-sm custom-select custom-select-sm">
+                            <option value="">Todas las sucursales</option>
+                            @foreach ($branches as $b)
+                                <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <input type="text" class="form-control form-control-sm bg-light" value="{{ auth()->user()->branch?->name ?? 'Sucursal no asignada' }}" readonly title="Tu sucursal asignada">
+                        <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                    @endcan
                 </div>
 
                 <div class="{{ $showTagFilter ? 'col-lg-2' : 'col-lg-3' }} col-md-6 col-sm-6 mb-2 mb-lg-0" id="col-status-main">
@@ -148,8 +153,9 @@
 
             <!-- Resumen de Filtros Activos (Pills) -->
             @php
-                $activeFiltersCount = collect(['search', 'branch_id', 'brand_id', 'model', 'supplier_id', 'tag'])
-                    ->filter(fn($key) => request()->filled($key))
+                $canAllBranches = auth()->user()->can('financieras.inventario.all_branches');
+                $activeFiltersCount = collect(['search', $canAllBranches ? 'branch_id' : null, 'brand_id', 'model', 'supplier_id', 'tag'])
+                    ->filter(fn($key) => !empty($key) && request()->filled($key))
                     ->count();
                 if (request('status') && request('status') !== 'disponible') {
                     $activeFiltersCount++;
@@ -166,7 +172,7 @@
                             <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
                         </span>
                     @endif
-                    @if(request('branch_id'))
+                    @if($canAllBranches && request('branch_id'))
                         <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
                             Sucursal: <strong>{{ $branches->firstWhere('id', request('branch_id'))?->name ?? request('branch_id') }}</strong>
                             <a href="{{ route('financieras.index', array_merge(request()->except('branch_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
@@ -293,12 +299,17 @@
 
                     <div class="form-group mb-3">
                         <label class="font-weight-bold">Sucursal por defecto <small class="text-muted">(si el archivo no tiene columna Ubicación)</small></label>
-                        <select name="default_branch_id" class="form-control">
-                            <option value="">Seleccione sucursal de respaldo...</option>
-                            @foreach ($branches as $b)
-                                <option value="{{ $b->id }}">{{ $b->name }}</option>
-                            @endforeach
-                        </select>
+                        @can('financieras.inventario.all_branches')
+                            <select name="default_branch_id" class="form-control">
+                                <option value="">Seleccione sucursal de respaldo...</option>
+                                @foreach ($branches as $b)
+                                    <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        @else
+                            <input type="text" class="form-control bg-light" value="{{ auth()->user()->branch?->name ?? 'Sucursal no asignada' }}" readonly>
+                            <input type="hidden" name="default_branch_id" value="{{ auth()->user()->branch_id }}">
+                        @endcan
                     </div>
 
                     <div class="form-group mb-3">

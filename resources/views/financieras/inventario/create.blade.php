@@ -97,14 +97,19 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Sucursal de Entrada <span class="text-danger">*</span></label>
-                                <select name="branch_id" class="form-control @error('branch_id') is-invalid @enderror" required>
-                                    <option value="">Seleccione sucursal...</option>
-                                    @foreach ($branches as $b)
-                                        <option value="{{ $b->id }}" {{ (old('branch_id', auth()->user()->branch_id) == $b->id) ? 'selected' : '' }}>
-                                            {{ $b->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @can('financieras.inventario.all_branches')
+                                    <select name="branch_id" class="form-control @error('branch_id') is-invalid @enderror" required>
+                                        <option value="">Seleccione sucursal...</option>
+                                        @foreach ($branches as $b)
+                                            <option value="{{ $b->id }}" {{ (old('branch_id', auth()->user()->branch_id) == $b->id) ? 'selected' : '' }}>
+                                                {{ $b->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input type="text" class="form-control bg-light" value="{{ auth()->user()->branch?->name ?? 'Sucursal asignada' }}" readonly>
+                                    <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                                @endcan
                                 @error('branch_id')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror

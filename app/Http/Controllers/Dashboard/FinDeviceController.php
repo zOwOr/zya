@@ -46,6 +46,18 @@ class FinDeviceController extends Controller
         $this->initializeModulePermission();
     }
 
+    /**
+     * Check if current user has permission to access a device from another branch
+     */
+    protected function checkDeviceBranchAccess(FinDevice $device): void
+    {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            if ($device->branch_id !== auth()->user()->branch_id) {
+                abort(403, 'No tienes permiso para acceder a dispositivos de otra sucursal.');
+            }
+        }
+    }
+
     public function index(Request $request)
     {
         $filters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']);
@@ -63,7 +75,12 @@ class FinDeviceController extends Controller
         $branches = Branch::all();
         $brands = FinBrand::where('is_active', true)->get();
         $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
-        $models = FinDevice::distinct()->whereNotNull('model')->where('model', '!=', '')->orderBy('model')->pluck('model');
+        
+        $modelsQuery = FinDevice::distinct()->whereNotNull('model')->where('model', '!=', '');
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $modelsQuery->where('branch_id', auth()->user()->branch_id);
+        }
+        $models = $modelsQuery->orderBy('model')->pluck('model');
 
         return view('financieras.inventario.index', compact('devices', 'branches', 'brands', 'suppliers', 'models'));
     }
@@ -79,6 +96,10 @@ class FinDeviceController extends Controller
 
     public function store(Request $request)
     {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
         $request->validate([
             'imei' => 'required|string|max:50|unique:fin_devices,imei',
             'brand_id' => 'nullable|exists:fin_brands,id',
@@ -133,6 +154,8 @@ class FinDeviceController extends Controller
 
     public function show(FinDevice $device)
     {
+        $this->checkDeviceBranchAccess($device);
+
         $device->load([
             'brand',
             'branch',
@@ -151,6 +174,8 @@ class FinDeviceController extends Controller
 
     public function edit(FinDevice $device)
     {
+        $this->checkDeviceBranchAccess($device);
+
         $branches = Branch::all();
         $brands = FinBrand::where('is_active', true)->get();
         $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
@@ -160,6 +185,12 @@ class FinDeviceController extends Controller
 
     public function update(Request $request, FinDevice $device)
     {
+        $this->checkDeviceBranchAccess($device);
+
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => $device->branch_id]);
+        }
+
         $request->validate([
             'imei' => 'required|string|max:50|unique:fin_devices,imei,' . $device->id,
             'brand_id' => 'nullable|exists:fin_brands,id',
@@ -188,13 +219,17 @@ class FinDeviceController extends Controller
             $brandId = $brand->id;
         }
 
+        $branchId = (auth()->check() && auth()->user()->can('financieras.inventario.all_branches'))
+            ? $request->input('branch_id')
+            : $device->branch_id;
+
         $device->update([
             'imei' => trim($request->input('imei')),
             'brand_id' => $brandId,
             'model' => trim($request->input('model')),
             'color' => $request->input('color'),
             'storage' => $request->input('storage'),
-            'branch_id' => $request->input('branch_id'),
+            'branch_id' => $branchId,
             'supplier_id' => $request->input('supplier_id'),
             'status' => $request->input('status'),
             'notes' => $request->input('notes'),
@@ -220,6 +255,8 @@ class FinDeviceController extends Controller
      */
     public function transfer(Request $request, FinDevice $device)
     {
+        $this->checkDeviceBranchAccess($device);
+
         $request->validate([
             'to_branch_id' => 'required|exists:branches,id|different:current_branch_id',
             'notes' => 'nullable|string|max:500',
@@ -269,6 +306,8 @@ class FinDeviceController extends Controller
      */
     public function history(FinDevice $device)
     {
+        $this->checkDeviceBranchAccess($device);
+
         $device->load([
             'brand',
             'branch',
@@ -289,6 +328,8 @@ class FinDeviceController extends Controller
 
     public function destroy(FinDevice $device)
     {
+        $this->checkDeviceBranchAccess($device);
+
         if ($device->sales()->where('status', 'activa')->exists()) {
             return back()->with('error', 'No se puede eliminar un dispositivo con una venta activa vinculada.');
         }
@@ -333,7 +374,11 @@ class FinDeviceController extends Controller
         ]);
 
         $deviceIds = $request->input('device_ids');
-        $devices = FinDevice::whereIn('id', $deviceIds)->with('sales')->get();
+        $devicesQuery = FinDevice::whereIn('id', $deviceIds)->with('sales');
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $devicesQuery->where('branch_id', auth()->user()->branch_id);
+        }
+        $devices = $devicesQuery->get();
 
         $deletedCount = 0;
         $blockedCount = 0;
@@ -477,7 +522,9 @@ class FinDeviceController extends Controller
             $branches = Branch::all()->keyBy(fn($b) => $normalizeName($b->name));
             $suppliers = FinSupplier::where('is_active', true)->get()->keyBy(fn($s) => $normalizeName($s->name));
 
-            $defaultBranchId = $request->input('default_branch_id');
+            $canAllBranches = auth()->check() && auth()->user()->can('financieras.inventario.all_branches');
+            $userBranchId = auth()->check() ? auth()->user()->branch_id : null;
+            $defaultBranchId = (!$canAllBranches && $userBranchId) ? $userBranchId : $request->input('default_branch_id');
             $defaultSupplierId = $request->input('default_supplier_id');
 
             $devicesToInsert = [];
@@ -563,6 +610,10 @@ class FinDeviceController extends Controller
                     }
                 } else {
                     $branchId = $defaultBranchId;
+                }
+
+                if (!$canAllBranches && $userBranchId && $branchId !== $userBranchId) {
+                    $rowErrors[] = "Fila {$rowNum}: No tienes permiso para importar dispositivos a otra sucursal distinta a tu sucursal asignada.";
                 }
 
                 if (!$branchId) {

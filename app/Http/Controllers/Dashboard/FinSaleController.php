@@ -78,7 +78,12 @@ class FinSaleController extends Controller
         $brands = FinBrand::where('is_active', true)->orderBy('name')->get();
         $financieras = FinFinanciera::where('is_active', true)->orderBy('name')->get();
         $sellers = User::orderBy('name')->get();
-        $availableDevices = FinDevice::where('status', 'disponible')->with('brand', 'branch')->get();
+        $availableDevices = FinDevice::where('status', 'disponible')
+            ->when(auth()->check() && !auth()->user()->can('financieras.inventario.all_branches'), function ($q) {
+                $q->where('branch_id', auth()->user()->branch_id);
+            })
+            ->with('brand', 'branch')
+            ->get();
 
         return view('financieras.ventas.create', compact('branches', 'brands', 'financieras', 'sellers', 'availableDevices'));
     }

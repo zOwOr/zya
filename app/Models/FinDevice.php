@@ -114,7 +114,9 @@ class FinDevice extends Model
             });
         }
 
-        if ($branchId = $filters['branch_id'] ?? false) {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $query->where('branch_id', auth()->user()->branch_id);
+        } elseif ($branchId = $filters['branch_id'] ?? false) {
             $query->where('branch_id', $branchId);
         }
 
