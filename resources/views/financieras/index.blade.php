@@ -127,6 +127,33 @@
                 </div>
             </div>
 
+            <!-- Indicador de Sucursal Filtrada / Asignada -->
+            @if (!empty($selectedBranch))
+                <div class="d-flex flex-wrap align-items-center justify-content-between alert alert-light border shadow-sm mb-3 py-2 px-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fa-solid fa-store text-primary mr-2 font-size-18"></i>
+                        <div>
+                            <span class="font-size-13 text-muted">Métricas y datos filtrados por sucursal:</span>
+                            <span class="badge badge-primary font-size-13 ml-1 px-2 py-1">
+                                <i class="fa-solid fa-location-dot mr-1"></i>{{ $selectedBranch->name }}
+                            </span>
+                            @if (!auth()->user()->can('financieras.inventario.all_branches'))
+                                <span class="badge badge-secondary font-size-11 ml-1" title="Restringido por permisos del sistema">
+                                    <i class="fa-solid fa-lock mr-1"></i>Tu sucursal asignada
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                    @can('financieras.inventario.all_branches')
+                        <div>
+                            <a href="{{ route('financieras.index', ['tab' => $activeTab]) }}" class="btn btn-xs btn-outline-danger font-weight-bold">
+                                <i class="fa-solid fa-xmark mr-1"></i>Ver todas las sucursales
+                            </a>
+                        </div>
+                    @endcan
+                </div>
+            @endif
+
             <!-- Stats Bar -->
             <div class="row mb-4">
                 <div class="col-xl-3 col-md-6 mb-3">

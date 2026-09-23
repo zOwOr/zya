@@ -31,12 +31,17 @@
                 </div>
                 <div class="col-md-3 col-sm-6 mb-2">
                     <label class="font-size-12 font-weight-bold text-muted mb-1">Sucursal</label>
-                    <select name="branch_id" class="form-control form-control-sm">
-                        <option value="">Todas</option>
-                        @foreach ($branches as $b)
-                            <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                        @endforeach
-                    </select>
+                    @can('financieras.inventario.all_branches')
+                        <select name="branch_id" class="form-control form-control-sm">
+                            <option value="">Todas</option>
+                            @foreach ($branches as $b)
+                                <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <input type="text" class="form-control form-control-sm bg-light" value="{{ auth()->user()->branch?->name ?? 'Sucursal asignada' }}" readonly title="Tu sucursal asignada">
+                        <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                    @endcan
                 </div>
                 <div class="col-md-3 col-sm-6 mb-2">
                     <label class="font-size-12 font-weight-bold text-muted mb-1">Estado</label>

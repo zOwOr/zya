@@ -98,8 +98,21 @@ class FinSaleController extends Controller
         return $user->can('financieras.ventas.assign_seller') || $user->isSuperAdmin();
     }
 
+    protected function checkSaleBranchAccess(FinSale $sale): void
+    {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            if ($sale->branch_id !== auth()->user()->branch_id) {
+                abort(403, 'No tienes permiso para acceder a ventas de otra sucursal.');
+            }
+        }
+    }
+
     public function store(Request $request)
     {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
         $canAssignSeller = $this->canAssignSeller();
 
         $request->validate([
@@ -273,6 +286,8 @@ class FinSaleController extends Controller
 
     public function show(FinSale $sale)
     {
+        $this->checkSaleBranchAccess($sale);
+
         $sale->load([
             'device.brand',
             'device.branch',
@@ -290,6 +305,8 @@ class FinSaleController extends Controller
 
     public function edit(FinSale $sale)
     {
+        $this->checkSaleBranchAccess($sale);
+
         $branches = Branch::all();
         $financieras = FinFinanciera::where('is_active', true)->get();
         $sellers = User::orderBy('name')->get();
@@ -299,6 +316,12 @@ class FinSaleController extends Controller
 
     public function update(Request $request, FinSale $sale)
     {
+        $this->checkSaleBranchAccess($sale);
+
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
         $canAssignSeller = $this->canAssignSeller();
 
         $request->validate([
@@ -380,6 +403,8 @@ class FinSaleController extends Controller
      */
     public function cancel(Request $request, FinSale $sale)
     {
+        $this->checkSaleBranchAccess($sale);
+
         $request->validate([
             'cancellation_reason' => 'required|string|max:1000',
         ]);
@@ -426,6 +451,8 @@ class FinSaleController extends Controller
      */
     public function addNote(Request $request, FinSale $sale)
     {
+        $this->checkSaleBranchAccess($sale);
+
         $request->validate([
             'note' => 'required|string|max:2000',
         ]);
@@ -441,6 +468,8 @@ class FinSaleController extends Controller
 
     public function destroy(FinSale $sale)
     {
+        $this->checkSaleBranchAccess($sale);
+
         if ($sale->status === 'activa') {
             $sale->device->update(['status' => 'disponible']);
         }

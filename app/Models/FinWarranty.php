@@ -92,7 +92,9 @@ class FinWarranty extends Model
             $query->where('current_stage_id', $stageId);
         }
 
-        if ($branchId = $filters['branch_id'] ?? false) {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $query->where('branch_id', auth()->user()->branch_id);
+        } elseif ($branchId = $filters['branch_id'] ?? false) {
             $query->where('branch_id', $branchId);
         }
 

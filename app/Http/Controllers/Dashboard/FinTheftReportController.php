@@ -71,8 +71,21 @@ class FinTheftReportController extends Controller
         return view('financieras.robos.create', compact('branches', 'brands', 'prefilledImei', 'prefilledDevice'));
     }
 
+    protected function checkTheftReportBranchAccess(FinTheftReport $theftReport): void
+    {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            if ($theftReport->branch_id !== auth()->user()->branch_id) {
+                abort(403, 'No tienes permiso para acceder a reportes de robo de otra sucursal.');
+            }
+        }
+    }
+
     public function store(Request $request)
     {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
         $request->validate([
             'imei' => 'required|string|max:50',
             'branch_id' => 'required|exists:branches,id',
@@ -163,6 +176,8 @@ class FinTheftReportController extends Controller
 
     public function show(FinTheftReport $theftReport)
     {
+        $this->checkTheftReportBranchAccess($theftReport);
+
         $theftReport->load([
             'device.brand',
             'device.branch',
@@ -178,12 +193,20 @@ class FinTheftReportController extends Controller
 
     public function edit(FinTheftReport $theftReport)
     {
+        $this->checkTheftReportBranchAccess($theftReport);
+
         $branches = Branch::all();
         return view('financieras.robos.edit', compact('theftReport', 'branches'));
     }
 
     public function update(Request $request, FinTheftReport $theftReport)
     {
+        $this->checkTheftReportBranchAccess($theftReport);
+
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'incident_date' => 'required|date',
@@ -212,6 +235,8 @@ class FinTheftReportController extends Controller
      */
     public function updateStatus(Request $request, FinTheftReport $theftReport)
     {
+        $this->checkTheftReportBranchAccess($theftReport);
+
         $request->validate([
             'status' => 'required|in:reportado,en_investigacion,recuperado,cerrado',
             'notes' => 'required|string|max:1000',
@@ -257,6 +282,8 @@ class FinTheftReportController extends Controller
 
     public function destroy(FinTheftReport $theftReport)
     {
+        $this->checkTheftReportBranchAccess($theftReport);
+
         if ($theftReport->device && $theftReport->device->status === 'robado') {
             $theftReport->device->update(['status' => $theftReport->sale_id ? 'vendido' : 'disponible']);
         }

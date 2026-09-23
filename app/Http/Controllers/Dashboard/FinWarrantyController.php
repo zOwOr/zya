@@ -74,8 +74,21 @@ class FinWarrantyController extends Controller
         return view('financieras.garantias.create', compact('branches', 'stages', 'brands', 'prefilledImei', 'prefilledDevice'));
     }
 
+    protected function checkWarrantyBranchAccess(FinWarranty $warranty): void
+    {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            if ($warranty->branch_id !== auth()->user()->branch_id) {
+                abort(403, 'No tienes permiso para acceder a garantías de otra sucursal.');
+            }
+        }
+    }
+
     public function store(Request $request)
     {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
         $request->validate([
             'imei' => 'required|string|max:50',
             'branch_id' => 'required|exists:branches,id',
@@ -167,6 +180,8 @@ class FinWarrantyController extends Controller
 
     public function show(FinWarranty $warranty)
     {
+        $this->checkWarrantyBranchAccess($warranty);
+
         $warranty->load([
             'device.brand',
             'device.branch',
@@ -187,6 +202,8 @@ class FinWarrantyController extends Controller
 
     public function edit(FinWarranty $warranty)
     {
+        $this->checkWarrantyBranchAccess($warranty);
+
         $branches = Branch::all();
         $stages = FinWarrantyStage::orderBy('order')->get();
 
@@ -195,6 +212,12 @@ class FinWarrantyController extends Controller
 
     public function update(Request $request, FinWarranty $warranty)
     {
+        $this->checkWarrantyBranchAccess($warranty);
+
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'issue_description' => 'required|string|max:2000',
@@ -216,6 +239,7 @@ class FinWarrantyController extends Controller
      */
     public function changeStage(Request $request, FinWarranty $warranty)
     {
+        $this->checkWarrantyBranchAccess($warranty);
         $request->validate([
             'to_stage_id' => 'required|exists:fin_warranty_stages,id',
             'notes' => 'nullable|string|max:1000',
@@ -276,6 +300,8 @@ class FinWarrantyController extends Controller
 
     public function destroy(FinWarranty $warranty)
     {
+        $this->checkWarrantyBranchAccess($warranty);
+
         if ($warranty->device && $warranty->device->status === 'en_garantia') {
             $warranty->device->update(['status' => $warranty->sale_id ? 'vendido' : 'disponible']);
         }

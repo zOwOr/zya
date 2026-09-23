@@ -42,6 +42,17 @@ class FinancierasController extends Controller
             $activeTab = 'ventas';
         }
 
+        $canAllBranches = auth()->check() && auth()->user()->can('financieras.inventario.all_branches');
+
+        // Determinar la sucursal activa para conteos y filtrado
+        if (!$canAllBranches) {
+            $userBranchId = auth()->user()?->branch_id;
+            $request->merge(['branch_id' => $userBranchId]);
+            $branchFilter = $userBranchId;
+        } else {
+            $branchFilter = $request->filled('branch_id') ? $request->input('branch_id') : null;
+        }
+
         // Shared catalogs for filters & forms
         $branches = Branch::all();
         $brands = FinBrand::where('is_active', true)->orderBy('name')->get();
@@ -49,23 +60,37 @@ class FinancierasController extends Controller
         $warrantyStages = FinWarrantyStage::orderBy('order')->get();
         $sellers = User::orderBy('name')->get();
         $suppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
+
+        $applyBranchFilter = function ($query) use ($canAllBranches, $branchFilter) {
+            if (!$canAllBranches) {
+                return $query->where('branch_id', auth()->user()?->branch_id);
+            }
+            if ($branchFilter) {
+                return $query->where('branch_id', $branchFilter);
+            }
+            return $query;
+        };
+
         $modelsQuery = FinDevice::distinct()->whereNotNull('model')->where('model', '!=', '');
-        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
-            $modelsQuery->where('branch_id', auth()->user()->branch_id);
-        }
+        $modelsQuery = $applyBranchFilter($modelsQuery);
         $models = $modelsQuery->orderBy('model')->pluck('model');
 
-        // Counts for tabs summary
+        // Counts for tabs summary acorde a la sucursal filtrada / asignada
         $counts = [
-            'ventas' => FinSale::where('status', 'activa')->count(),
-            'inventario_disponible' => FinDevice::where('status', 'disponible')
-                ->when(auth()->check() && !auth()->user()->can('financieras.inventario.all_branches'), function ($q) {
-                    $q->where('branch_id', auth()->user()->branch_id);
-                })
-                ->count(),
-            'garantias_activas' => FinWarranty::whereIn('status', ['abierta', 'en_proceso'])->count(),
-            'robos_activos' => FinTheftReport::whereIn('status', ['reportado', 'en_investigacion'])->count(),
+            'ventas' => $applyBranchFilter(FinSale::where('status', 'activa'))->count(),
+            'inventario_disponible' => $applyBranchFilter(
+                FinDevice::where('status', 'disponible')
+                    ->whereDoesntHave('sales', fn($q) => $q->where('status', 'activa'))
+            )->count(),
+            'garantias_activas' => $applyBranchFilter(
+                FinWarranty::whereIn('status', ['abierta', 'en_proceso'])
+            )->count(),
+            'robos_activos' => $applyBranchFilter(
+                FinTheftReport::whereIn('status', ['reportado', 'en_investigacion'])
+            )->count(),
         ];
+
+        $selectedBranch = $branchFilter ? $branches->firstWhere('id', $branchFilter) : null;
 
         // Cargar datos del tab activo con sus respectivos filtros aplicados
         $devices = null;
@@ -113,7 +138,9 @@ class FinancierasController extends Controller
             'devices',
             'sales',
             'warranties',
-            'thefts'
+            'thefts',
+            'selectedBranch',
+            'canAllBranches'
         ));
     }
 
@@ -162,14 +189,20 @@ class FinancierasController extends Controller
             return response()->json(['found' => false, 'message' => 'IMEI no proporcionado'], 400);
         }
 
-        $device = FinDevice::with([
+        $deviceQuery = FinDevice::with([
             'brand',
             'branch',
             'latestSale.financiera',
             'latestSale.seller',
             'warranties.currentStage',
             'theftReports'
-        ])->where('imei', $imei)->first();
+        ])->where('imei', $imei);
+
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $deviceQuery->where('branch_id', auth()->user()->branch_id);
+        }
+
+        $device = $deviceQuery->first();
 
         if (!$device) {
             return response()->json([
