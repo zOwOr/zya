@@ -106,11 +106,30 @@ class FinancierasController extends Controller
                 ->paginate(20)
                 ->appends(array_merge($deviceFilters, ['tab' => 'inventario']));
         } elseif ($activeTab === 'ventas') {
-            $saleFilters = $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id']);
+            $defaultStartDate = now()->startOfMonth()->format('Y-m-d');
+            $defaultEndDate = now()->endOfMonth()->format('Y-m-d');
+
+            if ($request->has('start_date') || $request->has('end_date')) {
+                $startDate = $request->input('start_date');
+                $endDate = $request->input('end_date');
+            } else {
+                $startDate = $defaultStartDate;
+                $endDate = $defaultEndDate;
+                $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
+            }
+
+            $saleFilters = array_merge(
+                $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id']),
+                [
+                    'start_date' => $startDate,
+                    'end_date'   => $endDate,
+                ]
+            );
+
             $sales = FinSale::filter($saleFilters)
                 ->with(['device.brand', 'financiera', 'branch', 'seller'])
                 ->latest('sale_date')
-                ->paginate(15)->appends(array_merge($saleFilters, ['tab' => 'ventas']));
+                ->paginate(15)->appends(array_merge($request->query(), ['tab' => 'ventas']));
         } elseif ($activeTab === 'garantias') {
             $warrantyFilters = $request->only(['search', 'stage_id', 'branch_id', 'status']);
             $warranties = FinWarranty::filter($warrantyFilters)

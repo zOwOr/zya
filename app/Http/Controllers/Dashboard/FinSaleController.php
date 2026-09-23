@@ -49,15 +49,31 @@ class FinSaleController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $request->only([
-            'search',
-            'financiera_id',
-            'branch_id',
-            'seller_id',
-            'status',
-            'start_date',
-            'end_date'
-        ]);
+        $defaultStartDate = now()->startOfMonth()->format('Y-m-d');
+        $defaultEndDate = now()->endOfMonth()->format('Y-m-d');
+
+        if ($request->has('start_date') || $request->has('end_date')) {
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+        } else {
+            $startDate = $defaultStartDate;
+            $endDate = $defaultEndDate;
+            $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
+        }
+
+        $filters = array_merge(
+            $request->only([
+                'search',
+                'financiera_id',
+                'branch_id',
+                'seller_id',
+                'status',
+            ]),
+            [
+                'start_date' => $startDate,
+                'end_date'   => $endDate,
+            ]
+        );
 
         $sales = FinSale::filter($filters)
             ->with(['device.brand', 'financiera', 'branch', 'seller'])

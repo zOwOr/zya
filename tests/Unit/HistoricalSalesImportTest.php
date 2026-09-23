@@ -201,4 +201,41 @@ class HistoricalSalesImportTest extends TestCase
         $saleEmpty = new FinSale([]);
         $this->assertEquals('N/A', $saleEmpty->seller_display_name);
     }
+
+    /**
+     * Test default date interval logic (current month)
+     */
+    public function test_default_date_interval_is_current_month()
+    {
+        $resolveDates = function (array $queryParams) {
+            $defaultStartDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+            $defaultEndDate = Carbon::now()->endOfMonth()->format('Y-m-d');
+
+            if (array_key_exists('start_date', $queryParams) || array_key_exists('end_date', $queryParams)) {
+                $startDate = $queryParams['start_date'] ?? null;
+                $endDate = $queryParams['end_date'] ?? null;
+            } else {
+                $startDate = $defaultStartDate;
+                $endDate = $defaultEndDate;
+            }
+
+            return ['start_date' => $startDate, 'end_date' => $endDate];
+        };
+
+        // When no dates provided (initial load) -> defaults to current month
+        $defaultDates = $resolveDates([]);
+        $this->assertEquals(Carbon::now()->startOfMonth()->format('Y-m-d'), $defaultDates['start_date']);
+        $this->assertEquals(Carbon::now()->endOfMonth()->format('Y-m-d'), $defaultDates['end_date']);
+
+        // When custom range provided -> respects custom range
+        $customDates = $resolveDates(['start_date' => '2026-01-01', 'end_date' => '2026-03-31']);
+        $this->assertEquals('2026-01-01', $customDates['start_date']);
+        $this->assertEquals('2026-03-31', $customDates['end_date']);
+
+        // When user explicitly clears both -> empty/null to show all
+        $clearedDates = $resolveDates(['start_date' => '', 'end_date' => '']);
+        $this->assertEmpty($clearedDates['start_date']);
+        $this->assertEmpty($clearedDates['end_date']);
+    }
 }
+
