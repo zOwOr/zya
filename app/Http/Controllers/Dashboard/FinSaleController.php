@@ -34,7 +34,7 @@ class FinSaleController extends Controller
         'destroy' => 'delete',
         'cancel' => 'delete',
         'addNote' => 'create',
-        'exportExcel' => 'read',
+        'exportExcel' => 'export',
         'exportPdf' => 'read',
     ];
 
@@ -83,9 +83,19 @@ class FinSaleController extends Controller
         return view('financieras.ventas.create', compact('branches', 'brands', 'financieras', 'sellers', 'availableDevices'));
     }
 
+    protected function canAssignSeller(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        return $user->can('financieras.ventas.assign_seller') || $user->isSuperAdmin();
+    }
+
     public function store(Request $request)
     {
-        $isSuperAdmin = auth()->check() && auth()->user()->isSuperAdmin();
+        $canAssignSeller = $this->canAssignSeller();
 
         $request->validate([
             'device_id' => 'nullable|exists:fin_devices,id',
@@ -96,7 +106,7 @@ class FinSaleController extends Controller
             'color' => 'nullable|string|max:50',
             'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
-            'seller_id' => $isSuperAdmin ? 'required|exists:users,id' : 'nullable',
+            'seller_id' => $canAssignSeller ? 'required|exists:users,id' : 'nullable',
             'price' => 'required|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0|lte:price',
             'enganche_descuento' => 'nullable|numeric|min:0',
@@ -180,7 +190,7 @@ class FinSaleController extends Controller
             return back()->withInput()->with('error', 'El dispositivo con IMEI ' . $device->imei . ' ya ha sido vendido.');
         }
 
-        $sale = DB::transaction(function () use ($request, $device) {
+        $sale = DB::transaction(function () use ($request, $device, $canAssignSeller) {
             $saleCode = 'FIN-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
 
             $price = (float) $request->input('price', 0);
@@ -189,7 +199,7 @@ class FinSaleController extends Controller
                 ? (float) $request->input('credit_amount')
                 : max(0, $price - $downPayment);
 
-            $sellerId = $isSuperAdmin ? ($request->input('seller_id') ?: auth()->id()) : auth()->id();
+            $sellerId = ($canAssignSeller && $request->filled('seller_id')) ? $request->input('seller_id') : auth()->id();
 
             $sale = FinSale::create([
                 'sale_code' => $saleCode,
@@ -284,12 +294,12 @@ class FinSaleController extends Controller
 
     public function update(Request $request, FinSale $sale)
     {
-        $isSuperAdmin = auth()->check() && auth()->user()->isSuperAdmin();
+        $canAssignSeller = $this->canAssignSeller();
 
         $request->validate([
             'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
-            'seller_id' => $isSuperAdmin ? 'nullable|exists:users,id' : 'nullable',
+            'seller_id' => $canAssignSeller ? 'nullable|exists:users,id' : 'nullable',
             'tag_contrato' => 'nullable|string|max:100',
             'price' => 'nullable|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0',
@@ -338,8 +348,8 @@ class FinSaleController extends Controller
             'sale_date',
         ]);
 
-        // Únicamente el SuperAdmin puede editar el vendedor
-        if ($isSuperAdmin && $request->filled('seller_id')) {
+        // Únicamente usuarios con permiso pueden editar el vendedor
+        if ($canAssignSeller && $request->filled('seller_id')) {
             $updateData['seller_id'] = $request->input('seller_id');
         }
 

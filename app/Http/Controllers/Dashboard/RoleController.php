@@ -10,7 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Spatie\QueryBuilder\QueryBuilder;
 use Illuminate\Support\Facades\Redirect;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 
 class RoleController extends Controller
 {
@@ -67,6 +67,7 @@ class RoleController extends Controller
     {
         $rules = [
             'name' => 'required|string',
+            'display_name' => 'nullable|string|max:191',
             'group_name' => 'required|string',
         ];
 
@@ -90,6 +91,7 @@ class RoleController extends Controller
     {
         $rules = [
             'name' => 'required|string',
+            'display_name' => 'nullable|string|max:191',
             'group_name' => 'required|string',
         ];
 

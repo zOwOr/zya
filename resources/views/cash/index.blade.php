@@ -27,7 +27,7 @@
         </form>
 
         {{-- 🧾 Tabla de movimientos --}}
-        <table class="table table-bordered table-striped datatable-export">
+        <table class="table table-bordered table-striped datatable-export" data-can-export="{{ auth()->user()?->can('cash.export') ? 'true' : 'false' }}">
             <thead>
                 <tr>
                     <th>Fecha</th>

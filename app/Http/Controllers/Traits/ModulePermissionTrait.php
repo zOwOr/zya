@@ -23,6 +23,9 @@ trait ModulePermissionTrait
             'edit' => 'edit',
             'update' => 'edit',
             'destroy' => 'delete',
+            'exportData' => 'export',
+            'exportExcel' => 'export',
+            'exportPdf' => 'export',
         ];
     }
 

@@ -55,7 +55,7 @@
 
         <div class="col-lg-12">
             <div class="table-responsive rounded mb-3">
-                <table class="table mb-0 datatable-export">
+                <table class="table mb-0 datatable-export" data-can-export="{{ auth()->user()?->can('roles.export') ? 'true' : 'false' }}">
                     <thead class="bg-white text-uppercase">
                         <tr class="ligth ligth-data">
                             <th>No.</th>
@@ -71,8 +71,8 @@
                             <td>{{ $role->name }}</td>
                             <td>
                                 @foreach ($role->permissions as $permission)
-                                    <span class="badge rounded-pill bg-danger">
-                                        {{ $permission->name }}
+                                    <span class="badge rounded-pill bg-danger mr-1 mb-1" title="{{ $permission->name }}" data-toggle="tooltip">
+                                        {{ $permission->display_name ?? $permission->name }}
                                     </span>
                                 @endforeach
                             </td>

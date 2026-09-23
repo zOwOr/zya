@@ -13,9 +13,11 @@
                         <i class="fa-solid fa-trash mr-1"></i>Eliminar seleccionados (<span id="bulkDeleteCount">0</span>)
                     </button>
                 @endcan
-                <a href="{{ route('financieras.inventario.export.excel', array_merge(['status' => request('status', 'disponible')], request()->only(['search', 'branch_id', 'brand_id', 'model', 'supplier_id', 'status']))) }}" class="btn btn-outline-success btn-sm mr-1">
-                    <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
-                </a>
+                @can('financieras.inventario.export')
+                    <a href="{{ route('financieras.inventario.export.excel', array_merge(['status' => request('status', 'disponible')], request()->only(['search', 'branch_id', 'brand_id', 'model', 'supplier_id', 'status']))) }}" class="btn btn-outline-success btn-sm mr-1">
+                        <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
+                    </a>
+                @endcan
                 @if (auth()->user()->can('financieras.inventario.create'))
                     <button type="button" class="btn btn-outline-info btn-sm mr-1" data-toggle="modal" data-target="#importExcelModal">
                         <i class="fa-solid fa-file-import mr-1"></i>Importar Excel

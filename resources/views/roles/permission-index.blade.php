@@ -57,21 +57,23 @@
 
         <div class="col-lg-12">
             <div class="table-responsive rounded mb-3">
-                <table class="table mb-0 datatable-export">
+                <table class="table mb-0 datatable-export" data-can-export="{{ auth()->user()?->can('permissions.export') ? 'true' : 'false' }}">
                     <thead class="bg-white text-uppercase">
                         <tr class="ligth ligth-data">
                             <th>No.</th>
-                            <th>Nombre de Permiso</th>
+                            <th>Apodo en Español</th>
+                            <th>Identificador Técnico</th>
                             <th>Grupo</th>
-                            <th>Accion</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody class="ligth-body">
                         @foreach ($permissions as $permission)
                         <tr>
                             <td>{{ (($permissions->currentPage() * 10) - 10) + $loop->iteration  }}</td>
-                            <td>{{ $permission->name }}</td>
-                            <td>{{ $permission->group_name }}</td>
+                            <td class="font-weight-bold text-dark">{{ $permission->display_name }}</td>
+                            <td><code>{{ $permission->name }}</code></td>
+                            <td><span class="badge badge-info">{{ App\Models\Permission::groupLabel($permission->group_name) }}</span></td>
                             <td>
                                 <form action="{{ route('permission.destroy', $permission->id) }}" method="POST" style="margin-bottom: 5px">
                                     @method('delete')

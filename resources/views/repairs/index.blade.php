@@ -22,7 +22,7 @@
                     <div class="container">
                         <a href="{{ route('repairs.create') }}" class="btn btn-primary mb-3">Nueva Reparación</a>
 
-                        <table class="table table-bordered datatable-export">
+                        <table class="table table-bordered datatable-export" data-can-export="{{ auth()->user()?->can('repairs.export') ? 'true' : 'false' }}">
                             <thead>
                                 <tr>
                                     <th>Cliente</th>

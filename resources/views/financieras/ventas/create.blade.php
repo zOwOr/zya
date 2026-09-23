@@ -88,7 +88,7 @@
 
                             <div class="col-md-3 mb-3">
                                 <label class="font-weight-bold">Vendedor <span class="text-danger">*</span></label>
-                                @if(auth()->user()?->isSuperAdmin())
+                                @if(auth()->user()?->can('financieras.ventas.assign_seller') || auth()->user()?->isSuperAdmin())
                                     <select name="seller_id" class="form-control @error('seller_id') is-invalid @enderror" required>
                                         @foreach ($sellers as $s)
                                             <option value="{{ $s->id }}" {{ (old('seller_id', auth()->id()) == $s->id) ? 'selected' : '' }}>

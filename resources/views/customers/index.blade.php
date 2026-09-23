@@ -20,8 +20,10 @@
                             la experiencia del cliente, garantizando su retención. </p>
                     </div>
                     <div>
+                        @can('customer.export')
                         <a href="{{ route('customers.exportData') }}" class="btn btn-success add-list mr-2"><i
                                 class="fa-solid fa-file-excel mr-2"></i>Exportar Excel</a>
+                        @endcan
                         <a href="{{ route('customers.create') }}" class="btn btn-primary add-list"><i
                                 class="fa-solid fa-plus mr-3"></i>Nuevo Cliente</a>
                         <a href="{{ route('customers.index') }}" class="btn btn-danger add-list"><i
@@ -69,7 +71,7 @@
 
             <div class="col-lg-12">
                 <div class="table-responsive rounded mb-3">
-                    <table class="table mb-0 datatable-export">
+                    <table class="table mb-0 datatable-export" data-can-export="{{ auth()->user()?->can('customer.export') ? 'true' : 'false' }}">
                         <thead class="bg-white text-uppercase">
                             <tr class="ligth ligth-data">
                                 <th>No.</th>

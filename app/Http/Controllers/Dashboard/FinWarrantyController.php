@@ -31,7 +31,7 @@ class FinWarrantyController extends Controller
         'update' => 'edit',
         'destroy' => 'delete',
         'changeStage' => 'edit',
-        'exportExcel' => 'read',
+        'exportExcel' => 'export',
     ];
 
     public function __construct()

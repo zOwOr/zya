@@ -58,7 +58,7 @@
 
         <div class="col-lg-12">
             <div class="table-responsive rounded mb-3">
-                <table class="table mb-0 datatable-export">
+                <table class="table mb-0 datatable-export" data-can-export="{{ auth()->user()?->can('category.export') ? 'true' : 'false' }}">
                     <thead class="bg-white text-uppercase">
                         <tr class="ligth ligth-data">
                             <th>No.</th>

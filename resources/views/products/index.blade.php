@@ -29,7 +29,9 @@
                     </div>
                     <div>
                         <a href="{{ route('products.importView') }}" class="btn btn-success add-list">Importar</a>
+                        @can('product.export')
                         <a href="{{ route('products.exportData') }}" class="btn btn-warning add-list">Exportar</a>
+                        @endcan
                         <a href="{{ route('products.create') }}" class="btn btn-primary add-list">Nuevo Producto</a>
                     </div>
                 </div>
@@ -74,7 +76,7 @@
 
             <div class="col-lg-12">
                 <div class="table-responsive rounded mb-3">
-                    <table class="table mb-0 datatable-export">
+                    <table class="table mb-0 datatable-export" data-can-export="{{ auth()->user()?->can('product.export') ? 'true' : 'false' }}">
                         <thead class="bg-white text-uppercase">
                             <tr class="ligth ligth-data">
                                 <th>No.</th>

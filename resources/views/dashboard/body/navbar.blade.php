@@ -42,11 +42,12 @@
                             </div>
                         </li>
                         <li class="nav-item nav-icon dropdown caption-content">
-                            <a href="#" class="search-toggle dropdown-toggle" id="dropdownMenuButton4"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <a href="javascript:void(0)" class="search-toggle dropdown-toggle" id="dropdownMenuButton4"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                onclick="toggleProfileDropdown(event)">
                                 <img src="{{ auth()->user()->photo ? asset('storage/profile/'.auth()->user()->photo) : asset('assets/images/user/1.png') }}" class="img-fluid rounded" alt="user">
                             </a>
-                            <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <div class="iq-sub-dropdown dropdown-menu dropdown-menu-right shadow" id="profileDropdownMenu" aria-labelledby="dropdownMenuButton4">
                                 <div class="card shadow-none m-0">
                                     <div class="card-body p-0 text-center">
                                         <div class="media-body profile-detail text-center">
@@ -57,11 +58,16 @@
                                         </div>
                                         <div class="p-3">
                                             <h5 class="mb-1">{{  auth()->user()->name }}</h5>
-                                            <p class="mb-0">Desde {{ date('d M, Y', strtotime(auth()->user()->created_at)) }}</p>
-                                            <div class="d-flex align-items-center justify-content-center mt-3">
-                                                <form action="{{ route('logout') }}" method="POST">
+                                            <p class="mb-0 text-muted font-size-12">Desde {{ date('d M, Y', strtotime(auth()->user()->created_at)) }}</p>
+                                            <div class="d-flex align-items-center justify-content-center mt-3" style="gap: 8px;">
+                                                <a href="{{ route('profile') }}" class="btn btn-outline-primary btn-sm px-3">
+                                                    <i class="fa-solid fa-user mr-1"></i> Perfil
+                                                </a>
+                                                <form action="{{ route('logout') }}" method="POST" class="m-0">
                                                     @csrf
-                                                    <button type="submit" class="btn border">Cerrar Sesión</button>
+                                                    <button type="submit" class="btn btn-danger btn-sm px-3 font-weight-500">
+                                                        <i class="fa-solid fa-right-from-bracket mr-1"></i> Cerrar Sesión
+                                                    </button>
                                                 </form>
                                             </div>
                                         </div>

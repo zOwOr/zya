@@ -37,7 +37,7 @@ class FinDeviceController extends Controller
         'bulkDelete' => 'delete',
         'transfer' => 'transfer',
         'importExcel' => 'create',
-        'exportExcel' => 'read',
+        'exportExcel' => 'export',
         'downloadTemplate' => 'read',
     ];
 

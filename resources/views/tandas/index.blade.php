@@ -9,7 +9,7 @@
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
-    <table class="table table-bordered datatable-export">
+    <table class="table table-bordered datatable-export" data-can-export="{{ auth()->user()?->can('tandas.export') ? 'true' : 'false' }}">
         <thead>
             <tr>
                 <th>Descripción</th>

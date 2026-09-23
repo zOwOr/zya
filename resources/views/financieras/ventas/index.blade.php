@@ -8,9 +8,11 @@
                 <p class="text-muted font-size-13 mb-0">Gestión de operaciones, financiamientos y seguimiento de clientes.</p>
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
-                <a href="{{ route('financieras.ventas.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm mr-2">
-                    <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
-                </a>
+                @can('financieras.ventas.export')
+                    <a href="{{ route('financieras.ventas.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm mr-2">
+                        <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
+                    </a>
+                @endcan
                 @if (auth()->user()->can('financieras.ventas.create'))
                     <a href="{{ route('financieras.ventas.create') }}" class="btn btn-primary btn-sm">
                         <i class="fa-solid fa-plus mr-1"></i>Nueva Venta

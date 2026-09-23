@@ -8,9 +8,11 @@
                 <p class="text-muted font-size-13 mb-0">Control de denuncias por robo o extravío de dispositivos y seguimiento legal.</p>
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
-                <a href="{{ route('financieras.robos.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm mr-2">
-                    <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
-                </a>
+                @can('financieras.robos.export')
+                    <a href="{{ route('financieras.robos.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm mr-2">
+                        <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
+                    </a>
+                @endcan
                 @if (auth()->user()->can('financieras.robos.create'))
                     <a href="{{ route('financieras.robos.create') }}" class="btn btn-danger btn-sm">
                         <i class="fa-solid fa-plus mr-1"></i>Reportar Robo

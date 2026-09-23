@@ -6,7 +6,7 @@ namespace App\Models;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Kyslik\ColumnSortable\Sortable;
@@ -80,7 +80,7 @@ class User extends Authenticatable
 
     public static function getPermissionByGroupName(String $group_name)
     {
-        $permissions = Permission::select('id', 'name')->where('group_name', $group_name)->get();
+        $permissions = Permission::select('id', 'name', 'display_name', 'group_name')->where('group_name', $group_name)->get();
 
         return $permissions;
     }

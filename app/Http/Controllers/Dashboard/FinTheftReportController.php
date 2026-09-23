@@ -30,7 +30,7 @@ class FinTheftReportController extends Controller
         'update' => 'edit',
         'destroy' => 'delete',
         'updateStatus' => 'edit',
-        'exportExcel' => 'read',
+        'exportExcel' => 'export',
     ];
 
     public function __construct()

@@ -85,9 +85,21 @@
                             @method('put')
                             @csrf
                             <!-- begin: Input Data -->
-                            <div class=" row align-items-center">
-                                <div class="form-group col-md-6">
-                                    <label for="name">Nombre <span class="text-danger">*</span></label>
+                            <div class="row align-items-center">
+                                <div class="form-group col-md-4">
+                                    <label for="display_name">Apodo en Español (Descriptivo)</label>
+                                    <input type="text" class="form-control @error('display_name') is-invalid @enderror"
+                                        id="display_name" name="display_name" value="{{ old('display_name', $permission->display_name) }}"
+                                        placeholder="Ej. Financieras: Asignar Vendedor" autocomplete="off">
+                                    @error('display_name')
+                                        <div class="invalid-feedback">
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
+                                </div>
+
+                                <div class="form-group col-md-4">
+                                    <label for="name">Identificador Técnico <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control @error('name') is-invalid @enderror"
                                         id="name" name="name" value="{{ old('name', $permission->name) }}" required
                                         autocomplete="off">
@@ -98,7 +110,7 @@
                                     @enderror
                                 </div>
 
-                                <div class="form-group col-md-6">
+                                <div class="form-group col-md-4">
                                     <label for="group_name">Grupo <span class="text-danger">*</span></label>
                                     <select class="form-control @error('group_name') is-invalid @enderror" name="group_name"
                                         required>

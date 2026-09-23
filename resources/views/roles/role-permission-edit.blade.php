@@ -63,16 +63,16 @@
                                     >
                                     <label
                                         for="permission_group_id[{{ $loop->iteration }}]"
-                                        class="custom-control-label"
+                                        class="custom-control-label font-weight-bold"
                                     >
-                                        {{ $permission_group->group_name }}
+                                        {{ App\Models\Permission::groupLabel($permission_group->group_name) }}
                                     </label>
                                 </div>
                             </div>
 
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-9">
                                 @foreach ($permissions as $permission)
-                                    <div class="custom-control custom-checkbox custom-control-inline my-2">
+                                    <div class="custom-control custom-checkbox custom-control-inline my-2 mr-3">
                                         <input
                                             type="checkbox"
                                             class="custom-control-input"
@@ -84,8 +84,9 @@
                                         <label
                                             for="permission_id[{{ $permission->id }}]"
                                             class="custom-control-label"
+                                            title="{{ $permission->name }}"
                                         >
-                                            {{ $permission->name }}
+                                            {{ $permission->display_name ?? $permission->name }}
                                         </label>
                                     </div>
                                 @endforeach
