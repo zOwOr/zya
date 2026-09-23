@@ -1,7 +1,7 @@
 <div class="iq-sidebar sidebar-default">
     <div class="sidebar-header d-flex align-items-center justify-content-between">
         <a href="{{ route('dashboard') }}" class="sidebar-logo">
-            <img src="{{ asset('assets/images/logo-sidebar.png') }}" class="img-fluid rounded-normal light-logo" alt="logo">
+            <img src="{{ asset('assets/images/logo.png') }}" class="img-fluid rounded-normal light-logo" alt="logo">
         </a>
         <div class="sidebar-toggle-btn" onclick="document.body.classList.toggle('sidebar-main')" role="button" tabindex="0" title="Alternar menú lateral">
             <i class="fa-solid fa-bars"></i>
