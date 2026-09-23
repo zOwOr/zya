@@ -219,25 +219,25 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center px-3 pt-2 border-bottom">
                         <ul class="nav nav-tabs nav-tabs-financieras border-0" id="financierasTabs" role="tablist">
                             <li class="nav-item">
-                                <a class="nav-link {{ $activeTab === 'ventas' ? 'active' : '' }}" id="tab-link-ventas" data-toggle="tab" href="#section-ventas" role="tab" data-tab-name="ventas">
+                                <a class="nav-link {{ $activeTab === 'ventas' ? 'active' : '' }}" id="tab-link-ventas" href="{{ route('financieras.index', ['tab' => 'ventas']) }}" data-tab-name="ventas">
                                     <i class="fa-solid fa-cart-shopping mr-2 text-primary"></i>1. Clientes / Ventas
                                     <span class="badge badge-primary badge-tab-count">{{ $counts['ventas'] }}</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link {{ $activeTab === 'inventario' ? 'active' : '' }}" id="tab-link-inventario" data-toggle="tab" href="#section-inventario" role="tab" data-tab-name="inventario">
+                                <a class="nav-link {{ $activeTab === 'inventario' ? 'active' : '' }}" id="tab-link-inventario" href="{{ route('financieras.index', ['tab' => 'inventario']) }}" data-tab-name="inventario">
                                     <i class="fa-solid fa-boxes-stacked mr-2 text-success"></i>2. Inventario
                                     <span class="badge badge-success badge-tab-count">{{ $counts['inventario_disponible'] }}</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link {{ $activeTab === 'garantias' ? 'active' : '' }}" id="tab-link-garantias" data-toggle="tab" href="#section-garantias" role="tab" data-tab-name="garantias">
+                                <a class="nav-link {{ $activeTab === 'garantias' ? 'active' : '' }}" id="tab-link-garantias" href="{{ route('financieras.index', ['tab' => 'garantias']) }}" data-tab-name="garantias">
                                     <i class="fa-solid fa-wrench mr-2 text-warning"></i>3. Garantías
                                     <span class="badge badge-warning text-white badge-tab-count">{{ $counts['garantias_activas'] }}</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link {{ $activeTab === 'robos' ? 'active' : '' }}" id="tab-link-robos" data-toggle="tab" href="#section-robos" role="tab" data-tab-name="robos">
+                                <a class="nav-link {{ $activeTab === 'robos' ? 'active' : '' }}" id="tab-link-robos" href="{{ route('financieras.index', ['tab' => 'robos']) }}" data-tab-name="robos">
                                     <i class="fa-solid fa-shield-halved mr-2 text-danger"></i>4. Reporte de Robos
                                     <span class="badge badge-danger badge-tab-count">{{ $counts['robos_activos'] }}</span>
                                 </a>
@@ -311,15 +311,12 @@
 
 <script>
 $(document).ready(function() {
-    // Navegación real al cambiar de tab: garantiza tab correcto en URL y resetea page=1
-    $('a[data-toggle="tab"]').on('click', function(e) {
+    // Navegación limpia al cambiar de tab: navega directamente a la sección sin arrastrar filtros de otras secciones
+    $('#financierasTabs a[data-tab-name]').on('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
         let tab = $(this).data('tab-name');
-        let url = new URL(window.location);
-        url.searchParams.set('tab', tab);
-        url.searchParams.delete('page'); // Reset a página 1 al cambiar de sección
-        window.location.href = url.toString();
+        window.location.href = "{{ route('financieras.index') }}?tab=" + tab;
     });
 
     // Búsqueda cruzada de IMEI
