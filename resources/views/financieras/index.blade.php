@@ -320,8 +320,7 @@ $(document).ready(function() {
     });
 
     // Búsqueda cruzada de IMEI
-    $('#btnCrossLookup, #crossImeiInput').on('keydown click', function(e) {
-        if (e.type === 'keydown' && e.which !== 13) return;
+    function performCrossLookup() {
         let imei = $('#crossImeiInput').val().trim();
         if (!imei) {
             Swal.fire({
@@ -367,6 +366,14 @@ $(document).ready(function() {
             let saleSection = '<div class="p-3 bg-light rounded text-muted">No cuenta con registro de venta activa.</div>';
             if (d.latest_sale) {
                 let s = d.latest_sale;
+                let tagBadge = '';
+                if (s.sale_type === 'contado') {
+                    tagBadge = '<span class="badge badge-secondary font-size-11">NO APLICA</span>';
+                } else {
+                    let tagVal = s.tag_contrato ? s.tag_contrato : 'Sin asignar';
+                    tagBadge = `<span class="badge badge-primary font-size-12 font-weight-bold"><i class="fa-solid fa-tag mr-1"></i>${tagVal}</span>`;
+                }
+
                 saleSection = `
                     <div class="border rounded p-3 bg-light">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -374,8 +381,9 @@ $(document).ready(function() {
                             <span class="badge badge-${s.status === 'activa' ? 'success' : 'danger'}">${s.status.toUpperCase()}</span>
                         </div>
                         <div class="font-size-14 text-dark">
+                            <div class="mb-1"><strong>TAG / Device ID:</strong> ${tagBadge}</div>
                             <strong>Cliente:</strong> ${s.customer_name || 'Sin registrar'} (${s.customer_phone || 'Sin tel'})<br>
-                            <strong>Financiera:</strong> ${s.financiera ? s.financiera.name : 'Directo'} | <strong>Vendedor:</strong> ${s.seller ? s.seller.name : 'N/A'}<br>
+                            <strong>Financiera:</strong> ${s.financiera ? s.financiera.name : (s.sale_type === 'contado' ? 'Contado' : 'Directo')} | <strong>Vendedor:</strong> ${s.seller ? s.seller.name : 'N/A'}<br>
                             <strong>Precio:</strong> $${parseFloat(s.price).toFixed(2)} | <strong>Enganche:</strong> $${parseFloat(s.down_payment).toFixed(2)}
                         </div>
                         <div class="mt-2">
@@ -431,6 +439,20 @@ $(document).ready(function() {
         }).fail(function() {
             $('#crossModalBody').html('<div class="alert alert-danger mb-0">Error al consultar el servidor.</div>');
         });
+    }
+
+    // Búsqueda solo con click en el botón Consultar
+    $('#btnCrossLookup').on('click', function(e) {
+        e.preventDefault();
+        performCrossLookup();
+    });
+
+    // O al presionar tecla Enter en el campo de texto
+    $('#crossImeiInput').on('keydown', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            performCrossLookup();
+        }
     });
 
     // Helper Modals

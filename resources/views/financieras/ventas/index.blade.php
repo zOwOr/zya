@@ -49,9 +49,9 @@
             <div class="row align-items-end mb-2">
                 <div class="col-lg-3 col-md-6 mb-2">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-magnifying-glass mr-1 text-primary"></i>Buscar (Folio, Cliente, Tel, IMEI)
+                        <i class="fa-solid fa-magnifying-glass mr-1 text-primary"></i>Buscar (Folio, TAG, Cliente, Tel, IMEI)
                     </label>
-                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar por cliente, folio, teléfono o IMEI..." value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar por cliente, folio, TAG, teléfono o IMEI..." value="{{ request('search') }}">
                 </div>
                 <div class="col-lg-2 col-md-6 mb-2">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">

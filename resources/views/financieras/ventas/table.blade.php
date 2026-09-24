@@ -4,6 +4,7 @@
             <tr>
                 <th>Código</th>
                 <th>Fecha</th>
+                <th>TAG / Device ID</th>
                 <th>IMEI / Equipo</th>
                 <th>Sucursal</th>
                 <th>Financiera</th>
@@ -23,6 +24,19 @@
                         </a>
                     </td>
                     <td>{{ $sale->sale_date ? $sale->sale_date->format('d/m/Y') : '-' }}</td>
+                    <td>
+                        @if ($sale->isContado())
+                            <span class="badge badge-secondary font-size-11">NO APLICA</span>
+                        @else
+                            @if (!empty($sale->tag_contrato))
+                                <span class="font-weight-bold text-dark font-size-12">
+                                    <i class="fa-solid fa-tag text-muted mr-1 font-size-11"></i>{{ $sale->tag_contrato }}
+                                </span>
+                            @else
+                                <span class="text-muted font-size-12">N/D</span>
+                            @endif
+                        @endif
+                    </td>
                     <td>
                         <span class="font-weight-bold text-dark">{{ $sale->device?->imei ?? 'N/A' }}</span>
                         <br>
@@ -85,7 +99,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="10" class="text-center py-4 text-muted">
+                    <td colspan="11" class="text-center py-4 text-muted">
                         <i class="fa-solid fa-inbox fa-3x mb-2 text-secondary"></i>
                         <p class="mb-0">No se encontraron ventas registradas con los filtros seleccionados.</p>
                     </td>

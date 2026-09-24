@@ -847,7 +847,7 @@ class FinSaleController extends Controller
             'CONTACTO',
             'CHIP INGRESADO',
             'FINANCIERA',
-            'ID/CONTRATO',
+            'TAG / DEVICE ID',
             'MARCA',
             'MODELO',
             'CAPACIDAD',
@@ -906,13 +906,16 @@ class FinSaleController extends Controller
                 $refs[] = trim(($s->ref3_name ?? '') . ' ' . ($s->ref3_phone ?? ''));
             }
 
+            $financieraName = $s->financiera?->name ?? ($s->isContado() ? 'Contado' : 'Directo');
+            $tagValue = $s->isContado() ? 'NO APLICA' : ($s->tag_contrato ?? '');
+
             $sheet->setCellValueByColumnAndRow(1,  $rowNum, $s->sale_date ? $s->sale_date->format('d/m/Y') : '');
             $sheet->setCellValueByColumnAndRow(2,  $rowNum, $s->seller_display_name !== 'N/A' ? $s->seller_display_name : '');
             $sheet->setCellValueByColumnAndRow(3,  $rowNum, $s->customer_name ?? '');
             $sheet->setCellValueByColumnAndRow(4,  $rowNum, $s->customer_phone ?? '');
             $sheet->setCellValueByColumnAndRow(5,  $rowNum, $s->customer_chip ?? '');
-            $sheet->setCellValueByColumnAndRow(6,  $rowNum, $s->financiera?->name ?? 'Directo');
-            $sheet->setCellValueByColumnAndRow(7,  $rowNum, $s->tag_contrato ?? '');
+            $sheet->setCellValueByColumnAndRow(6,  $rowNum, $financieraName);
+            $sheet->setCellValueByColumnAndRow(7,  $rowNum, $tagValue);
             $sheet->setCellValueByColumnAndRow(8,  $rowNum, $s->device?->brand?->name ?? '');
             $sheet->setCellValueByColumnAndRow(9,  $rowNum, $s->device?->model ?? '');
             $sheet->setCellValueByColumnAndRow(10, $rowNum, $s->device?->storage ?? '');
@@ -984,7 +987,7 @@ class FinSaleController extends Controller
             'CONTACTO',
             'CHIP INGRESADO',
             'FINANCIERA',
-            'ID/CONTRATO',
+            'TAG / DEVICE ID',
             'MARCA',
             'MODELO',
             'CAP',
@@ -1151,7 +1154,7 @@ class FinSaleController extends Controller
                     $headerMap['customer_chip'] = $colIdx;
                 } elseif (in_array($cleaned, ['FINANCIERA', 'FINANCIERAID'])) {
                     $headerMap['financiera'] = $colIdx;
-                } elseif (in_array($cleaned, ['IDCONTRATO', 'CONTRATO', 'DEVICEIDCONTRATO', 'ID', 'TAGCONTRATO', 'DEVICEID'])) {
+                } elseif (in_array($cleaned, ['IDCONTRATO', 'CONTRATO', 'DEVICEIDCONTRATO', 'ID', 'TAGCONTRATO', 'DEVICEID', 'TAGDEVICEID', 'TAG', 'TAGDEVICEIDCONTRATO'])) {
                     $headerMap['tag_contrato'] = $colIdx;
                 } elseif (in_array($cleaned, ['MARCA', 'BRAND'])) {
                     $headerMap['brand'] = $colIdx;
@@ -1431,6 +1434,9 @@ class FinSaleController extends Controller
                 $customerPhone = isset($headerMap['customer_phone']) ? trim((string)($row[$headerMap['customer_phone']] ?? '')) : null;
                 $customerChip = isset($headerMap['customer_chip']) ? trim((string)($row[$headerMap['customer_chip']] ?? '')) : null;
                 $tagContrato = isset($headerMap['tag_contrato']) ? trim((string)($row[$headerMap['tag_contrato']] ?? '')) : null;
+                if (!empty($tagContrato) && in_array(mb_strtoupper($tagContrato), ['NO APLICA', 'NOAPLICA', 'N/A', 'NA', 'NO_APLICA'])) {
+                    $tagContrato = null;
+                }
                 $customerAddress = isset($headerMap['customer_address']) ? trim((string)($row[$headerMap['customer_address']] ?? '')) : null;
                 $customerFacebook = isset($headerMap['customer_facebook']) ? trim((string)($row[$headerMap['customer_facebook']] ?? '')) : null;
                 $customerEmail = isset($headerMap['customer_email']) ? trim((string)($row[$headerMap['customer_email']] ?? '')) : null;
