@@ -12,8 +12,8 @@
                     <p class="text-muted mb-0 font-size-13">Modifique la información o estado del dispositivo.</p>
                 </div>
                 <div>
-                    <a href="{{ route('financieras.inventario.history', $device->id) }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fa-solid fa-arrow-left mr-1"></i>Regresar al Historial
+                    <a href="{{ route('financieras.inventario.show', $device->id) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fa-solid fa-arrow-left mr-1"></i>Regresar al Dispositivo
                     </a>
                 </div>
             </div>
@@ -136,7 +136,7 @@
                         </div>
 
                         <div class="d-flex justify-content-end">
-                            <a href="{{ route('financieras.inventario.history', $device->id) }}" class="btn btn-light border mr-2">Cancelar</a>
+                            <a href="{{ route('financieras.inventario.show', $device->id) }}" class="btn btn-light border mr-2">Cancelar</a>
                             <button type="submit" class="btn btn-warning px-4 font-weight-bold">
                                 <i class="fa-solid fa-save mr-2"></i>Guardar Cambios
                             </button>

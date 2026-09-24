@@ -121,6 +121,9 @@
                     @endif
                     <td class="text-right">
                         <div class="d-inline-flex">
+                            <a href="{{ route('financieras.inventario.show', $device->id) }}" class="btn btn-sm btn-outline-primary mr-1" title="Ver Detalle">
+                                <i class="fa-solid fa-eye"></i>
+                            </a>
                             <a href="{{ route('financieras.inventario.history', $device->id) }}" class="btn btn-sm btn-info mr-1" title="Historial Completo">
                                 <i class="fa-solid fa-clock-rotate-left"></i>
                             </a>
