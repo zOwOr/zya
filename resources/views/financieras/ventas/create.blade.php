@@ -17,14 +17,25 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-lg-12">
-            <div class="d-flex align-items-center justify-content-between mb-4">
+            <!-- Header Navegación -->
+            <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
                 <div>
-                    <h4 class="mb-1 font-weight-bold">
-                        <i class="fa-solid fa-cart-plus text-primary mr-2"></i>Nueva Venta / Crédito
-                    </h4>
-                    <p class="text-muted mb-0 font-size-13">Registre la venta y financiamiento del equipo telefónico.</p>
+                    <div class="d-flex align-items-center">
+                        <span class="badge badge-primary px-3 py-2 mr-2 font-size-14">
+                            <i class="fa-solid fa-credit-card mr-1"></i>VENTA A CRÉDITO
+                        </span>
+                        <h4 class="mb-0 font-weight-bold">Nueva Venta / Crédito</h4>
+                    </div>
+                    <p class="text-muted mb-0 font-size-13 mt-1">
+                        Registre la venta y financiamiento del equipo telefónico.
+                    </p>
                 </div>
-                <div>
+                <div class="mt-3 mt-md-0">
+                    @can('financieras.ventas.create')
+                        <a href="{{ route('financieras.ventas.create-contado') }}" class="btn btn-outline-success btn-sm mr-2" title="Cambiar a venta directa de contado">
+                            <i class="fa-solid fa-money-bill-wave mr-1"></i>Ir a Venta al Contado
+                        </a>
+                    @endcan
                     <a href="{{ route('financieras.index', ['tab' => 'ventas']) }}" class="btn btn-outline-secondary btn-sm">
                         <i class="fa-solid fa-arrow-left mr-1"></i>Regresar a Ventas
                     </a>
@@ -302,8 +313,17 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end mb-5">
-                    <a href="{{ route('financieras.index', ['tab' => 'ventas']) }}" class="btn btn-light border mr-2">Cancelar</a>
+                <div class="d-flex justify-content-between align-items-center mb-5">
+                    <div>
+                        <a href="{{ route('financieras.index', ['tab' => 'ventas']) }}" class="btn btn-light border px-4 mr-2">
+                            <i class="fa-solid fa-xmark mr-1"></i>Cancelar
+                        </a>
+                        @can('financieras.ventas.create')
+                            <a href="{{ route('financieras.ventas.create-contado') }}" class="btn btn-outline-success">
+                                <i class="fa-solid fa-money-bill-wave mr-1"></i>Ir a Venta al Contado
+                            </a>
+                        @endcan
+                    </div>
                     <button type="submit" class="btn btn-primary px-4 font-weight-bold">
                         <i class="fa-solid fa-check mr-2"></i>Registrar Venta
                     </button>

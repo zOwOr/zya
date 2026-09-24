@@ -34,6 +34,8 @@ class FinSaleController extends Controller
         'show' => 'read',
         'create' => 'create',
         'store' => 'create',
+        'createContado' => 'create',
+        'storeContado' => 'create',
         'edit' => 'edit',
         'update' => 'edit',
         'destroy' => 'delete',
@@ -66,6 +68,7 @@ class FinSaleController extends Controller
         $filters = array_merge(
             $request->only([
                 'search',
+                'sale_type',
                 'financiera_id',
                 'branch_id',
                 'seller_id',
@@ -108,6 +111,21 @@ class FinSaleController extends Controller
             ->get();
 
         return view('financieras.ventas.create', compact('branches', 'brands', 'financieras', 'sellers', 'availableDevices'));
+    }
+
+    public function createContado()
+    {
+        $branches = Branch::all();
+        $brands = FinBrand::where('is_active', true)->orderBy('name')->get();
+        $sellers = User::orderBy('name')->get();
+        $availableDevices = FinDevice::where('status', 'disponible')
+            ->when(auth()->check() && !auth()->user()->can('financieras.inventario.all_branches'), function ($q) {
+                $q->where('branch_id', auth()->user()->branch_id);
+            })
+            ->with('brand', 'branch')
+            ->get();
+
+        return view('financieras.ventas.create-contado', compact('branches', 'brands', 'sellers', 'availableDevices'));
     }
 
     protected function canAssignSeller(): bool
@@ -334,6 +352,182 @@ class FinSaleController extends Controller
             ->with('success', 'Venta registrada con éxito. Código: ' . $sale->sale_code);
     }
 
+    public function storeContado(Request $request)
+    {
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            $request->merge(['branch_id' => auth()->user()->branch_id]);
+        }
+
+        $canAssignSeller = $this->canAssignSeller();
+
+        $request->validate([
+            'device_id' => [
+                'nullable',
+                'exists:fin_devices,id',
+                Rule::unique('fin_sales', 'device_id')
+                    ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
+            ],
+            'imei' => 'required_without:device_id|nullable|string|max:50',
+            'model' => 'required_without:device_id|nullable|string|max:150',
+            'brand_id' => 'nullable|exists:fin_brands,id',
+            'brand_name' => 'nullable|string|max:100',
+            'color' => 'nullable|string|max:50',
+            'storage' => 'nullable|string|max:50',
+            'branch_id' => 'required|exists:branches,id',
+            'seller_id' => $canAssignSeller ? 'required|exists:users,id' : 'nullable',
+            'price' => 'required|numeric|min:0',
+            'customer_name' => 'required|string|max:150',
+            'customer_phone' => 'nullable|string|max:30',
+            'customer_address' => 'nullable|string|max:500',
+            'customer_rfc' => 'nullable|string|max:25',
+            'warranty_text' => 'nullable|string|max:100',
+            'payment_method' => 'nullable|string|max:50',
+            'sale_date' => 'nullable|date',
+            'initial_note' => 'nullable|string|max:2000',
+        ], [
+            'device_id.unique' => 'El dispositivo seleccionado ya cuenta con una venta registrada activa.',
+            'imei.required_without' => 'El IMEI es obligatorio.',
+            'model.required_without' => 'El modelo del equipo es obligatorio.',
+            'customer_name.required' => 'El nombre del cliente es obligatorio.',
+            'branch_id.required' => 'La sucursal es obligatoria.',
+            'branch_id.exists' => 'La sucursal seleccionada no es válida.',
+            'seller_id.required' => 'Debe seleccionar un vendedor.',
+            'seller_id.exists' => 'El vendedor seleccionado no es válido.',
+            'price.required' => 'El precio total al contado es obligatorio.',
+            'price.numeric' => 'El precio debe ser un número válido.',
+            'price.min' => 'El precio no puede ser menor a 0.',
+        ]);
+
+        $deviceId = $request->input('device_id');
+
+        // Si no se seleccionó device_id pero se ingresó IMEI, buscar o registrar en inventario
+        if (!$deviceId && $request->filled('imei')) {
+            $imei = trim($request->input('imei'));
+            $device = FinDevice::where('imei', $imei)->first();
+
+            if (!$device) {
+                $brandId = $request->input('brand_id');
+                if (!$brandId && $request->filled('brand_name')) {
+                    $brand = FinBrand::firstOrCreate(['name' => trim($request->input('brand_name'))]);
+                    $brandId = $brand->id;
+                }
+
+                $model = trim($request->input('model') ?? '');
+                if (empty($model)) {
+                    $model = 'Modelo no especificado';
+                }
+
+                $device = FinDevice::create([
+                    'imei' => $imei,
+                    'brand_id' => $brandId,
+                    'model' => $model,
+                    'color' => $request->input('color') ?: 'Sin color',
+                    'storage' => $request->input('storage') ?: null,
+                    'branch_id' => $request->input('branch_id'),
+                    'status' => 'disponible',
+                ]);
+            }
+            $deviceId = $device->id;
+        }
+
+        if (!$deviceId) {
+            return back()->withInput()->with('error', 'Debe seleccionar un dispositivo o ingresar un IMEI.');
+        }
+
+        $device = FinDevice::findOrFail($deviceId);
+
+        // Verificación de sucursal para usuarios sin permiso all_branches
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            if ($device->branch_id !== auth()->user()->branch_id) {
+                return back()->withInput()->withErrors([
+                    'imei' => 'El dispositivo pertenece a otra sucursal y no tienes permiso para venderlo.'
+                ])->with('error', 'No tienes permiso para vender dispositivos de otra sucursal.');
+            }
+        }
+
+        // Si el dispositivo ya existía y se proporcionó almacenamiento o color que no tenía, actualizarlo
+        if ($request->filled('storage') && empty($device->storage)) {
+            $device->update(['storage' => $request->input('storage')]);
+        }
+        if ($request->filled('color') && empty($device->color)) {
+            $device->update(['color' => $request->input('color')]);
+        }
+
+        // Validar que el dispositivo no tenga ya una venta activa o esté vendido
+        $existingSale = FinSale::where('device_id', $device->id)
+            ->whereNull('deleted_at')
+            ->where('status', '!=', 'cancelada')
+            ->first();
+
+        if ($existingSale || $device->status === 'vendido') {
+            $saleCode = $existingSale ? ' (' . $existingSale->sale_code . ')' : '';
+            return back()->withInput()->withErrors([
+                'imei' => 'El dispositivo con IMEI ' . $device->imei . ' ya cuenta con una venta registrada' . $saleCode . '. No se permiten ventas duplicadas.',
+                'device_id' => 'El dispositivo ya cuenta con una venta registrada.'
+            ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' ya ha sido vendido o cuenta con una venta registrada.');
+        }
+
+        $sale = DB::transaction(function () use ($request, $device, $canAssignSeller) {
+            $saleCode = 'CONT-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+
+            $price = (float) $request->input('price', 0);
+            $sellerId = ($canAssignSeller && $request->filled('seller_id')) ? $request->input('seller_id') : auth()->id();
+            $sellerUser = User::find($sellerId);
+
+            $sale = FinSale::create([
+                'sale_code' => $saleCode,
+                'sale_type' => 'contado',
+                'device_id' => $device->id,
+                'financiera_id' => null,
+                'branch_id' => $request->input('branch_id', $device->branch_id),
+                'seller_id' => $sellerId,
+                'seller_name' => $sellerUser ? $sellerUser->name : auth()->user()->name,
+                // Datos del cliente (básicos basados en nota física)
+                'customer_name' => $request->input('customer_name'),
+                'customer_phone' => $request->input('customer_phone'),
+                'customer_address' => $request->input('customer_address'),
+                'customer_rfc' => $request->input('customer_rfc'),
+                // Financiero (al contado: precio = enganche, crédito = 0)
+                'price' => $price,
+                'down_payment' => $price,
+                'credit_amount' => 0,
+                'warranty_text' => $request->input('warranty_text') ?: '1 Mes de garantía',
+                'payment_method' => $request->input('payment_method') ?: 'Efectivo',
+                'sale_date' => $request->input('sale_date', now()),
+                'status' => 'activa',
+            ]);
+
+            // IMPACTO EN INVENTARIO: Dispositivo pasa a estatus 'vendido'
+            $device->update(['status' => 'vendido']);
+
+            // Nota inicial opcional
+            if ($request->filled('initial_note')) {
+                FinSaleNote::create([
+                    'sale_id' => $sale->id,
+                    'user_id' => auth()->id(),
+                    'note' => $request->input('initial_note'),
+                ]);
+            }
+
+            return $sale;
+        });
+
+        // Broadcast Reverb WebSocket event
+        try {
+            event(new FinancierasUpdated(
+                'ventas',
+                'created',
+                "Venta al contado {$sale->sale_code} registrada con IMEI {$device->imei}",
+                ['sale_id' => $sale->id, 'sale_code' => $sale->sale_code, 'imei' => $device->imei, 'sale_type' => 'contado']
+            ));
+        } catch (\Throwable $e) {
+            \Log::warning('Reverb broadcast warning: ' . $e->getMessage());
+        }
+
+        return redirect()->route('financieras.ventas.show', $sale->id)
+            ->with('success', 'Venta al contado registrada con éxito. Folio: ' . $sale->sale_code);
+    }
+
     public function show(FinSale $sale)
     {
         $this->checkSaleBranchAccess($sale);
@@ -377,19 +571,19 @@ class FinSaleController extends Controller
         }
 
         $canAssignSeller = $this->canAssignSeller();
+        $isContado = $sale->isContado();
 
-        $request->validate([
-            'financiera_id' => 'required|exists:fin_financieras,id',
+        $rules = [
             'branch_id' => 'required|exists:branches,id',
             'seller_id' => $canAssignSeller ? 'nullable|exists:users,id' : 'nullable',
-            'tag_contrato' => [
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('fin_sales', 'tag_contrato')
-                    ->ignore($sale->id)
-                    ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
-            ],
+            'price' => 'nullable|numeric|min:0',
+            'sale_date' => 'nullable|date',
+            'customer_name' => 'nullable|string|max:150',
+            'customer_phone' => 'nullable|string|max:30',
+            'customer_address' => 'nullable|string|max:500',
+            'customer_rfc' => 'nullable|string|max:25',
+            'warranty_text' => 'nullable|string|max:100',
+            'payment_method' => 'nullable|string|max:50',
             'device_id' => [
                 'nullable',
                 'exists:fin_devices,id',
@@ -397,55 +591,79 @@ class FinSaleController extends Controller
                     ->ignore($sale->id)
                     ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
             ],
-            'price' => 'nullable|numeric|min:0',
-            'down_payment' => 'nullable|numeric|min:0',
-            'enganche_descuento' => 'nullable|numeric|min:0',
-            'credit_amount' => 'nullable|numeric|min:0',
-            'abono_semanal' => 'nullable|numeric|min:0',
-            'term_months' => 'nullable|integer|min:1',
-            'term_weeks' => 'nullable|integer|min:1|max:520',
-            'sale_date' => 'nullable|date',
-            'customer_name' => 'nullable|string|max:150',
-            'customer_phone' => 'nullable|string|max:30',
-            'customer_email' => 'nullable|email|max:150',
-            'customer_ine' => 'nullable|string|max:50',
-            'customer_address' => 'nullable|string|max:500',
-            'customer_chip' => 'nullable|string|max:100',
-            'customer_facebook' => 'nullable|string|max:150',
-            'ref1_name' => 'nullable|string|max:150',
-            'ref1_phone' => 'nullable|string|max:30',
-            'ref2_name' => 'nullable|string|max:150',
-            'ref2_phone' => 'nullable|string|max:30',
-            'ref3_name' => 'nullable|string|max:150',
-            'ref3_phone' => 'nullable|string|max:30',
-        ], [
+        ];
+
+        if (!$isContado) {
+            $rules['financiera_id'] = 'required|exists:fin_financieras,id';
+            $rules['tag_contrato'] = [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('fin_sales', 'tag_contrato')
+                    ->ignore($sale->id)
+                    ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
+            ];
+            $rules['down_payment'] = 'nullable|numeric|min:0';
+            $rules['enganche_descuento'] = 'nullable|numeric|min:0';
+            $rules['credit_amount'] = 'nullable|numeric|min:0';
+            $rules['abono_semanal'] = 'nullable|numeric|min:0';
+            $rules['term_months'] = 'nullable|integer|min:1';
+            $rules['term_weeks'] = 'nullable|integer|min:1|max:520';
+            $rules['customer_email'] = 'nullable|email|max:150';
+            $rules['customer_ine'] = 'nullable|string|max:50';
+            $rules['customer_chip'] = 'nullable|string|max:100';
+            $rules['customer_facebook'] = 'nullable|string|max:150';
+            $rules['ref1_name'] = 'nullable|string|max:150';
+            $rules['ref1_phone'] = 'nullable|string|max:30';
+            $rules['ref2_name'] = 'nullable|string|max:150';
+            $rules['ref2_phone'] = 'nullable|string|max:30';
+            $rules['ref3_name'] = 'nullable|string|max:150';
+            $rules['ref3_phone'] = 'nullable|string|max:30';
+        } else {
+            $rules['financiera_id'] = 'nullable|exists:fin_financieras,id';
+        }
+
+        $request->validate($rules, [
             'tag_contrato.unique' => 'El TAG / No. de Contrato ya se encuentra registrado en otra venta.',
             'device_id.unique' => 'El dispositivo ya cuenta con otra venta registrada activa.',
         ]);
 
         $updateData = $request->only([
-            'financiera_id',
             'branch_id',
-            'tag_contrato',
             'customer_name',
             'customer_phone',
-            'customer_email',
-            'customer_ine',
             'customer_address',
-            'customer_chip',
-            'customer_facebook',
-            'ref1_name', 'ref1_phone',
-            'ref2_name', 'ref2_phone',
-            'ref3_name', 'ref3_phone',
+            'customer_rfc',
             'price',
-            'down_payment',
-            'enganche_descuento',
-            'credit_amount',
-            'abono_semanal',
-            'term_months',
-            'term_weeks',
+            'warranty_text',
+            'payment_method',
             'sale_date',
         ]);
+
+        if (!$isContado) {
+            $updateData = array_merge($updateData, $request->only([
+                'financiera_id',
+                'tag_contrato',
+                'customer_email',
+                'customer_ine',
+                'customer_chip',
+                'customer_facebook',
+                'ref1_name', 'ref1_phone',
+                'ref2_name', 'ref2_phone',
+                'ref3_name', 'ref3_phone',
+                'down_payment',
+                'enganche_descuento',
+                'credit_amount',
+                'abono_semanal',
+                'term_months',
+                'term_weeks',
+            ]));
+        } else {
+            if ($request->filled('price')) {
+                $updateData['down_payment'] = (float) $request->input('price');
+                $updateData['credit_amount'] = 0;
+            }
+        }
 
         if ($request->filled('device_id') && $request->input('device_id') != $sale->device_id) {
             $newDeviceId = $request->input('device_id');

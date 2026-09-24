@@ -27,6 +27,15 @@
                 <div>
                     <div class="d-flex align-items-center">
                         <h4 class="mb-0 font-weight-bold mr-3">Venta {{ $sale->sale_code }}</h4>
+                        @if ($sale->isContado())
+                            <span class="badge badge-success font-size-13 px-2 py-1 mr-2">
+                                <i class="fa-solid fa-money-bill-wave mr-1"></i>CONTADO
+                            </span>
+                        @else
+                            <span class="badge badge-primary font-size-13 px-2 py-1 mr-2">
+                                <i class="fa-solid fa-credit-card mr-1"></i>CRÉDITO
+                            </span>
+                        @endif
                         @if ($sale->status === 'activa')
                             <span class="badge badge-success font-size-14 px-3 py-1">ACTIVA</span>
                         @else
@@ -119,72 +128,113 @@
                         </div>
                     </div>
 
-                    <!-- Tarjeta Condiciones Financieras -->
-                    <div class="card shadow-sm border-0 mb-4">
-                        <div class="card-header bg-white border-bottom py-3">
-                            <h6 class="font-weight-bold mb-0 text-success">
-                                <i class="fa-solid fa-hand-holding-dollar mr-2"></i>Condiciones de Financiamiento
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-3 col-6 mb-3">
-                                    <span class="text-muted font-size-12 d-block">Financiera</span>
-                                    <span class="badge badge-light border font-size-14 text-primary font-weight-bold">
-                                        {{ $sale->financiera?->name ?? 'Venta Directa' }}
-                                    </span>
-                                </div>
-                                @if($sale->tag_contrato)
-                                <div class="col-md-3 col-6 mb-3">
-                                    <span class="text-muted font-size-12 d-block">TAG / Contrato</span>
-                                    <span class="font-weight-bold text-dark">{{ $sale->tag_contrato }}</span>
-                                </div>
-                                @endif
-                                <div class="col-md-3 col-6 mb-3">
-                                    <span class="text-muted font-size-12 d-block">Precio Total</span>
-                                    <span class="font-weight-bold font-size-18 text-dark">${{ number_format($sale->price, 2) }}</span>
-                                </div>
-                                <div class="col-md-3 col-6 mb-3">
-                                    <span class="text-muted font-size-12 d-block">Enganche</span>
-                                    <span class="font-weight-bold font-size-18 text-success">${{ number_format($sale->down_payment, 2) }}</span>
-                                </div>
-                                @if($sale->enganche_descuento)
-                                <div class="col-md-3 col-6 mb-3">
-                                    <span class="text-muted font-size-12 d-block">Enganche c/ Descuento</span>
-                                    <span class="font-weight-bold font-size-16 text-warning">${{ number_format($sale->enganche_descuento, 2) }}</span>
-                                </div>
-                                @endif
-                                <div class="col-md-3 col-6 mb-3">
-                                    <span class="text-muted font-size-12 d-block">Monto Financiado</span>
-                                    <span class="font-weight-bold font-size-18 text-primary">${{ number_format($sale->credit_amount, 2) }}</span>
-                                </div>
-                                @if($sale->abono_semanal)
-                                <div class="col-md-3 col-6 mb-3">
-                                    <span class="text-muted font-size-12 d-block">Abono Semanal</span>
-                                    <span class="font-weight-bold font-size-16 text-info">${{ number_format($sale->abono_semanal, 2) }}</span>
-                                </div>
-                                @endif
-                                @if($sale->term_weeks)
-                                <div class="col-md-3 col-6 mb-2">
-                                    <span class="text-muted font-size-12 d-block">Plazo en Semanas</span>
-                                    <span class="font-weight-bold">{{ $sale->term_weeks }} semanas</span>
-                                </div>
-                                @endif
-                                <div class="col-md-3 col-6 mb-2">
-                                    <span class="text-muted font-size-12 d-block">Plazo en Meses</span>
-                                    <span class="font-weight-bold">{{ $sale->term_months ? $sale->term_months . ' Meses' : 'No especificado' }}</span>
-                                </div>
-                                <div class="col-md-6 col-12 mb-2">
-                                    <span class="text-muted font-size-12 d-block">Pago mensual estimado</span>
-                                    @if ($sale->term_months && $sale->term_months > 0 && $sale->credit_amount > 0)
-                                        <span class="font-weight-bold text-info font-size-16">${{ number_format($sale->credit_amount / $sale->term_months, 2) }} / mes</span>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
+                    <!-- Tarjeta Condiciones de Venta / Financiamiento -->
+                    @if ($sale->isContado())
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="font-weight-bold mb-0 text-success">
+                                    <i class="fa-solid fa-money-bill-wave mr-2"></i>Condiciones de Venta al Contado
+                                </h6>
+                                <span class="badge badge-success font-size-12 px-2 py-1">
+                                    <i class="fa-solid fa-circle-check mr-1"></i>Liquidado al 100%
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Tipo de Operación</span>
+                                        <span class="font-weight-bold text-dark font-size-15">Venta al Contado</span>
+                                    </div>
+                                    <div class="col-md-4 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Precio Total Pagado</span>
+                                        <span class="font-weight-bold font-size-20 text-success">${{ number_format($sale->price, 2) }}</span>
+                                    </div>
+                                    <div class="col-md-4 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Método de Pago</span>
+                                        <span class="badge badge-light border text-dark font-size-14 font-weight-bold">
+                                            {{ $sale->payment_method ?: 'Efectivo' }}
+                                        </span>
+                                    </div>
+                                    <div class="col-md-6 col-12 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Importe Total con Letra</span>
+                                        <span class="font-weight-bold text-dark font-italic font-size-13">{{ $sale->price_in_words }}</span>
+                                    </div>
+                                    <div class="col-md-6 col-12 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Póliza / Garantía Otorgada</span>
+                                        <span class="badge badge-warning text-dark font-weight-bold font-size-13 px-2 py-1">
+                                            <i class="fa-solid fa-shield-halved mr-1"></i>{{ $sale->warranty_text ?: '1 Mes de garantía' }}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    @else
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="font-weight-bold mb-0 text-primary">
+                                    <i class="fa-solid fa-hand-holding-dollar mr-2"></i>Condiciones de Financiamiento
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Financiera</span>
+                                        <span class="badge badge-light border font-size-14 text-primary font-weight-bold">
+                                            {{ $sale->financiera?->name ?? 'Venta Directa' }}
+                                        </span>
+                                    </div>
+                                    @if($sale->tag_contrato)
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">TAG / Contrato</span>
+                                        <span class="font-weight-bold text-dark">{{ $sale->tag_contrato }}</span>
+                                    </div>
+                                    @endif
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Precio Total</span>
+                                        <span class="font-weight-bold font-size-18 text-dark">${{ number_format($sale->price, 2) }}</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Enganche</span>
+                                        <span class="font-weight-bold font-size-18 text-success">${{ number_format($sale->down_payment, 2) }}</span>
+                                    </div>
+                                    @if($sale->enganche_descuento)
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Enganche c/ Descuento</span>
+                                        <span class="font-weight-bold font-size-16 text-warning">${{ number_format($sale->enganche_descuento, 2) }}</span>
+                                    </div>
+                                    @endif
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Monto Financiado</span>
+                                        <span class="font-weight-bold font-size-18 text-primary">${{ number_format($sale->credit_amount, 2) }}</span>
+                                    </div>
+                                    @if($sale->abono_semanal)
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Abono Semanal</span>
+                                        <span class="font-weight-bold font-size-16 text-info">${{ number_format($sale->abono_semanal, 2) }}</span>
+                                    </div>
+                                    @endif
+                                    @if($sale->term_weeks)
+                                    <div class="col-md-3 col-6 mb-2">
+                                        <span class="text-muted font-size-12 d-block">Plazo en Semanas</span>
+                                        <span class="font-weight-bold">{{ $sale->term_weeks }} semanas</span>
+                                    </div>
+                                    @endif
+                                    <div class="col-md-3 col-6 mb-2">
+                                        <span class="text-muted font-size-12 d-block">Plazo en Meses</span>
+                                        <span class="font-weight-bold">{{ $sale->term_months ? $sale->term_months . ' Meses' : 'No especificado' }}</span>
+                                    </div>
+                                    <div class="col-md-6 col-12 mb-2">
+                                        <span class="text-muted font-size-12 d-block">Pago mensual estimado</span>
+                                        @if ($sale->term_months && $sale->term_months > 0 && $sale->credit_amount > 0)
+                                            <span class="font-weight-bold text-info font-size-16">${{ number_format($sale->credit_amount / $sale->term_months, 2) }} / mes</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
 
                     <!-- Bitácora de Notas Libres -->
                     <div class="card shadow-sm border-0 mb-4">
@@ -264,6 +314,12 @@
                                     <span class="text-muted font-size-12 d-block">Domicilio</span>
                                     <span class="font-weight-bold">{{ $sale->customer_address ?: 'No especificado' }}</span>
                                 </li>
+                                @if($sale->customer_rfc)
+                                <li class="list-group-item px-0 py-2">
+                                    <span class="text-muted font-size-12 d-block">R.F.C.</span>
+                                    <span class="font-weight-bold text-uppercase">{{ $sale->customer_rfc }}</span>
+                                </li>
+                                @endif
                                 @if($sale->customer_chip)
                                 <li class="list-group-item px-0 py-2">
                                     <span class="text-muted font-size-12 d-block">Chip Ingresado (SIM)</span>

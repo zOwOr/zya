@@ -15,6 +15,7 @@ class FinSale extends Model
 
     protected $fillable = [
         'sale_code',
+        'sale_type',
         'device_id',
         'financiera_id',
         'branch_id',
@@ -25,6 +26,7 @@ class FinSale extends Model
         'customer_phone',
         'customer_email',
         'customer_ine',
+        'customer_rfc',
         'customer_address',
         'customer_chip',
         'customer_facebook',
@@ -32,7 +34,7 @@ class FinSale extends Model
         'ref1_name', 'ref1_phone',
         'ref2_name', 'ref2_phone',
         'ref3_name', 'ref3_phone',
-        // Financiero
+        // Financiero / Venta
         'price',
         'down_payment',
         'enganche_descuento',
@@ -41,6 +43,8 @@ class FinSale extends Model
         'term_months',
         'term_weeks',
         'tag_contrato',
+        'warranty_text',
+        'payment_method',
         'sale_date',
         'status',
         'cancelled_at',
@@ -117,6 +121,83 @@ class FinSale extends Model
         return $this->hasMany(FinTheftReport::class, 'sale_id');
     }
 
+    public function isContado(): bool
+    {
+        return $this->sale_type === 'contado';
+    }
+
+    public function isCredito(): bool
+    {
+        return $this->sale_type !== 'contado';
+    }
+
+    public function getPriceInWordsAttribute(): string
+    {
+        return static::numberToWords($this->price);
+    }
+
+    public static function numberToWords($amount): string
+    {
+        $amount = (float) $amount;
+        $cents = (int) round(($amount - floor($amount)) * 100);
+        $intVal = (int) floor($amount);
+
+        $text = static::convertIntegerToSpanish($intVal);
+        $centsFormatted = str_pad($cents, 2, '0', STR_PAD_LEFT);
+        return strtoupper(trim($text)) . ' PESOS ' . $centsFormatted . '/100 M.N.';
+    }
+
+    protected static function convertIntegerToSpanish(int $number): string
+    {
+        if ($number === 0) {
+            return 'cero';
+        }
+
+        $units = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez',
+            'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte',
+            'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+
+        $tens = ['', 'diez', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+
+        $hundreds = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+
+        if ($number < 30) {
+            return $units[$number];
+        }
+
+        if ($number < 100) {
+            $u = $number % 10;
+            $d = (int) floor($number / 10);
+            return $tens[$d] . ($u > 0 ? ' y ' . $units[$u] : '');
+        }
+
+        if ($number === 100) {
+            return 'cien';
+        }
+
+        if ($number < 1000) {
+            $h = (int) floor($number / 100);
+            $rest = $number % 100;
+            return $hundreds[$h] . ($rest > 0 ? ' ' . static::convertIntegerToSpanish($rest) : '');
+        }
+
+        if ($number < 1000000) {
+            $thousands = (int) floor($number / 1000);
+            $rest = $number % 1000;
+            $thousandsText = $thousands === 1 ? 'mil' : static::convertIntegerToSpanish($thousands) . ' mil';
+            return $thousandsText . ($rest > 0 ? ' ' . static::convertIntegerToSpanish($rest) : '');
+        }
+
+        if ($number < 1000000000) {
+            $millions = (int) floor($number / 1000000);
+            $rest = $number % 1000000;
+            $millionsText = $millions === 1 ? 'un millón' : static::convertIntegerToSpanish($millions) . ' millones';
+            return $millionsText . ($rest > 0 ? ' ' . static::convertIntegerToSpanish($rest) : '');
+        }
+
+        return (string) $number;
+    }
+
     public function scopeFilter($query, array $filters)
     {
         if ($search = $filters['search'] ?? false) {
@@ -126,12 +207,17 @@ class FinSale extends Model
                   ->orWhere('customer_phone', 'like', "%{$search}%")
                   ->orWhere('customer_email', 'like', "%{$search}%")
                   ->orWhere('customer_ine', 'like', "%{$search}%")
+                  ->orWhere('customer_rfc', 'like', "%{$search}%")
                   ->orWhere('seller_name', 'like', "%{$search}%")
                   ->orWhereHas('device', function ($d) use ($search) {
                       $d->where('imei', 'like', "%{$search}%")
                         ->orWhere('model', 'like', "%{$search}%");
                   });
             });
+        }
+
+        if ($saleType = $filters['sale_type'] ?? false) {
+            $query->where('sale_type', $saleType);
         }
 
         if ($financieraId = $filters['financiera_id'] ?? false) {

@@ -119,7 +119,7 @@ class FinancierasController extends Controller
             }
 
             $saleFilters = array_merge(
-                $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id']),
+                $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id', 'sale_type']),
                 [
                     'start_date' => $startDate,
                     'end_date'   => $endDate,

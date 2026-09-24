@@ -30,9 +30,15 @@
                     </td>
                     <td>{{ $sale->branch?->name ?? 'N/A' }}</td>
                     <td>
-                        <span class="badge badge-light border font-size-12">
-                            {{ $sale->financiera?->name ?? 'Directo' }}
-                        </span>
+                        @if ($sale->isContado())
+                            <span class="badge badge-success font-size-12 px-2 py-1">
+                                <i class="fa-solid fa-money-bill-wave mr-1"></i>Contado
+                            </span>
+                        @else
+                            <span class="badge badge-light border font-size-12">
+                                {{ $sale->financiera?->name ?? 'Directo' }}
+                            </span>
+                        @endif
                     </td>
                     <td>
                         <div class="font-weight-bold">{{ $sale->customer_name ?: 'Sin registrar' }}</div>
@@ -42,7 +48,11 @@
                     <td>
                         <span class="font-weight-bold text-success">${{ number_format($sale->price, 2) }}</span>
                         <br>
-                        <small class="text-muted">Eng: ${{ number_format($sale->down_payment, 2) }}</small>
+                        @if ($sale->isContado())
+                            <small class="text-muted"><i class="fa-solid fa-circle-check text-success mr-1"></i>Pago total</small>
+                        @else
+                            <small class="text-muted">Eng: ${{ number_format($sale->down_payment, 2) }}</small>
+                        @endif
                     </td>
                     <td>
                         @if ($sale->status === 'activa')

@@ -14,8 +14,11 @@
                     </a>
                 @endcan
                 @if (auth()->user()->can('financieras.ventas.create'))
-                    <a href="{{ route('financieras.ventas.create') }}" class="btn btn-primary btn-sm">
-                        <i class="fa-solid fa-plus mr-1"></i>Nueva Venta
+                    <a href="{{ route('financieras.ventas.create-contado') }}" class="btn btn-success btn-sm mr-2 shadow-xs">
+                        <i class="fa-solid fa-money-bill-wave mr-1"></i>Venta al Contado
+                    </a>
+                    <a href="{{ route('financieras.ventas.create') }}" class="btn btn-primary btn-sm shadow-xs">
+                        <i class="fa-solid fa-credit-card mr-1"></i>Venta a Crédito
                     </a>
                 @endif
             </div>
@@ -42,13 +45,23 @@
         <form id="filter-sales-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-3 rounded border bg-light shadow-xs">
             <input type="hidden" name="tab" value="ventas">
 
-            <!-- Fila 1: Búsqueda, Financiera, Sucursal, Estado -->
+            <!-- Fila 1: Búsqueda, Tipo Venta, Financiera, Sucursal, Estado -->
             <div class="row align-items-end mb-2">
-                <div class="col-lg-4 col-md-6 mb-2">
+                <div class="col-lg-3 col-md-6 mb-2">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
                         <i class="fa-solid fa-magnifying-glass mr-1 text-primary"></i>Buscar (Folio, Cliente, Tel, IMEI)
                     </label>
                     <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar por cliente, folio, teléfono o IMEI..." value="{{ request('search') }}">
+                </div>
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
+                        <i class="fa-solid fa-layer-group mr-1 text-warning"></i>Tipo Venta
+                    </label>
+                    <select name="sale_type" class="form-control form-control-sm custom-select custom-select-sm">
+                        <option value="">Todos</option>
+                        <option value="credito" {{ request('sale_type') == 'credito' ? 'selected' : '' }}>A Crédito</option>
+                        <option value="contado" {{ request('sale_type') == 'contado' ? 'selected' : '' }}>De Contado</option>
+                    </select>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-2">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
@@ -61,7 +74,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-lg-3 col-md-6 mb-2">
+                <div class="col-lg-2 col-md-6 mb-2">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
                         <i class="fa-solid fa-store mr-1 text-success"></i>Sucursal
                     </label>
