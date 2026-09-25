@@ -233,35 +233,35 @@
 
         /* Cláusulas / Políticas Legales */
         .clausulas-box {
-            border: 1.5px solid #000;
-            border-radius: 4px;
-            padding: 6px 12px 6px 8px;
-            margin-bottom: 12px;
+            border: 1.2px solid #000;
+            border-radius: 3px;
+            padding: 3px 8px 3px 6px;
+            margin-bottom: 6px;
             background-color: #fafafa;
             overflow: hidden;
         }
         .clausulas-title {
-            font-size: 8pt;
+            font-size: 7.2pt;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-bottom: 1px solid #000;
             text-align: center;
             background-color: #f0f0f0;
-            margin: -6px -12px 5px -8px;
-            padding: 3px 8px;
+            margin: -3px -8px 3px -6px;
+            padding: 2px 6px;
             color: #000;
         }
         .clausulas-list {
-            margin: 0 14px 0 0;
-            padding-left: 14px;
-            padding-right: 12px;
-            font-size: 7.8pt;
-            line-height: 1.38;
+            margin: 0 8px 0 0;
+            padding-left: 12px;
+            padding-right: 6px;
+            font-size: 6.8pt;
+            line-height: 1.22;
             text-align: justify;
         }
         .clausulas-list li {
-            margin-bottom: 3.5px;
+            margin-bottom: 1.5px;
         }
 
         /* Firmas */
