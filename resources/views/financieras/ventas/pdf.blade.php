@@ -267,7 +267,7 @@
         /* Firmas */
         .firmas-table {
             width: 100%;
-            margin-top: 20px;
+            margin-top: 10px;
             page-break-inside: avoid;
         }
         .firma-col {
@@ -279,12 +279,12 @@
             width: 12%;
         }
         .firma-space {
-            height: 65px;
+            height: 38px;
             width: 100%;
         }
         .firma-line {
             border-top: 1.5px solid #000;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             width: 90%;
             margin-left: auto;
             margin-right: auto;
@@ -497,17 +497,17 @@
         </div>
 
         {{-- FIRMAS --}}
-        <table class="firmas-table" style="margin-top: 25px;">
+        <table class="firmas-table" style="margin-top: 12px;">
             <tr>
                 <td class="firma-col">
-                    <div class="firma-space" style="height: 65px;"></div>
+                    <div class="firma-space" style="height: 40px;"></div>
                     <div class="firma-line"></div>
                     <div class="firma-role">FIRMA DEL CLIENTE / TITULAR</div>
                     <div class="firma-name">{{ $sale->customer_name ?: 'Acepto de conformidad' }}</div>
                 </td>
                 <td class="firma-spacer"></td>
                 <td class="firma-col">
-                    <div class="firma-space" style="height: 65px;"></div>
+                    <div class="firma-space" style="height: 40px;"></div>
                     <div class="firma-line"></div>
                     <div class="firma-role">VENDEDOR / SUCURSAL</div>
                     <div class="firma-name">{{ $sale->seller_display_name }} ({{ $sale->branch?->name ?? 'ZYA' }})</div>
@@ -526,7 +526,7 @@
                 <tr>
                     <th style="width:18%;">MODELO / EQUIPO</th>
                     <th style="width:17%;">IMEI</th>
-                    <th style="width:11%;">CONTRATO / ID</th>
+                    <th style="width:11%;">TAG / DEVICE ID</th>
                     <th style="width:9%;">ENGANCHE</th>
                     <th style="width:9%;">DESCTO. ENG.</th>
                     <th style="width:8%;">ABONO</th>

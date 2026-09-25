@@ -140,7 +140,7 @@ class FinancierasController extends Controller
             $theftFilters = $request->only(['search', 'branch_id', 'status']);
             $thefts = FinTheftReport::filter($theftFilters)
                 ->with(['device.brand', 'sale', 'branch'])
-                ->latest('reported_at')
+                ->latest('incident_date')
                 ->paginate(15)->appends(array_merge($theftFilters, ['tab' => 'robos']));
         }
 
