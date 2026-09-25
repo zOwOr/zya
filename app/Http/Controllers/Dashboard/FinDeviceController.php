@@ -306,7 +306,9 @@ class FinDeviceController extends Controller
      */
     public function history(FinDevice $device)
     {
-        $this->checkDeviceBranchAccess($device);
+        if (!auth()->user()?->can('financieras.trazabilidad.actions')) {
+            $this->checkDeviceBranchAccess($device);
+        }
 
         $device->load([
             'brand',

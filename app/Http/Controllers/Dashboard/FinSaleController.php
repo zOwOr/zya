@@ -854,7 +854,7 @@ class FinSaleController extends Controller
             'IMEI',
             'PRECIO DE VENTA',
             'ENGANCHE ORIGINAL',
-            'DESCUENTO DE ENGANCHE',
+            'ENGANCHE CON DESCUENTO',
             'PAGO INICIAL',
             'ABONO',
             'PLAZO',

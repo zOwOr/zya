@@ -208,31 +208,30 @@ class FinancierasController extends Controller
             return response()->json(['found' => false, 'message' => 'IMEI no proporcionado'], 400);
         }
 
-        $deviceQuery = FinDevice::with([
+        // Consulta sin importar a qué sucursal esté asignado el dispositivo (exclusivo para trazabilidad cruzada)
+        $device = FinDevice::with([
             'brand',
             'branch',
             'latestSale.financiera',
             'latestSale.seller',
             'warranties.currentStage',
             'theftReports'
-        ])->where('imei', $imei);
+        ])->where('imei', $imei)->first();
 
-        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
-            $deviceQuery->where('branch_id', auth()->user()->branch_id);
-        }
-
-        $device = $deviceQuery->first();
+        $canActions = auth()->check() && auth()->user()->can('financieras.trazabilidad.actions');
 
         if (!$device) {
             return response()->json([
                 'found' => false,
                 'imei' => $imei,
+                'can_actions' => $canActions,
                 'message' => 'Dispositivo no encontrado en inventario.'
             ]);
         }
 
         return response()->json([
             'found' => true,
+            'can_actions' => $canActions,
             'device' => $device,
             'active_sale' => $device->activeSale,
             'latest_sale' => $device->latestSale,

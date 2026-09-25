@@ -335,20 +335,30 @@ $(document).ready(function() {
         $('#crossModalBody').html('<div class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i><p class="mb-0">Buscando IMEI: <strong>' + imei + '</strong>...</p></div>');
 
         $.get("{{ route('financieras.devices.lookup-imei') }}", { imei: imei }, function(res) {
+            let canActions = res.can_actions || false;
+
             if (!res.found) {
+                let notFoundActions = canActions ? `
+                    <div class="mt-3">
+                        <a href="{{ route('financieras.inventario.create') }}?imei=${imei}" class="btn btn-primary btn-sm mr-2">
+                            <i class="fa-solid fa-plus mr-1"></i>Registrar en Inventario
+                        </a>
+                        <a href="{{ route('financieras.ventas.create') }}?imei=${imei}" class="btn btn-success btn-sm">
+                            <i class="fa-solid fa-cart-plus mr-1"></i>Crear Venta Directa
+                        </a>
+                    </div>
+                ` : `
+                    <div class="mt-3 text-muted font-size-12">
+                        <span class="badge badge-light border text-muted"><i class="fa-solid fa-eye mr-1"></i>Modo solo consulta</span>
+                    </div>
+                `;
+
                 $('#crossModalBody').html(`
                     <div class="alert alert-warning mb-0 text-center py-4">
                         <i class="fa-solid fa-triangle-exclamation fa-3x mb-3 text-warning"></i>
                         <h5>Dispositivo no encontrado en inventario</h5>
-                        <p class="mb-3 text-muted">El IMEI <strong>${imei}</strong> no se encuentra registrado en el sistema.</p>
-                        <div>
-                            <a href="{{ route('financieras.inventario.create') }}?imei=${imei}" class="btn btn-primary btn-sm mr-2">
-                                <i class="fa-solid fa-plus mr-1"></i>Registrar en Inventario
-                            </a>
-                            <a href="{{ route('financieras.ventas.create') }}?imei=${imei}" class="btn btn-success btn-sm">
-                                <i class="fa-solid fa-cart-plus mr-1"></i>Crear Venta Directa
-                            </a>
-                        </div>
+                        <p class="mb-2 text-muted">El IMEI <strong>${imei}</strong> no se encuentra registrado en el sistema.</p>
+                        ${notFoundActions}
                     </div>
                 `);
                 return;
@@ -374,6 +384,14 @@ $(document).ready(function() {
                     tagBadge = `<span class="badge badge-primary font-size-12 font-weight-bold"><i class="fa-solid fa-tag mr-1"></i>${tagVal}</span>`;
                 }
 
+                let openSaleBtn = canActions ? `
+                    <div class="mt-2">
+                        <a href="/financieras/ventas/${s.id}" class="btn btn-sm btn-outline-primary">
+                            <i class="fa-solid fa-eye mr-1"></i>Abrir Venta
+                        </a>
+                    </div>
+                ` : '';
+
                 saleSection = `
                     <div class="border rounded p-3 bg-light">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -386,29 +404,43 @@ $(document).ready(function() {
                             <strong>Financiera:</strong> ${s.financiera ? s.financiera.name : (s.sale_type === 'contado' ? 'Contado' : 'Directo')} | <strong>Vendedor:</strong> ${s.seller ? s.seller.name : 'N/A'}<br>
                             <strong>Precio:</strong> $${parseFloat(s.price).toFixed(2)} | <strong>Enganche:</strong> $${parseFloat(s.down_payment).toFixed(2)}
                         </div>
-                        <div class="mt-2">
-                            <a href="/financieras/ventas/${s.id}" class="btn btn-sm btn-outline-primary">
-                                <i class="fa-solid fa-eye mr-1"></i>Abrir Venta
-                            </a>
-                        </div>
+                        ${openSaleBtn}
                     </div>
                 `;
             }
 
-            let actionsButtons = `
-                <div class="d-flex flex-wrap mt-3 pt-3 border-top">
-                    <a href="/financieras/inventario/${d.id}/history" class="btn btn-info btn-sm mr-2 mb-2">
-                        <i class="fa-solid fa-clock-rotate-left mr-1"></i>Trazabilidad Completa
-                    </a>
-                    <a href="{{ route('financieras.garantias.create') }}?imei=${d.imei}" class="btn btn-warning text-white btn-sm mr-2 mb-2">
-                        <i class="fa-solid fa-wrench mr-1"></i>Abrir Garantía
-                    </a>
-                    <a href="{{ route('financieras.robos.create') }}?imei=${d.imei}" class="btn btn-danger btn-sm mr-2 mb-2">
-                        <i class="fa-solid fa-shield-halved mr-1"></i>Reportar Robo
-                    </a>
-                    ${d.status === 'disponible' ? `<a href="{{ route('financieras.ventas.create') }}?imei=${d.imei}" class="btn btn-success btn-sm mb-2"><i class="fa-solid fa-cart-shopping mr-1"></i>Vender Equipo</a>` : ''}
-                </div>
-            `;
+            let actionsButtons = '';
+            if (canActions) {
+                actionsButtons = `
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap mt-3 pt-3 border-top">
+                            <a href="/financieras/inventario/${d.id}/history" class="btn btn-info btn-sm mr-2 mb-2">
+                                <i class="fa-solid fa-clock-rotate-left mr-1"></i>Trazabilidad Completa
+                            </a>
+                            <a href="{{ route('financieras.garantias.create') }}?imei=${d.imei}" class="btn btn-warning text-white btn-sm mr-2 mb-2">
+                                <i class="fa-solid fa-wrench mr-1"></i>Abrir Garantía
+                            </a>
+                            <a href="{{ route('financieras.robos.create') }}?imei=${d.imei}" class="btn btn-danger btn-sm mr-2 mb-2">
+                                <i class="fa-solid fa-shield-halved mr-1"></i>Reportar Robo
+                            </a>
+                            ${d.status === 'disponible' ? `<a href="{{ route('financieras.ventas.create') }}?imei=${d.imei}" class="btn btn-success btn-sm mb-2"><i class="fa-solid fa-cart-shopping mr-1"></i>Vender Equipo</a>` : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                actionsButtons = `
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                            <span class="text-muted font-size-12">
+                                <i class="fa-solid fa-lock text-secondary mr-1"></i>Acciones no disponibles en tu perfil (Solo consulta)
+                            </span>
+                            <span class="badge badge-light border text-muted">
+                                <i class="fa-solid fa-eye mr-1"></i>Modo Consulta
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
 
             $('#crossModalBody').html(`
                 <div class="row">
@@ -418,7 +450,7 @@ $(document).ready(function() {
                             <div class="card-body">
                                 <div class="font-size-20 font-weight-bold text-primary mb-2">${d.imei}</div>
                                 <p class="mb-1"><strong>Equipo:</strong> ${d.brand ? d.brand.name : ''} ${d.model} (${d.color || 'Sin color'})</p>
-                                <p class="mb-1"><strong>Sucursal:</strong> ${d.branch ? d.branch.name : 'N/A'}</p>
+                                <p class="mb-1"><strong>Sucursal:</strong> <span class="badge badge-light border">${d.branch ? d.branch.name : 'N/A'}</span></p>
                                 <p class="mb-0"><strong>Estado:</strong> ${statusBadge}</p>
                             </div>
                         </div>
@@ -431,9 +463,7 @@ $(document).ready(function() {
                             </div>
                         </div>
                     </div>
-                    <div class="col-12">
-                        ${actionsButtons}
-                    </div>
+                    ${actionsButtons}
                 </div>
             `);
         }).fail(function() {
