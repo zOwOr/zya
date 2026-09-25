@@ -225,7 +225,9 @@
                                     </div>
                                     <div class="col-md-6 col-12 mb-2">
                                         <span class="text-muted font-size-12 d-block">Pago mensual estimado</span>
-                                        @if ($sale->term_months && $sale->term_months > 0 && $sale->credit_amount > 0)
+                                        @if ($sale->abono_semanal && $sale->abono_semanal > 0)
+                                            <span class="font-weight-bold text-info font-size-16">${{ number_format($sale->abono_semanal * 4, 2) }} / mes</span>
+                                        @elseif ($sale->term_months && $sale->term_months > 0 && $sale->credit_amount > 0)
                                             <span class="font-weight-bold text-info font-size-16">${{ number_format($sale->credit_amount / $sale->term_months, 2) }} / mes</span>
                                         @else
                                             <span class="text-muted">-</span>
