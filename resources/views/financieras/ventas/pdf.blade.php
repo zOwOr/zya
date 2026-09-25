@@ -528,7 +528,7 @@
                     <th style="width:17%;">IMEI</th>
                     <th style="width:11%;">TAG / DEVICE ID</th>
                     <th style="width:9%;">ENGANCHE</th>
-                    <th style="width:9%;">DESCTO. ENG.</th>
+                    <th style="width:9%;">ENGANCHE CON DESCUENTO</th>
                     <th style="width:8%;">ABONO</th>
                     <th style="width:8%;">PLAZO</th>
                 </tr>
