@@ -530,7 +530,9 @@ class FinSaleController extends Controller
 
     public function show(FinSale $sale)
     {
-        $this->checkSaleBranchAccess($sale);
+        if (!auth()->user()?->can('financieras.trazabilidad.actions')) {
+            $this->checkSaleBranchAccess($sale);
+        }
 
         $sale->load([
             'device.brand',
