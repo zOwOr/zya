@@ -126,9 +126,9 @@
                         <!-- Campos editables del equipo si no existía en inventario -->
                         <div class="row" id="deviceDetailsRow">
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Marca</label>
+                                <label class="font-weight-bold">Marca <span class="text-danger">*</span></label>
                                 <div class="position-relative">
-                                    <input type="text" name="brand_name" id="brandInput" class="form-control @error('brand_name') is-invalid @enderror" placeholder="Ej. Samsung, Apple..." value="{{ old('brand_name') }}" autocomplete="off">
+                                    <input type="text" name="brand_name" id="brandInput" class="form-control @error('brand_name') is-invalid @enderror" placeholder="Ej. Samsung, Apple..." value="{{ old('brand_name') }}" required autocomplete="off">
                                     <input type="hidden" name="brand_id" id="brandIdInput" value="{{ old('brand_id') }}">
                                     <div id="brandSuggestions" class="dropdown-menu w-100 shadow" style="display: none; max-height: 200px; overflow-y: auto;"></div>
                                 </div>
@@ -144,52 +144,76 @@
                                 @enderror
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Color</label>
-                                <input type="text" name="color" id="colorInput" class="form-control" placeholder="Ej. Negro, Azul" value="{{ old('color') }}" autocomplete="off">
+                                <label class="font-weight-bold">Color <span class="text-danger">*</span></label>
+                                <input type="text" name="color" id="colorInput" class="form-control @error('color') is-invalid @enderror" placeholder="Ej. Negro, Azul" value="{{ old('color') }}" required autocomplete="off">
+                                @error('color')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- SECCIÓN 2: DATOS DEL CLIENTE (CAMPOS LIBRES SIN RESTRICCIONES OBLIGATORIAS) -->
+                <!-- SECCIÓN 2: DATOS DEL CLIENTE -->
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-info text-white py-2">
                         <h6 class="mb-0 text-white font-weight-bold">
-                            <i class="fa-solid fa-user mr-2"></i>2. Datos del Cliente (Campos Libres)
+                            <i class="fa-solid fa-user mr-2"></i>2. Datos del Cliente
                         </h6>
                     </div>
                     <div class="card-body">
                         <p class="text-muted font-size-13 mb-3">
-                            <i class="fa-solid fa-info-circle mr-1"></i>Ningún dato del cliente está condicionado. Puede llenar solo los campos que tenga disponibles.
+                            <i class="fa-solid fa-asterisk text-danger mr-1"></i>Todos los campos del cliente y sus referencias son requeridos para la venta a crédito.
                         </p>
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Nombre Completo del Cliente</label>
-                                <input type="text" name="customer_name" class="form-control" placeholder="Nombre completo" value="{{ old('customer_name') }}" autocomplete="off">
+                                <label class="font-weight-bold">Nombre Completo del Cliente <span class="text-danger">*</span></label>
+                                <input type="text" name="customer_name" class="form-control @error('customer_name') is-invalid @enderror" placeholder="Nombre completo" value="{{ old('customer_name') }}" required autocomplete="off">
+                                @error('customer_name')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Teléfono de Contacto</label>
-                                <input type="text" name="customer_phone" class="form-control" placeholder="10 dígitos" value="{{ old('customer_phone') }}" autocomplete="off">
+                                <label class="font-weight-bold">Teléfono de Contacto <span class="text-danger">*</span></label>
+                                <input type="text" name="customer_phone" class="form-control @error('customer_phone') is-invalid @enderror" placeholder="10 dígitos" value="{{ old('customer_phone') }}" required autocomplete="off">
+                                @error('customer_phone')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Correo Electrónico</label>
-                                <input type="email" name="customer_email" class="form-control" placeholder="cliente@correo.com" value="{{ old('customer_email') }}" autocomplete="off">
+                                <label class="font-weight-bold">Correo Electrónico <span class="text-danger">*</span></label>
+                                <input type="email" name="customer_email" class="form-control @error('customer_email') is-invalid @enderror" placeholder="cliente@correo.com" value="{{ old('customer_email') }}" required autocomplete="off">
+                                @error('customer_email')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Folio de INE / Identificación</label>
-                                <input type="text" name="customer_ine" class="form-control" placeholder="Clave de elector o folio" value="{{ old('customer_ine') }}" autocomplete="off">
+                                <label class="font-weight-bold">Folio de INE / Identificación <span class="text-danger">*</span></label>
+                                <input type="text" name="customer_ine" class="form-control @error('customer_ine') is-invalid @enderror" placeholder="Clave de elector o folio" value="{{ old('customer_ine') }}" required autocomplete="off">
+                                @error('customer_ine')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-8 mb-3">
-                                <label class="font-weight-bold">Dirección / Domicilio</label>
-                                <input type="text" name="customer_address" class="form-control" placeholder="Calle, número, colonia, ciudad" value="{{ old('customer_address') }}" autocomplete="off">
+                                <label class="font-weight-bold">Dirección / Domicilio <span class="text-danger">*</span></label>
+                                <input type="text" name="customer_address" class="form-control @error('customer_address') is-invalid @enderror" placeholder="Calle, número, colonia, ciudad" value="{{ old('customer_address') }}" required autocomplete="off">
+                                @error('customer_address')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Chip Ingresado (SIM)</label>
-                                <input type="text" name="customer_chip" class="form-control" placeholder="Operadora / Número de SIM" value="{{ old('customer_chip') }}" autocomplete="off">
+                                <label class="font-weight-bold">Chip Ingresado (SIM) <span class="text-danger">*</span></label>
+                                <input type="text" name="customer_chip" class="form-control @error('customer_chip') is-invalid @enderror" placeholder="Operadora / Número de SIM" value="{{ old('customer_chip') }}" required autocomplete="off">
+                                @error('customer_chip')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label class="font-weight-bold">Facebook</label>
-                                <input type="text" name="customer_facebook" class="form-control" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook') }}" autocomplete="off">
+                                <label class="font-weight-bold">Facebook <span class="text-danger">*</span></label>
+                                <input type="text" name="customer_facebook" class="form-control @error('customer_facebook') is-invalid @enderror" placeholder="URL o nombre de perfil" value="{{ old('customer_facebook') }}" required autocomplete="off">
+                                @error('customer_facebook')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                         </div>
 
@@ -197,28 +221,46 @@
                         <h6 class="font-weight-bold text-secondary mb-3"><i class="fa-solid fa-users mr-1"></i>Referencias Personales</h6>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold">Referencia #1 — Nombre</label>
-                                <input type="text" name="ref1_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref1_name') }}" autocomplete="off">
+                                <label class="font-weight-bold">Referencia #1 — Nombre <span class="text-danger">*</span></label>
+                                <input type="text" name="ref1_name" class="form-control @error('ref1_name') is-invalid @enderror" placeholder="Nombre completo" value="{{ old('ref1_name') }}" required autocomplete="off">
+                                @error('ref1_name')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold">Referencia #1 — Celular</label>
-                                <input type="text" name="ref1_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref1_phone') }}" autocomplete="off">
+                                <label class="font-weight-bold">Referencia #1 — Celular <span class="text-danger">*</span></label>
+                                <input type="text" name="ref1_phone" class="form-control @error('ref1_phone') is-invalid @enderror" placeholder="10 dígitos" value="{{ old('ref1_phone') }}" required autocomplete="off">
+                                @error('ref1_phone')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold">Referencia #2 — Nombre</label>
-                                <input type="text" name="ref2_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref2_name') }}" autocomplete="off">
+                                <label class="font-weight-bold">Referencia #2 — Nombre <span class="text-danger">*</span></label>
+                                <input type="text" name="ref2_name" class="form-control @error('ref2_name') is-invalid @enderror" placeholder="Nombre completo" value="{{ old('ref2_name') }}" required autocomplete="off">
+                                @error('ref2_name')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold">Referencia #2 — Celular</label>
-                                <input type="text" name="ref2_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref2_phone') }}" autocomplete="off">
+                                <label class="font-weight-bold">Referencia #2 — Celular <span class="text-danger">*</span></label>
+                                <input type="text" name="ref2_phone" class="form-control @error('ref2_phone') is-invalid @enderror" placeholder="10 dígitos" value="{{ old('ref2_phone') }}" required autocomplete="off">
+                                @error('ref2_phone')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold">Referencia #3 — Nombre</label>
-                                <input type="text" name="ref3_name" class="form-control" placeholder="Nombre completo" value="{{ old('ref3_name') }}" autocomplete="off">
+                                <label class="font-weight-bold">Referencia #3 — Nombre <span class="text-danger">*</span></label>
+                                <input type="text" name="ref3_name" class="form-control @error('ref3_name') is-invalid @enderror" placeholder="Nombre completo" value="{{ old('ref3_name') }}" required autocomplete="off">
+                                @error('ref3_name')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold">Referencia #3 — Celular</label>
-                                <input type="text" name="ref3_phone" class="form-control" placeholder="10 dígitos" value="{{ old('ref3_phone') }}" autocomplete="off">
+                                <label class="font-weight-bold">Referencia #3 — Celular <span class="text-danger">*</span></label>
+                                <input type="text" name="ref3_phone" class="form-control @error('ref3_phone') is-invalid @enderror" placeholder="10 dígitos" value="{{ old('ref3_phone') }}" required autocomplete="off">
+                                @error('ref3_phone')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -248,8 +290,8 @@
                                 @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">TAG / No. Contrato</label>
-                                <input type="text" name="tag_contrato" id="tagContratoInput" class="form-control @error('tag_contrato') is-invalid @enderror" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato') }}" autocomplete="off">
+                                <label class="font-weight-bold">TAG / No. Contrato <span class="text-danger">*</span></label>
+                                <input type="text" name="tag_contrato" id="tagContratoInput" class="form-control @error('tag_contrato') is-invalid @enderror" placeholder="Ej. PAY-00123" value="{{ old('tag_contrato') }}" required autocomplete="off">
                                 @error('tag_contrato')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
@@ -266,48 +308,72 @@
                                 @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Enganche Inicial ($)</label>
+                                <label class="font-weight-bold">Enganche Inicial ($) <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="down_payment" id="downPaymentInput" class="form-control font-weight-bold" value="{{ old('down_payment', 0) }}" autocomplete="off">
+                                    <input type="number" step="0.01" min="0" name="down_payment" id="downPaymentInput" class="form-control font-weight-bold @error('down_payment') is-invalid @enderror" value="{{ old('down_payment', 0) }}" required autocomplete="off">
                                 </div>
+                                @error('down_payment')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Enganche con Descuento ($)</label>
+                                <label class="font-weight-bold">Enganche con Descuento ($) <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', 0) }}" placeholder="0.00" autocomplete="off">
+                                    <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control @error('enganche_descuento') is-invalid @enderror" value="{{ old('enganche_descuento', 0) }}" placeholder="0.00" required autocomplete="off">
                                 </div>
+                                @error('enganche_descuento')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Monto Financiado ($)</label>
+                                <label class="font-weight-bold">Monto Financiado ($) <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="credit_amount" id="creditAmountInput" class="form-control font-weight-bold text-primary" value="{{ old('credit_amount', 0) }}" autocomplete="off">
+                                    <input type="number" step="0.01" min="0" name="credit_amount" id="creditAmountInput" class="form-control font-weight-bold text-primary @error('credit_amount') is-invalid @enderror" value="{{ old('credit_amount', 0) }}" required autocomplete="off">
                                 </div>
+                                @error('credit_amount')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Abono Semanal ($)</label>
+                                <label class="font-weight-bold">Abono Semanal ($) <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control" value="{{ old('abono_semanal', 0) }}" placeholder="0.00" autocomplete="off">
+                                    <input type="number" step="0.01" min="0" name="abono_semanal" class="form-control @error('abono_semanal') is-invalid @enderror" value="{{ old('abono_semanal', 0) }}" placeholder="0.00" required autocomplete="off">
                                 </div>
+                                @error('abono_semanal')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Plazo en Semanas</label>
-                                <input type="number" min="1" max="104" name="term_weeks" class="form-control" placeholder="Ej. 12, 24, 52" value="{{ old('term_weeks') }}" autocomplete="off">
+                                <label class="font-weight-bold">Plazo en Semanas <span class="text-danger">*</span></label>
+                                <input type="number" min="1" max="104" name="term_weeks" class="form-control @error('term_weeks') is-invalid @enderror" placeholder="Ej. 12, 24, 52" value="{{ old('term_weeks') }}" required autocomplete="off">
+                                @error('term_weeks')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Plazo en Meses</label>
-                                <input type="number" min="1" max="72" name="term_months" class="form-control" placeholder="Ej. 6, 12, 18, 24" value="{{ old('term_months') }}" autocomplete="off">
+                                <label class="font-weight-bold">Plazo en Meses <span class="text-danger">*</span></label>
+                                <input type="number" min="1" max="72" name="term_months" class="form-control @error('term_months') is-invalid @enderror" placeholder="Ej. 6, 12, 18, 24" value="{{ old('term_months') }}" required autocomplete="off">
+                                @error('term_months')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label class="font-weight-bold">Fecha de Venta</label>
-                                <input type="datetime-local" name="sale_date" class="form-control" value="{{ old('sale_date', now()->format('Y-m-d\TH:i')) }}" autocomplete="off">
+                                <label class="font-weight-bold">Fecha de Venta <span class="text-danger">*</span></label>
+                                <input type="datetime-local" name="sale_date" class="form-control @error('sale_date') is-invalid @enderror" value="{{ old('sale_date', now()->format('Y-m-d\TH:i')) }}" required autocomplete="off">
+                                @error('sale_date')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold">Nota Libre / Observaciones de Venta</label>
-                                <textarea name="initial_note" class="form-control" rows="2" placeholder="Cualquier acuerdo particular, número de contrato externa o comentario..." autocomplete="off">{{ old('initial_note') }}</textarea>
+                                <label class="font-weight-bold">Nota Libre / Observaciones de Venta <span class="text-danger">*</span></label>
+                                <textarea name="initial_note" class="form-control @error('initial_note') is-invalid @enderror" rows="2" placeholder="Cualquier acuerdo particular, número de contrato externa o comentario..." required autocomplete="off">{{ old('initial_note') }}</textarea>
+                                @error('initial_note')
+                                    <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -353,10 +419,17 @@ $(document).ready(function() {
                 let d = res.device;
                 $('#deviceIdInput').val(d.id);
                 $('#modelInput').val(d.model).prop('readonly', true);
-                $('#colorInput').val(d.color).prop('readonly', true);
+                if (d.color) {
+                    $('#colorInput').val(d.color).prop('readonly', true);
+                } else {
+                    $('#colorInput').val('').prop('readonly', false);
+                }
                 if (d.brand) {
                     $('#brandInput').val(d.brand.name).prop('readonly', true);
                     $('#brandIdInput').val(d.brand.id);
+                } else {
+                    $('#brandInput').val('').prop('readonly', false);
+                    $('#brandIdInput').val('');
                 }
                 if (d.branch_id) {
                     $('#branchSelect').val(d.branch_id);

@@ -191,12 +191,15 @@
                                 <!-- Detalles del equipo obtenidos por IMEI o editables si es nuevo -->
                                 <div class="row pt-2 border-top">
                                     <div class="col-md-4 mb-3">
-                                        <label class="font-weight-bold font-size-13 text-secondary">Marca</label>
+                                        <label class="font-weight-bold font-size-13 text-secondary">Marca <span class="text-danger">*</span></label>
                                         <div class="position-relative">
-                                            <input type="text" name="brand_name" id="brandInput" class="form-control" placeholder="Ej. Samsung, Apple..." value="{{ old('brand_name') }}" autocomplete="off">
+                                            <input type="text" name="brand_name" id="brandInput" class="form-control @error('brand_name') is-invalid @enderror" placeholder="Ej. Samsung, Apple..." value="{{ old('brand_name') }}" required autocomplete="off">
                                             <input type="hidden" name="brand_id" id="brandIdInput" value="{{ old('brand_id') }}">
                                             <div id="brandSuggestions" class="dropdown-menu w-100 shadow" style="display: none; max-height: 200px; overflow-y: auto;"></div>
                                         </div>
+                                        @error('brand_name')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label class="font-weight-bold font-size-13 text-secondary">Modelo <span class="text-danger">*</span></label>
@@ -206,16 +209,25 @@
                                         @enderror
                                     </div>
                                     <div class="col-md-4 mb-3">
-                                        <label class="font-weight-bold font-size-13 text-secondary">Color</label>
-                                        <input type="text" name="color" id="colorInput" class="form-control" placeholder="Ej. Gris, Negro" value="{{ old('color') }}" autocomplete="off">
+                                        <label class="font-weight-bold font-size-13 text-secondary">Color <span class="text-danger">*</span></label>
+                                        <input type="text" name="color" id="colorInput" class="form-control @error('color') is-invalid @enderror" placeholder="Ej. Gris, Negro" value="{{ old('color') }}" required autocomplete="off">
+                                        @error('color')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                     <div class="col-md-6 mb-3">
-                                        <label class="font-weight-bold font-size-13 text-secondary">Capacidad / RAM / Almacenamiento</label>
-                                        <input type="text" name="storage" id="storageInput" class="form-control" placeholder="Ej. 256 GB y 8 RAM" value="{{ old('storage') }}" autocomplete="off">
+                                        <label class="font-weight-bold font-size-13 text-secondary">Capacidad / RAM / Almacenamiento <span class="text-danger">*</span></label>
+                                        <input type="text" name="storage" id="storageInput" class="form-control @error('storage') is-invalid @enderror" placeholder="Ej. 256 GB y 8 RAM" value="{{ old('storage') }}" required autocomplete="off">
+                                        @error('storage')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="font-weight-bold font-size-13 text-secondary">Póliza / Garantía <span class="text-danger">*</span></label>
-                                        <input type="text" name="warranty_text" id="warrantyInput" class="form-control font-weight-bold" placeholder="Ej. 1 Mes de garantía" value="{{ old('warranty_text', '1 Mes de garantía') }}" required autocomplete="off">
+                                        <input type="text" name="warranty_text" id="warrantyInput" class="form-control font-weight-bold @error('warranty_text') is-invalid @enderror" placeholder="Ej. 1 Mes de garantía" value="{{ old('warranty_text', '1 Mes de garantía') }}" required autocomplete="off">
+                                        @error('warranty_text')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                 </div>
                             </div>
@@ -225,12 +237,12 @@
                         <div class="card shadow-sm border-0 mb-4">
                             <div class="card-header bg-info text-white py-2">
                                 <h6 class="mb-0 text-white font-weight-bold">
-                                    <i class="fa-solid fa-user mr-2"></i>2. Información Básica del Cliente
+                                    <i class="fa-solid fa-user mr-2"></i>2. Información del Cliente
                                 </h6>
                             </div>
                             <div class="card-body">
                                 <p class="text-muted font-size-13 mb-3">
-                                    <i class="fa-solid fa-receipt mr-1"></i>Información básica requerida para la nota de venta y entrega del equipo.
+                                    <i class="fa-solid fa-asterisk text-danger mr-1"></i>Todos los datos del cliente son requeridos para la nota de venta y entrega del equipo.
                                 </p>
                                 <div class="row">
                                     <div class="col-md-7 mb-3">
@@ -242,22 +254,31 @@
                                         @enderror
                                     </div>
                                     <div class="col-md-5 mb-3">
-                                        <label class="font-weight-bold">TELÉFONO (Contacto)</label>
+                                        <label class="font-weight-bold">TELÉFONO (Contacto) <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <div class="input-group-prepend"><span class="input-group-text"><i class="fa-solid fa-phone"></i></span></div>
-                                            <input type="text" name="customer_phone" id="customerPhoneInput" class="form-control"
-                                                placeholder="Ej. 8123704411" value="{{ old('customer_phone') }}" autocomplete="off">
+                                            <input type="text" name="customer_phone" id="customerPhoneInput" class="form-control @error('customer_phone') is-invalid @enderror"
+                                                placeholder="Ej. 8123704411" value="{{ old('customer_phone') }}" required autocomplete="off">
                                         </div>
+                                        @error('customer_phone')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                     <div class="col-md-8 mb-3">
-                                        <label class="font-weight-bold">DIRECCIÓN (Domicilio)</label>
-                                        <input type="text" name="customer_address" id="customerAddressInput" class="form-control"
-                                            placeholder="Calle, número, colonia, municipio..." value="{{ old('customer_address') }}" autocomplete="off">
+                                        <label class="font-weight-bold">DIRECCIÓN (Domicilio) <span class="text-danger">*</span></label>
+                                        <input type="text" name="customer_address" id="customerAddressInput" class="form-control @error('customer_address') is-invalid @enderror"
+                                            placeholder="Calle, número, colonia, municipio..." value="{{ old('customer_address') }}" required autocomplete="off">
+                                        @error('customer_address')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                     <div class="col-md-4 mb-3">
-                                        <label class="font-weight-bold">R.F.C.</label>
-                                        <input type="text" name="customer_rfc" id="customerRfcInput" class="form-control text-uppercase"
-                                            placeholder="RFC del cliente (opcional)" value="{{ old('customer_rfc') }}" autocomplete="off" maxlength="15">
+                                        <label class="font-weight-bold">R.F.C. <span class="text-danger">*</span></label>
+                                        <input type="text" name="customer_rfc" id="customerRfcInput" class="form-control text-uppercase @error('customer_rfc') is-invalid @enderror"
+                                            placeholder="RFC del cliente" value="{{ old('customer_rfc') }}" required autocomplete="off" maxlength="15">
+                                        @error('customer_rfc')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                 </div>
                             </div>
@@ -288,23 +309,33 @@
                                     </div>
 
                                     <div class="col-md-4 mb-3">
-                                        <label class="font-weight-bold">Método de Pago</label>
-                                        <select name="payment_method" id="paymentMethodSelect" class="form-control custom-select">
-                                            <option value="Efectivo" {{ old('payment_method') == 'Efectivo' ? 'selected' : '' }}>💵 Efectivo</option>
+                                        <label class="font-weight-bold">Método de Pago <span class="text-danger">*</span></label>
+                                        <select name="payment_method" id="paymentMethodSelect" class="form-control custom-select @error('payment_method') is-invalid @enderror" required>
+                                            <option value="">-- Seleccione método --</option>
+                                            <option value="Efectivo" {{ old('payment_method', 'Efectivo') == 'Efectivo' ? 'selected' : '' }}>💵 Efectivo</option>
                                             <option value="Transferencia" {{ old('payment_method') == 'Transferencia' ? 'selected' : '' }}>🏦 Transferencia SPEI</option>
                                             <option value="Tarjeta de Débito" {{ old('payment_method') == 'Tarjeta de Débito' ? 'selected' : '' }}>💳 Tarjeta</option>
                                         </select>
+                                        @error('payment_method')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
 
                                     <div class="col-md-3 mb-3">
-                                        <label class="font-weight-bold">Fecha de Venta</label>
-                                        <input type="datetime-local" name="sale_date" id="saleDateInput" class="form-control"
-                                            value="{{ old('sale_date', now()->format('Y-m-d\TH:i')) }}" autocomplete="off">
+                                        <label class="font-weight-bold">Fecha de Venta <span class="text-danger">*</span></label>
+                                        <input type="datetime-local" name="sale_date" id="saleDateInput" class="form-control @error('sale_date') is-invalid @enderror"
+                                            value="{{ old('sale_date', now()->format('Y-m-d\TH:i')) }}" required autocomplete="off">
+                                        @error('sale_date')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
 
                                     <div class="col-md-12 mb-2">
-                                        <label class="font-weight-bold">Observaciones / Notas Adicionales</label>
-                                        <textarea name="initial_note" class="form-control" rows="2" placeholder="Observaciones adicionales, estado físico del equipo, accesorios incluidos..." autocomplete="off">{{ old('initial_note') }}</textarea>
+                                        <label class="font-weight-bold">Observaciones / Notas Adicionales <span class="text-danger">*</span></label>
+                                        <textarea name="initial_note" class="form-control @error('initial_note') is-invalid @enderror" rows="2" placeholder="Observaciones adicionales, estado físico del equipo, accesorios incluidos..." required autocomplete="off">{{ old('initial_note') }}</textarea>
+                                        @error('initial_note')
+                                            <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                 </div>
                             </div>
@@ -496,13 +527,21 @@ $(document).ready(function() {
                 $('#deviceIdInput').val(d.id);
                 // Bloquear estrictamente la edición manual de la información del producto
                 $('#modelInput').val(d.model).prop('readonly', true).addClass('bg-light');
-                $('#colorInput').val(d.color || '').prop('readonly', true).addClass('bg-light');
-                $('#storageInput').val(d.storage || '').prop('readonly', true).addClass('bg-light');
+                if (d.color) {
+                    $('#colorInput').val(d.color).prop('readonly', true).addClass('bg-light');
+                } else {
+                    $('#colorInput').val('').prop('readonly', false).removeClass('bg-light');
+                }
+                if (d.storage) {
+                    $('#storageInput').val(d.storage).prop('readonly', true).addClass('bg-light');
+                } else {
+                    $('#storageInput').val('').prop('readonly', false).removeClass('bg-light');
+                }
                 if (d.brand) {
                     $('#brandInput').val(d.brand.name).prop('readonly', true).addClass('bg-light');
                     $('#brandIdInput').val(d.brand.id);
                 } else {
-                    $('#brandInput').val('').prop('readonly', true).addClass('bg-light');
+                    $('#brandInput').val('').prop('readonly', false).removeClass('bg-light');
                     $('#brandIdInput').val('');
                 }
                 $('#brandSuggestions').hide();
