@@ -305,65 +305,99 @@ class FinSaleController extends Controller
             ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' ya ha sido vendido o cuenta con una venta registrada.');
         }
 
-        $sale = DB::transaction(function () use ($request, $device, $canAssignSeller) {
-            $saleCode = 'FIN-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+        try {
+            $sale = DB::transaction(function () use ($request, $deviceId, $canAssignSeller) {
+                // Bloqueo pesimista del dispositivo contra peticiones concurrentes
+                $lockedDevice = FinDevice::where('id', $deviceId)->lockForUpdate()->firstOrFail();
 
-            $price = (float) $request->input('price', 0);
-            $downPayment = (float) $request->input('down_payment', 0);
-            $creditAmount = $request->filled('credit_amount')
-                ? (float) $request->input('credit_amount')
-                : max(0, $price - $downPayment);
+                if ($lockedDevice->status === 'vendido') {
+                    throw new \RuntimeException("El dispositivo con IMEI {$lockedDevice->imei} ya ha sido vendido.");
+                }
 
-            $sellerId = ($canAssignSeller && $request->filled('seller_id')) ? $request->input('seller_id') : auth()->id();
+                $activeSale = FinSale::where('device_id', $lockedDevice->id)
+                    ->whereNull('deleted_at')
+                    ->where('status', '!=', 'cancelada')
+                    ->lockForUpdate()
+                    ->first();
 
-            $sale = FinSale::create([
-                'sale_code' => $saleCode,
-                'device_id' => $device->id,
-                'financiera_id' => $request->input('financiera_id'),
-                'branch_id' => $request->input('branch_id', $device->branch_id),
-                'seller_id' => $sellerId,
-                // Datos del cliente
-                'customer_name' => $request->input('customer_name'),
-                'customer_phone' => $request->input('customer_phone'),
-                'customer_email' => $request->input('customer_email'),
-                'customer_ine' => $request->input('customer_ine'),
-                'customer_address' => $request->input('customer_address'),
-                'customer_chip' => $request->input('customer_chip'),
-                'customer_facebook' => $request->input('customer_facebook'),
-                // Referencias
-                'ref1_name' => $request->input('ref1_name'),
-                'ref1_phone' => $request->input('ref1_phone'),
-                'ref2_name' => $request->input('ref2_name'),
-                'ref2_phone' => $request->input('ref2_phone'),
-                'ref3_name' => $request->input('ref3_name'),
-                'ref3_phone' => $request->input('ref3_phone'),
-                // Financiero
-                'price' => $price,
-                'down_payment' => $downPayment,
-                'enganche_descuento' => $request->input('enganche_descuento'),
-                'credit_amount' => $creditAmount,
-                'abono_semanal' => $request->input('abono_semanal'),
-                'term_months' => $request->input('term_months'),
-                'term_weeks' => $request->input('term_weeks'),
-                'tag_contrato' => $request->input('tag_contrato'),
-                'sale_date' => $request->input('sale_date', now()),
-                'status' => 'activa',
-            ]);
+                if ($activeSale) {
+                    throw new \RuntimeException("El dispositivo con IMEI {$lockedDevice->imei} ya cuenta con una venta activa ({$activeSale->sale_code}).");
+                }
 
-            // Update device status to 'vendido'
-            $device->update(['status' => 'vendido']);
+                $tag = trim($request->input('tag_contrato', ''));
+                if (!empty($tag)) {
+                    $activeTag = FinSale::where('tag_contrato', $tag)
+                        ->whereNull('deleted_at')
+                        ->where('status', '!=', 'cancelada')
+                        ->lockForUpdate()
+                        ->first();
 
-            // Optional initial note
-            if ($request->filled('initial_note')) {
-                FinSaleNote::create([
-                    'sale_id' => $sale->id,
-                    'user_id' => auth()->id(),
-                    'note' => $request->input('initial_note'),
+                    if ($activeTag) {
+                        throw new \RuntimeException("El TAG / No. Contrato '{$tag}' ya se encuentra registrado en otra venta activa ({$activeTag->sale_code}).");
+                    }
+                }
+
+                $saleCode = 'FIN-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+
+                $price = (float) $request->input('price', 0);
+                $downPayment = (float) $request->input('down_payment', 0);
+                $creditAmount = $request->filled('credit_amount')
+                    ? (float) $request->input('credit_amount')
+                    : max(0, $price - $downPayment);
+
+                $sellerId = ($canAssignSeller && $request->filled('seller_id')) ? $request->input('seller_id') : auth()->id();
+
+                $sale = FinSale::create([
+                    'sale_code' => $saleCode,
+                    'device_id' => $lockedDevice->id,
+                    'financiera_id' => $request->input('financiera_id'),
+                    'branch_id' => $request->input('branch_id', $lockedDevice->branch_id),
+                    'seller_id' => $sellerId,
+                    // Datos del cliente
+                    'customer_name' => $request->input('customer_name'),
+                    'customer_phone' => $request->input('customer_phone'),
+                    'customer_email' => $request->input('customer_email'),
+                    'customer_ine' => $request->input('customer_ine'),
+                    'customer_address' => $request->input('customer_address'),
+                    'customer_chip' => $request->input('customer_chip'),
+                    'customer_facebook' => $request->input('customer_facebook'),
+                    // Referencias
+                    'ref1_name' => $request->input('ref1_name'),
+                    'ref1_phone' => $request->input('ref1_phone'),
+                    'ref2_name' => $request->input('ref2_name'),
+                    'ref2_phone' => $request->input('ref2_phone'),
+                    'ref3_name' => $request->input('ref3_name'),
+                    'ref3_phone' => $request->input('ref3_phone'),
+                    // Financiero
+                    'price' => $price,
+                    'down_payment' => $downPayment,
+                    'enganche_descuento' => $request->input('enganche_descuento'),
+                    'credit_amount' => $creditAmount,
+                    'abono_semanal' => $request->input('abono_semanal'),
+                    'term_months' => $request->input('term_months'),
+                    'term_weeks' => $request->input('term_weeks'),
+                    'tag_contrato' => $tag,
+                    'sale_date' => $request->input('sale_date', now()),
+                    'status' => 'activa',
                 ]);
-            }
 
-            return $sale;
-        });
+                // Update device status to 'vendido'
+                $lockedDevice->update(['status' => 'vendido']);
+
+                // Optional initial note
+                if ($request->filled('initial_note')) {
+                    FinSaleNote::create([
+                        'sale_id' => $sale->id,
+                        'user_id' => auth()->id(),
+                        'note' => $request->input('initial_note'),
+                    ]);
+                }
+
+                return $sale;
+            });
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         // Broadcast Reverb WebSocket event
         try {
@@ -506,50 +540,71 @@ class FinSaleController extends Controller
             ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' ya ha sido vendido o cuenta con una venta registrada.');
         }
 
-        $sale = DB::transaction(function () use ($request, $device, $canAssignSeller) {
-            $saleCode = 'CONT-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+        try {
+            $sale = DB::transaction(function () use ($request, $deviceId, $canAssignSeller) {
+                // Bloqueo pesimista del dispositivo contra doble submit concurrente
+                $lockedDevice = FinDevice::where('id', $deviceId)->lockForUpdate()->firstOrFail();
 
-            $price = (float) $request->input('price', 0);
-            $sellerId = ($canAssignSeller && $request->filled('seller_id')) ? $request->input('seller_id') : auth()->id();
-            $sellerUser = User::find($sellerId);
+                if ($lockedDevice->status === 'vendido') {
+                    throw new \RuntimeException("El dispositivo con IMEI {$lockedDevice->imei} ya ha sido vendido.");
+                }
 
-            $sale = FinSale::create([
-                'sale_code' => $saleCode,
-                'sale_type' => 'contado',
-                'device_id' => $device->id,
-                'financiera_id' => null,
-                'branch_id' => $request->input('branch_id', $device->branch_id),
-                'seller_id' => $sellerId,
-                'seller_name' => $sellerUser ? $sellerUser->name : auth()->user()->name,
-                // Datos del cliente (básicos basados en nota física)
-                'customer_name' => $request->input('customer_name'),
-                'customer_phone' => $request->input('customer_phone'),
-                'customer_address' => $request->input('customer_address'),
-                'customer_rfc' => $request->input('customer_rfc'),
-                // Financiero (al contado: precio = enganche, crédito = 0)
-                'price' => $price,
-                'down_payment' => $price,
-                'credit_amount' => 0,
-                'warranty_text' => $request->input('warranty_text') ?: '1 Mes de garantía',
-                'payment_method' => $request->input('payment_method') ?: 'Efectivo',
-                'sale_date' => $request->input('sale_date', now()),
-                'status' => 'activa',
-            ]);
+                $activeSale = FinSale::where('device_id', $lockedDevice->id)
+                    ->whereNull('deleted_at')
+                    ->where('status', '!=', 'cancelada')
+                    ->lockForUpdate()
+                    ->first();
 
-            // IMPACTO EN INVENTARIO: Dispositivo pasa a estatus 'vendido'
-            $device->update(['status' => 'vendido']);
+                if ($activeSale) {
+                    throw new \RuntimeException("El dispositivo con IMEI {$lockedDevice->imei} ya cuenta con una venta activa registrada ({$activeSale->sale_code}).");
+                }
 
-            // Nota inicial opcional
-            if ($request->filled('initial_note')) {
-                FinSaleNote::create([
-                    'sale_id' => $sale->id,
-                    'user_id' => auth()->id(),
-                    'note' => $request->input('initial_note'),
+                $saleCode = 'CONT-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+
+                $price = (float) $request->input('price', 0);
+                $sellerId = ($canAssignSeller && $request->filled('seller_id')) ? $request->input('seller_id') : auth()->id();
+                $sellerUser = User::find($sellerId);
+
+                $sale = FinSale::create([
+                    'sale_code' => $saleCode,
+                    'sale_type' => 'contado',
+                    'device_id' => $lockedDevice->id,
+                    'financiera_id' => null,
+                    'branch_id' => $request->input('branch_id', $lockedDevice->branch_id),
+                    'seller_id' => $sellerId,
+                    'seller_name' => $sellerUser ? $sellerUser->name : auth()->user()->name,
+                    // Datos del cliente (básicos basados en nota física)
+                    'customer_name' => $request->input('customer_name'),
+                    'customer_phone' => $request->input('customer_phone'),
+                    'customer_address' => $request->input('customer_address'),
+                    'customer_rfc' => $request->input('customer_rfc'),
+                    // Financiero (al contado: precio = enganche, crédito = 0)
+                    'price' => $price,
+                    'down_payment' => $price,
+                    'credit_amount' => 0,
+                    'warranty_text' => $request->input('warranty_text') ?: '1 Mes de garantía',
+                    'payment_method' => $request->input('payment_method') ?: 'Efectivo',
+                    'sale_date' => $request->input('sale_date', now()),
+                    'status' => 'activa',
                 ]);
-            }
 
-            return $sale;
-        });
+                // IMPACTO EN INVENTARIO: Dispositivo pasa a estatus 'vendido'
+                $lockedDevice->update(['status' => 'vendido']);
+
+                // Nota inicial opcional
+                if ($request->filled('initial_note')) {
+                    FinSaleNote::create([
+                        'sale_id' => $sale->id,
+                        'user_id' => auth()->id(),
+                        'note' => $request->input('initial_note'),
+                    ]);
+                }
+
+                return $sale;
+            });
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         // Broadcast Reverb WebSocket event
         try {
@@ -797,7 +852,13 @@ class FinSaleController extends Controller
         }
 
         DB::transaction(function () use ($request, $sale) {
-            $sale->update([
+            $lockedSale = FinSale::where('id', $sale->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedSale->status === 'cancelada') {
+                return;
+            }
+
+            $lockedSale->update([
                 'status' => 'cancelada',
                 'cancelled_at' => now(),
                 'cancelled_by' => auth()->id(),
@@ -805,10 +866,12 @@ class FinSaleController extends Controller
             ]);
 
             // Revert device back to 'disponible'
-            $sale->device->update(['status' => 'disponible']);
+            if ($lockedSale->device) {
+                $lockedSale->device->update(['status' => 'disponible']);
+            }
 
             FinSaleNote::create([
-                'sale_id' => $sale->id,
+                'sale_id' => $lockedSale->id,
                 'user_id' => auth()->id(),
                 'note' => 'Venta cancelada. Motivo: ' . $request->input('cancellation_reason'),
             ]);
@@ -818,7 +881,7 @@ class FinSaleController extends Controller
             event(new FinancierasUpdated(
                 'ventas',
                 'cancelled',
-                "Venta {$sale->sale_code} cancelada. Dispositivo {$sale->device->imei} devuelto a inventario.",
+                "Venta {$sale->sale_code} cancelada. Dispositivo {$sale->device?->imei} devuelto a inventario.",
                 ['sale_id' => $sale->id, 'device_id' => $sale->device_id]
             ));
         } catch (\Throwable $e) {
@@ -840,10 +903,23 @@ class FinSaleController extends Controller
             'note' => 'required|string|max:2000',
         ]);
 
+        $noteContent = trim($request->input('note'));
+
+        // Prevenir notas duplicadas por doble clic concurrente (ventana de 10 segundos)
+        $recentNote = FinSaleNote::where('sale_id', $sale->id)
+            ->where('user_id', auth()->id())
+            ->where('note', $noteContent)
+            ->where('created_at', '>=', now()->subSeconds(10))
+            ->first();
+
+        if ($recentNote) {
+            return back()->with('success', 'Nota guardada exitosamente.');
+        }
+
         FinSaleNote::create([
             'sale_id' => $sale->id,
             'user_id' => auth()->id(),
-            'note' => $request->input('note'),
+            'note' => $noteContent,
         ]);
 
         return back()->with('success', 'Nota agregada exitosamente.');

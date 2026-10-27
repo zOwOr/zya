@@ -109,7 +109,7 @@ class FinCatalogController extends Controller
     public function storeWarrantyStage(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:100',
+            'name' => 'required|string|max:100|unique:fin_warranty_stages,name',
             'order' => 'required|integer|min:0',
             'color' => 'nullable|string|max:20',
             'is_final' => 'boolean',
@@ -128,7 +128,7 @@ class FinCatalogController extends Controller
     public function updateWarrantyStage(Request $request, FinWarrantyStage $stage)
     {
         $request->validate([
-            'name' => 'required|string|max:100',
+            'name' => 'required|string|max:100|unique:fin_warranty_stages,name,' . $stage->id,
             'order' => 'required|integer|min:0',
             'color' => 'nullable|string|max:20',
             'is_final' => 'boolean',

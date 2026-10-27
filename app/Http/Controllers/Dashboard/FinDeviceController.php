@@ -270,20 +270,35 @@ class FinDeviceController extends Controller
             return back()->with('error', 'No se puede transferir un equipo con estado "vendido".');
         }
 
-        $fromBranchId = $device->branch_id;
         $toBranchId = $request->input('to_branch_id');
 
-        DB::transaction(function () use ($device, $fromBranchId, $toBranchId, $request) {
-            FinDeviceTransfer::create([
-                'device_id' => $device->id,
-                'from_branch_id' => $fromBranchId,
-                'to_branch_id' => $toBranchId,
-                'user_id' => auth()->id(),
-                'notes' => $request->input('notes'),
-            ]);
+        try {
+            DB::transaction(function () use ($device, $toBranchId, $request) {
+                $lockedDevice = FinDevice::where('id', $device->id)->lockForUpdate()->firstOrFail();
 
-            $device->update(['branch_id' => $toBranchId]);
-        });
+                if ($lockedDevice->status === 'vendido') {
+                    throw new \RuntimeException('No se puede transferir un equipo con estado "vendido".');
+                }
+
+                if ($lockedDevice->branch_id == $toBranchId) {
+                    throw new \RuntimeException('El dispositivo ya fue transferido a la sucursal de destino seleccionada.');
+                }
+
+                $fromBranchId = $lockedDevice->branch_id;
+
+                FinDeviceTransfer::create([
+                    'device_id' => $lockedDevice->id,
+                    'from_branch_id' => $fromBranchId,
+                    'to_branch_id' => $toBranchId,
+                    'user_id' => auth()->id(),
+                    'notes' => $request->input('notes'),
+                ]);
+
+                $lockedDevice->update(['branch_id' => $toBranchId]);
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         $toBranchName = Branch::find($toBranchId)?->name;
 

@@ -133,35 +133,52 @@ class FinWarrantyController extends Controller
         // Link active sale if exists
         $sale = $device->activeSale ?? $device->latestSale;
 
-        $warranty = DB::transaction(function () use ($request, $device, $sale) {
-            $warrantyCode = 'WAR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+        try {
+            $warranty = DB::transaction(function () use ($request, $device, $sale) {
+                // Bloqueo pesimista del dispositivo contra aperturas simultáneas
+                $lockedDevice = FinDevice::where('id', $device->id)->lockForUpdate()->firstOrFail();
 
-            $warranty = FinWarranty::create([
-                'warranty_code' => $warrantyCode,
-                'device_id' => $device->id,
-                'sale_id' => $sale?->id,
-                'branch_id' => $request->input('branch_id'),
-                'current_stage_id' => $request->input('current_stage_id'),
-                'created_by' => auth()->id(),
-                'issue_description' => $request->input('issue_description'),
-                'status' => 'abierta',
-                'opened_at' => now(),
-            ]);
+                $activeWarranty = FinWarranty::where('device_id', $lockedDevice->id)
+                    ->whereIn('status', ['abierta', 'en_proceso'])
+                    ->whereNull('deleted_at')
+                    ->lockForUpdate()
+                    ->first();
 
-            // Initial log
-            FinWarrantyLog::create([
-                'warranty_id' => $warranty->id,
-                'from_stage_id' => null,
-                'to_stage_id' => $warranty->current_stage_id,
-                'user_id' => auth()->id(),
-                'notes' => 'Apertura de garantía: ' . $warranty->issue_description,
-            ]);
+                if ($activeWarranty) {
+                    throw new \RuntimeException("El dispositivo con IMEI {$lockedDevice->imei} ya tiene una garantía en proceso activa ({$activeWarranty->warranty_code}).");
+                }
 
-            // Mark device as en_garantia
-            $device->update(['status' => 'en_garantia']);
+                $warrantyCode = 'WAR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
 
-            return $warranty;
-        });
+                $warranty = FinWarranty::create([
+                    'warranty_code' => $warrantyCode,
+                    'device_id' => $lockedDevice->id,
+                    'sale_id' => $sale?->id,
+                    'branch_id' => $request->input('branch_id'),
+                    'current_stage_id' => $request->input('current_stage_id'),
+                    'created_by' => auth()->id(),
+                    'issue_description' => $request->input('issue_description'),
+                    'status' => 'abierta',
+                    'opened_at' => now(),
+                ]);
+
+                // Initial log
+                FinWarrantyLog::create([
+                    'warranty_id' => $warranty->id,
+                    'from_stage_id' => null,
+                    'to_stage_id' => $warranty->current_stage_id,
+                    'user_id' => auth()->id(),
+                    'notes' => 'Apertura de garantía: ' . $warranty->issue_description,
+                ]);
+
+                // Mark device as en_garantia
+                $lockedDevice->update(['status' => 'en_garantia']);
+
+                return $warranty;
+            });
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         try {
             event(new FinancierasUpdated(
@@ -255,6 +272,19 @@ class FinWarrantyController extends Controller
         $targetStage = FinWarrantyStage::findOrFail($toStageId);
 
         DB::transaction(function () use ($request, $warranty, $fromStageId, $toStageId, $targetStage) {
+            $lockedWarranty = FinWarranty::where('id', $warranty->id)->lockForUpdate()->firstOrFail();
+
+            // Prevenir doble inserción de log si la misma etapa ya se procesó hace pocos segundos
+            $recentLog = FinWarrantyLog::where('warranty_id', $lockedWarranty->id)
+                ->where('to_stage_id', $toStageId)
+                ->where('user_id', auth()->id())
+                ->where('created_at', '>=', now()->subSeconds(10))
+                ->first();
+
+            if ($recentLog && $lockedWarranty->current_stage_id == $toStageId) {
+                return;
+            }
+
             $newStatus = $request->input('status');
             if (!$newStatus) {
                 $newStatus = $targetStage->is_final ? 'resuelta' : 'en_proceso';
@@ -262,15 +292,15 @@ class FinWarrantyController extends Controller
 
             $closedAt = in_array($newStatus, ['resuelta', 'rechazada']) ? now() : null;
 
-            $warranty->update([
+            $lockedWarranty->update([
                 'current_stage_id' => $toStageId,
                 'status' => $newStatus,
                 'closed_at' => $closedAt,
-                'resolution_notes' => $request->filled('notes') ? $request->input('notes') : $warranty->resolution_notes,
+                'resolution_notes' => $request->filled('notes') ? $request->input('notes') : $lockedWarranty->resolution_notes,
             ]);
 
             FinWarrantyLog::create([
-                'warranty_id' => $warranty->id,
+                'warranty_id' => $lockedWarranty->id,
                 'from_stage_id' => $fromStageId,
                 'to_stage_id' => $toStageId,
                 'user_id' => auth()->id(),
@@ -278,9 +308,9 @@ class FinWarrantyController extends Controller
             ]);
 
             // If closed, return device status
-            if ($closedAt) {
-                $targetDeviceStatus = $request->input('return_device_status', $warranty->sale_id ? 'vendido' : 'disponible');
-                $warranty->device->update(['status' => $targetDeviceStatus]);
+            if ($closedAt && $lockedWarranty->device) {
+                $targetDeviceStatus = $request->input('return_device_status', $lockedWarranty->sale_id ? 'vendido' : 'disponible');
+                $lockedWarranty->device->update(['status' => $targetDeviceStatus]);
             }
         });
 

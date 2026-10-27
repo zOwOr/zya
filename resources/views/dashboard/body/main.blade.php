@@ -333,6 +333,84 @@
                 });
             }
         });
+
+        // ==========================================
+        // PROTECCIÓN GLOBAL CONTRA DOBLE SUBMIT
+        // ==========================================
+        window.resetSubmitButtons = function($form) {
+            if (!$form || !$form.length) return;
+            $form.data('submitting', false);
+            var $btns = $form.find('button[type="submit"], input[type="submit"]');
+            $btns.each(function() {
+                var $btn = $(this);
+                $btn.prop('disabled', false);
+                if ($btn.data('original-html')) {
+                    $btn.html($btn.data('original-html'));
+                }
+                if ($btn.data('original-val')) {
+                    $btn.val($btn.data('original-val'));
+                }
+            });
+        };
+
+        $(document).on('submit', 'form:not([method="GET"]):not([method="get"]):not(.no-double-submit-prevent)', function(e) {
+            var $form = $(this);
+
+            // Si algún manejador previo canceló el submit (validación fallida)
+            if (e.isDefaultPrevented()) {
+                return;
+            }
+
+            // Si falla la validación HTML5 nativa
+            if (this.checkValidity && !this.checkValidity()) {
+                return;
+            }
+
+            // Si ya está en proceso de envío, bloquear el envío concurrente
+            if ($form.data('submitting') === true) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+
+            // Marcar formulario como en envío
+            $form.data('submitting', true);
+
+            var isFileUpload = ($form.attr('enctype') === 'multipart/form-data');
+            var processingText = isFileUpload ? 'Subiendo e importando...' : 'Procesando...';
+
+            var $submitButtons = $form.find('button[type="submit"], input[type="submit"]');
+            $submitButtons.each(function() {
+                var $btn = $(this);
+                $btn.data('original-html', $btn.html());
+                $btn.data('original-val', $btn.val());
+
+                // Deshabilitar de inmediato tras permitir el despacho del evento
+                setTimeout(function() {
+                    $btn.prop('disabled', true);
+                    if ($btn.is('button')) {
+                        $btn.html('<i class="fa-solid fa-spinner fa-spin mr-1"></i> ' + processingText);
+                    } else {
+                        $btn.val(processingText);
+                    }
+                }, 10);
+            });
+        });
+
+        // Restaurar estado al cerrar un modal
+        $(document).on('hidden.bs.modal', '.modal', function() {
+            var $form = $(this).find('form');
+            if ($form.length > 0) {
+                window.resetSubmitButtons($form);
+            }
+        });
+
+        // Restaurar estado si el usuario navega hacia atrás usando la caché del navegador
+        window.addEventListener('pageshow', function(event) {
+            $('form').each(function() {
+                window.resetSubmitButtons($(this));
+            });
+        });
     </script>
 </body>
 

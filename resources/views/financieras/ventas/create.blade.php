@@ -522,6 +522,7 @@ $(document).ready(function() {
     $('#saleForm').on('submit', function(e) {
         if ($('#tagContratoInput').hasClass('is-invalid')) {
             e.preventDefault();
+            if (window.resetSubmitButtons) window.resetSubmitButtons($(this));
             alert('El TAG / No. Contrato ingresado ya existe en otra venta. Por favor ingrese un TAG único.');
             $('#tagContratoInput').focus();
             return false;
@@ -529,6 +530,7 @@ $(document).ready(function() {
 
         if ($('#imeiFeedback .alert-danger').length > 0) {
             e.preventDefault();
+            if (window.resetSubmitButtons) window.resetSubmitButtons($(this));
             alert('No se puede registrar la venta: el dispositivo ya ha sido vendido o presenta un reporte.');
             $('#imeiInput').focus();
             return false;

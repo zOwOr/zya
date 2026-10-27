@@ -734,6 +734,7 @@ $(document).ready(function() {
     $('#contadoSaleForm').on('submit', function(e) {
         if ($('#imeiFeedback .alert-danger').length > 0) {
             e.preventDefault();
+            if (window.resetSubmitButtons) window.resetSubmitButtons($(this));
             alert('No es posible registrar la venta: el dispositivo ya fue vendido o presenta alertas de reporte de robo.');
             $('#imeiInput').focus();
             return false;
@@ -743,6 +744,7 @@ $(document).ready(function() {
         if (p <= 0) {
             if (!confirm('El precio total de la venta es $0.00. ¿Deseas continuar?')) {
                 e.preventDefault();
+                if (window.resetSubmitButtons) window.resetSubmitButtons($(this));
                 $('#priceInput').focus();
                 return false;
             }

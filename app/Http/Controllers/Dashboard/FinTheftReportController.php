@@ -130,34 +130,51 @@ class FinTheftReportController extends Controller
 
         $sale = $device->activeSale ?? $device->latestSale;
 
-        $report = DB::transaction(function () use ($request, $device, $sale) {
-            $reportCode = 'ROB-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+        try {
+            $report = DB::transaction(function () use ($request, $device, $sale) {
+                // Bloqueo pesimista del dispositivo contra dobles reportes
+                $lockedDevice = FinDevice::where('id', $device->id)->lockForUpdate()->firstOrFail();
 
-            $report = FinTheftReport::create([
-                'report_code' => $reportCode,
-                'device_id' => $device->id,
-                'sale_id' => $sale?->id,
-                'branch_id' => $request->input('branch_id'),
-                'reported_by' => auth()->id(),
-                'incident_date' => $request->input('incident_date'),
-                'police_report_number' => $request->input('police_report_number'),
-                'description' => $request->input('description'),
-                'status' => 'reportado',
-            ]);
+                $activeReport = FinTheftReport::where('device_id', $lockedDevice->id)
+                    ->whereIn('status', ['reportado', 'en_investigacion'])
+                    ->whereNull('deleted_at')
+                    ->lockForUpdate()
+                    ->first();
 
-            // Mark device as robado
-            $device->update(['status' => 'robado']);
+                if ($activeReport) {
+                    throw new \RuntimeException("El dispositivo con IMEI {$lockedDevice->imei} ya cuenta con un reporte de robo activo ({$activeReport->report_code}).");
+                }
 
-            // Initial log
-            FinTheftReportLog::create([
-                'theft_report_id' => $report->id,
-                'user_id' => auth()->id(),
-                'status_change' => 'Reportado',
-                'notes' => 'Apertura de reporte de robo. Acta / Folio: ' . ($report->police_report_number ?: 'Sin acta'),
-            ]);
+                $reportCode = 'ROB-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
 
-            return $report;
-        });
+                $report = FinTheftReport::create([
+                    'report_code' => $reportCode,
+                    'device_id' => $lockedDevice->id,
+                    'sale_id' => $sale?->id,
+                    'branch_id' => $request->input('branch_id'),
+                    'reported_by' => auth()->id(),
+                    'incident_date' => $request->input('incident_date'),
+                    'police_report_number' => $request->input('police_report_number'),
+                    'description' => $request->input('description'),
+                    'status' => 'reportado',
+                ]);
+
+                // Mark device as robado
+                $lockedDevice->update(['status' => 'robado']);
+
+                // Initial log
+                FinTheftReportLog::create([
+                    'theft_report_id' => $report->id,
+                    'user_id' => auth()->id(),
+                    'status_change' => 'Reportado',
+                    'notes' => 'Apertura de reporte de robo. Acta / Folio: ' . ($report->police_report_number ?: 'Sin acta'),
+                ]);
+
+                return $report;
+            });
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         try {
             event(new FinancierasUpdated(
@@ -250,19 +267,32 @@ class FinTheftReportController extends Controller
         $oldStatus = $theftReport->status;
 
         DB::transaction(function () use ($request, $theftReport, $newStatus, $oldStatus) {
-            $theftReport->update(['status' => $newStatus]);
+            $lockedReport = FinTheftReport::where('id', $theftReport->id)->lockForUpdate()->firstOrFail();
+
+            // Prevenir doble log si el mismo estado ya se guardó hace pocos segundos
+            $recentLog = FinTheftReportLog::where('theft_report_id', $lockedReport->id)
+                ->where('status_change', ucfirst(str_replace('_', ' ', $newStatus)))
+                ->where('user_id', auth()->id())
+                ->where('created_at', '>=', now()->subSeconds(10))
+                ->first();
+
+            if ($recentLog && $lockedReport->status === $newStatus) {
+                return;
+            }
+
+            $lockedReport->update(['status' => $newStatus]);
 
             FinTheftReportLog::create([
-                'theft_report_id' => $theftReport->id,
+                'theft_report_id' => $lockedReport->id,
                 'user_id' => auth()->id(),
                 'status_change' => ucfirst(str_replace('_', ' ', $newStatus)),
                 'notes' => $request->input('notes'),
             ]);
 
             // If recuperado, return device status
-            if ($newStatus === 'recuperado') {
-                $targetStatus = $request->input('return_device_status', $theftReport->sale_id ? 'vendido' : 'disponible');
-                $theftReport->device->update(['status' => $targetStatus]);
+            if ($newStatus === 'recuperado' && $lockedReport->device) {
+                $targetStatus = $request->input('return_device_status', $lockedReport->sale_id ? 'vendido' : 'disponible');
+                $lockedReport->device->update(['status' => $targetStatus]);
             }
         });
 
