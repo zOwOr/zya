@@ -166,11 +166,11 @@ class FinSaleController extends Controller
                 Rule::unique('fin_sales', 'device_id')
                     ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
             ],
-            'imei' => 'required_without:device_id|nullable|string|max:50',
-            'model' => 'required_without:device_id|nullable|string|max:150',
+            'imei' => 'required|string|max:50',
+            'model' => 'nullable|string|max:150',
             'brand_id' => 'nullable|exists:fin_brands,id',
-            'brand_name' => 'required|string|max:100',
-            'color' => 'required|string|max:50',
+            'brand_name' => 'nullable|string|max:100',
+            'color' => 'nullable|string|max:50',
             'financiera_id' => 'required|exists:fin_financieras,id',
             'branch_id' => 'required|exists:branches,id',
             'seller_id' => $canAssignSeller ? 'required|exists:users,id' : 'nullable',
@@ -207,10 +207,7 @@ class FinSaleController extends Controller
             'device_id.unique' => 'El dispositivo seleccionado ya cuenta con una venta registrada activa.',
             'tag_contrato.required' => 'El TAG / No. de Contrato es obligatorio.',
             'tag_contrato.unique' => 'El TAG / No. de Contrato ya se encuentra registrado en otra venta.',
-            'imei.required_without' => 'El IMEI es obligatorio.',
-            'model.required_without' => 'El modelo del equipo es obligatorio.',
-            'brand_name.required' => 'La marca del equipo es obligatoria.',
-            'color.required' => 'El color del equipo es obligatorio.',
+            'imei.required' => 'El IMEI es obligatorio.',
             'financiera_id.required' => 'Debe seleccionar una financiera.',
             'financiera_id.exists' => 'La financiera seleccionada no es válida.',
             'branch_id.required' => 'La sucursal es obligatoria.',
@@ -253,43 +250,49 @@ class FinSaleController extends Controller
             'initial_note.required' => 'Las observaciones o nota de la venta son obligatorias.',
         ]);
 
+        $imei = trim($request->input('imei', ''));
         $deviceId = $request->input('device_id');
 
-        // If no device_id provided but IMEI entered, find or create device in inventory
-        if (!$deviceId && $request->filled('imei')) {
-            $imei = trim($request->input('imei'));
+        $device = null;
+        if (!empty($imei)) {
             $device = FinDevice::where('imei', $imei)->first();
+        } elseif (!empty($deviceId)) {
+            $device = FinDevice::find($deviceId);
+        }
 
-            if (!$device) {
-                // Register brand if brand_name provided
-                $brandId = $request->input('brand_id');
-                if (!$brandId && $request->filled('brand_name')) {
-                    $brand = FinBrand::firstOrCreate(['name' => trim($request->input('brand_name'))]);
-                    $brandId = $brand->id;
-                }
+        if (!$device) {
+            return back()->withInput()->withErrors([
+                'imei' => 'El IMEI no es correcto o no se encuentra registrado.'
+            ])->with('error', 'El IMEI no es correcto o no se encuentra registrado en el inventario.');
+        }
 
-                $model = trim($request->input('model') ?? '');
-                if (empty($model)) {
-                    $model = 'Modelo no especificado';
-                }
+        $deviceId = $device->id;
 
-                $device = FinDevice::create([
-                    'imei' => $imei,
-                    'brand_id' => $brandId,
-                    'model' => $model,
-                    'color' => $request->input('color') ?: 'Sin color',
-                    'branch_id' => $request->input('branch_id'),
-                    'status' => 'disponible',
-                ]);
+        // Verificación de sucursal para usuarios sin permiso all_branches
+        if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
+            if ($device->branch_id !== auth()->user()->branch_id) {
+                return back()->withInput()->withErrors([
+                    'imei' => 'El dispositivo pertenece a otra sucursal y no tienes permiso para venderlo.'
+                ])->with('error', 'No tienes permiso para vender dispositivos de otra sucursal.');
             }
-            $deviceId = $device->id;
         }
 
-        if (!$deviceId) {
-            return back()->withInput()->with('error', 'Debe seleccionar un dispositivo o ingresar un IMEI.');
+        if ($device->status === 'robado') {
+            return back()->withInput()->withErrors([
+                'imei' => 'El dispositivo seleccionado cuenta con reporte de robo activo y no puede ser vendido.'
+            ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' tiene reporte de robo activo.');
         }
 
-        $device = FinDevice::findOrFail($deviceId);
+        if ($device->status === 'en_garantia') {
+            return back()->withInput()->withErrors([
+                'imei' => 'El dispositivo seleccionado se encuentra en proceso de garantía y no puede ser vendido.'
+            ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' se encuentra en proceso de garantía.');
+        }
+
+        // Si el dispositivo ya existía y se proporcionó color que no tenía, actualizarlo
+        if ($request->filled('color') && empty($device->color)) {
+            $device->update(['color' => $request->input('color')]);
+        }
 
         // Validar que el dispositivo no tenga ya una venta activa o esté vendido
         $existingSale = FinSale::where('device_id', $device->id)
@@ -430,12 +433,12 @@ class FinSaleController extends Controller
                 Rule::unique('fin_sales', 'device_id')
                     ->where(fn ($q) => $q->whereNull('deleted_at')->where('status', '!=', 'cancelada')),
             ],
-            'imei' => 'required_without:device_id|nullable|string|max:50',
-            'model' => 'required_without:device_id|nullable|string|max:150',
+            'imei' => 'required|string|max:50',
+            'model' => 'nullable|string|max:150',
             'brand_id' => 'nullable|exists:fin_brands,id',
-            'brand_name' => 'required|string|max:100',
-            'color' => 'required|string|max:50',
-            'storage' => 'required|string|max:50',
+            'brand_name' => 'nullable|string|max:100',
+            'color' => 'nullable|string|max:50',
+            'storage' => 'nullable|string|max:50',
             'branch_id' => 'required|exists:branches,id',
             'seller_id' => $canAssignSeller ? 'required|exists:users,id' : 'nullable',
             'price' => 'required|numeric|min:0',
@@ -449,11 +452,7 @@ class FinSaleController extends Controller
             'initial_note' => 'required|string|max:2000',
         ], [
             'device_id.unique' => 'El dispositivo seleccionado ya cuenta con una venta registrada activa.',
-            'imei.required_without' => 'El IMEI es obligatorio.',
-            'model.required_without' => 'El modelo del equipo es obligatorio.',
-            'brand_name.required' => 'La marca del equipo es obligatoria.',
-            'color.required' => 'El color del equipo es obligatorio.',
-            'storage.required' => 'La capacidad / almacenamiento del equipo es obligatoria.',
+            'imei.required' => 'El IMEI es obligatorio.',
             'customer_name.required' => 'El nombre del cliente es obligatorio.',
             'customer_phone.required' => 'El teléfono de contacto del cliente es obligatorio.',
             'customer_address.required' => 'La dirección del cliente es obligatoria.',
@@ -471,43 +470,23 @@ class FinSaleController extends Controller
             'price.min' => 'El precio no puede ser menor a 0.',
         ]);
 
+        $imei = trim($request->input('imei', ''));
         $deviceId = $request->input('device_id');
 
-        // Si no se seleccionó device_id pero se ingresó IMEI, buscar o registrar en inventario
-        if (!$deviceId && $request->filled('imei')) {
-            $imei = trim($request->input('imei'));
+        $device = null;
+        if (!empty($imei)) {
             $device = FinDevice::where('imei', $imei)->first();
-
-            if (!$device) {
-                $brandId = $request->input('brand_id');
-                if (!$brandId && $request->filled('brand_name')) {
-                    $brand = FinBrand::firstOrCreate(['name' => trim($request->input('brand_name'))]);
-                    $brandId = $brand->id;
-                }
-
-                $model = trim($request->input('model') ?? '');
-                if (empty($model)) {
-                    $model = 'Modelo no especificado';
-                }
-
-                $device = FinDevice::create([
-                    'imei' => $imei,
-                    'brand_id' => $brandId,
-                    'model' => $model,
-                    'color' => $request->input('color') ?: 'Sin color',
-                    'storage' => $request->input('storage') ?: null,
-                    'branch_id' => $request->input('branch_id'),
-                    'status' => 'disponible',
-                ]);
-            }
-            $deviceId = $device->id;
+        } elseif (!empty($deviceId)) {
+            $device = FinDevice::find($deviceId);
         }
 
-        if (!$deviceId) {
-            return back()->withInput()->with('error', 'Debe seleccionar un dispositivo o ingresar un IMEI.');
+        if (!$device) {
+            return back()->withInput()->withErrors([
+                'imei' => 'El IMEI no es correcto o no se encuentra registrado.'
+            ])->with('error', 'El IMEI no es correcto o no se encuentra registrado en el inventario.');
         }
 
-        $device = FinDevice::findOrFail($deviceId);
+        $deviceId = $device->id;
 
         // Verificación de sucursal para usuarios sin permiso all_branches
         if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
@@ -516,6 +495,18 @@ class FinSaleController extends Controller
                     'imei' => 'El dispositivo pertenece a otra sucursal y no tienes permiso para venderlo.'
                 ])->with('error', 'No tienes permiso para vender dispositivos de otra sucursal.');
             }
+        }
+
+        if ($device->status === 'robado') {
+            return back()->withInput()->withErrors([
+                'imei' => 'El dispositivo seleccionado cuenta con reporte de robo activo y no puede ser vendido.'
+            ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' tiene reporte de robo activo.');
+        }
+
+        if ($device->status === 'en_garantia') {
+            return back()->withInput()->withErrors([
+                'imei' => 'El dispositivo seleccionado se encuentra en proceso de garantía y no puede ser vendido.'
+            ])->with('error', 'El dispositivo con IMEI ' . $device->imei . ' se encuentra en proceso de garantía.');
         }
 
         // Si el dispositivo ya existía y se proporcionó almacenamiento o color que no tenía, actualizarlo

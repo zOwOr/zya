@@ -225,7 +225,7 @@ class FinancierasController extends Controller
                 'found' => false,
                 'imei' => $imei,
                 'can_actions' => $canActions,
-                'message' => 'Dispositivo no encontrado en inventario.'
+                'message' => 'El IMEI no es correcto o no se encuentra registrado en el inventario.'
             ]);
         }
 

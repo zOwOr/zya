@@ -340,11 +340,8 @@ $(document).ready(function() {
             if (!res.found) {
                 let notFoundActions = canActions ? `
                     <div class="mt-3">
-                        <a href="{{ route('financieras.inventario.create') }}?imei=${imei}" class="btn btn-primary btn-sm mr-2">
+                        <a href="{{ route('financieras.inventario.create') }}?imei=${imei}" class="btn btn-primary btn-sm">
                             <i class="fa-solid fa-plus mr-1"></i>Registrar en Inventario
-                        </a>
-                        <a href="{{ route('financieras.ventas.create') }}?imei=${imei}" class="btn btn-success btn-sm">
-                            <i class="fa-solid fa-cart-plus mr-1"></i>Crear Venta Directa
                         </a>
                     </div>
                 ` : `

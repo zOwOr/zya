@@ -188,12 +188,12 @@
                                     </div>
                                 </div>
 
-                                <!-- Detalles del equipo obtenidos por IMEI o editables si es nuevo -->
+                                <!-- Detalles del equipo vinculados al inventario -->
                                 <div class="row pt-2 border-top">
                                     <div class="col-md-4 mb-3">
                                         <label class="font-weight-bold font-size-13 text-secondary">Marca <span class="text-danger">*</span></label>
                                         <div class="position-relative">
-                                            <input type="text" name="brand_name" id="brandInput" class="form-control @error('brand_name') is-invalid @enderror" placeholder="Ej. Samsung, Apple..." value="{{ old('brand_name') }}" required autocomplete="off">
+                                            <input type="text" name="brand_name" id="brandInput" class="form-control bg-light @error('brand_name') is-invalid @enderror" placeholder="Cargada por IMEI" value="{{ old('brand_name') }}" readonly required autocomplete="off">
                                             <input type="hidden" name="brand_id" id="brandIdInput" value="{{ old('brand_id') }}">
                                             <div id="brandSuggestions" class="dropdown-menu w-100 shadow" style="display: none; max-height: 200px; overflow-y: auto;"></div>
                                         </div>
@@ -203,21 +203,21 @@
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label class="font-weight-bold font-size-13 text-secondary">Modelo <span class="text-danger">*</span></label>
-                                        <input type="text" name="model" id="modelInput" class="form-control @error('model') is-invalid @enderror" placeholder="Ej. Galaxy A56 5G" value="{{ old('model') }}" required autocomplete="off">
+                                        <input type="text" name="model" id="modelInput" class="form-control bg-light @error('model') is-invalid @enderror" placeholder="Cargado por IMEI" value="{{ old('model') }}" readonly required autocomplete="off">
                                         @error('model')
                                             <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label class="font-weight-bold font-size-13 text-secondary">Color <span class="text-danger">*</span></label>
-                                        <input type="text" name="color" id="colorInput" class="form-control @error('color') is-invalid @enderror" placeholder="Ej. Gris, Negro" value="{{ old('color') }}" required autocomplete="off">
+                                        <input type="text" name="color" id="colorInput" class="form-control bg-light @error('color') is-invalid @enderror" placeholder="Cargado por IMEI" value="{{ old('color') }}" readonly required autocomplete="off">
                                         @error('color')
                                             <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="font-weight-bold font-size-13 text-secondary">Capacidad / RAM / Almacenamiento <span class="text-danger">*</span></label>
-                                        <input type="text" name="storage" id="storageInput" class="form-control @error('storage') is-invalid @enderror" placeholder="Ej. 256 GB y 8 RAM" value="{{ old('storage') }}" required autocomplete="off">
+                                        <input type="text" name="storage" id="storageInput" class="form-control bg-light @error('storage') is-invalid @enderror" placeholder="Cargado por IMEI" value="{{ old('storage') }}" readonly required autocomplete="off">
                                         @error('storage')
                                             <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                         @enderror
@@ -502,20 +502,37 @@ $(document).ready(function() {
     // Desactivar historial del navegador en todos los campos
     $('#contadoSaleForm').attr('autocomplete', 'off').find('input, textarea').attr('autocomplete', 'off');
 
+    function notifyImeiError(msg) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'IMEI no válido',
+                text: msg,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Entendido'
+            });
+        }
+    }
+
+    function clearDeviceData() {
+        $('#deviceIdInput').val('');
+        $('#modelInput').val('').prop('readonly', true).addClass('bg-light');
+        $('#colorInput').val('').prop('readonly', true).addClass('bg-light');
+        $('#storageInput').val('').prop('readonly', true).addClass('bg-light');
+        $('#brandInput').val('').prop('readonly', true).addClass('bg-light');
+        $('#brandIdInput').val('');
+        updateLivePreview();
+    }
+
     // 1. Verificación en Vivo de IMEI
     // Live IMEI Verification
     $('#btnVerifyImei, #imeiInput').on('blur change click', function(e) {
         if (e.type === 'click' && this.id !== 'btnVerifyImei') return;
         let imei = $('#imeiInput').val().trim();
         if (!imei) {
+            clearDeviceData();
             $('#imeiFeedback').html('');
-            $('#deviceIdInput').val('');
-            $('#modelInput').val('').prop('readonly', false).removeClass('bg-light');
-            $('#colorInput').val('').prop('readonly', false).removeClass('bg-light');
-            $('#storageInput').val('').prop('readonly', false).removeClass('bg-light');
-            $('#brandInput').val('').prop('readonly', false).removeClass('bg-light');
-            $('#brandIdInput').val('');
-            updateLivePreview();
+            $('#imeiInput').removeClass('is-invalid is-valid');
             return;
         }
 
@@ -524,24 +541,57 @@ $(document).ready(function() {
         $.get("{{ route('financieras.devices.lookup-imei') }}", { imei: imei }, function(res) {
             if (res.found) {
                 let d = res.device;
+
+                if (d.status === 'vendido') {
+                    clearDeviceData();
+                    $('#imeiInput').addClass('is-invalid').removeClass('is-valid');
+                    let folio = d.latest_sale ? ' Folio venta: ' + d.latest_sale.sale_code : '';
+                    let errorMsg = 'Este equipo ya figura como VENDIDO.' + folio;
+                    $('#imeiFeedback').html('<div class="alert alert-danger py-1 mb-0"><i class="fa-solid fa-ban mr-1"></i>' + errorMsg + '</div>');
+                    notifyImeiError(errorMsg);
+                    return;
+                }
+
+                if (d.status === 'robado') {
+                    clearDeviceData();
+                    $('#imeiInput').addClass('is-invalid').removeClass('is-valid');
+                    let errorMsg = '¡ALERTA! Este equipo tiene reporte de ROBO activo.';
+                    $('#imeiFeedback').html('<div class="alert alert-danger py-1 mb-0"><i class="fa-solid fa-triangle-exclamation mr-1"></i>' + errorMsg + '</div>');
+                    notifyImeiError(errorMsg);
+                    return;
+                }
+
+                if (d.status === 'en_garantia') {
+                    clearDeviceData();
+                    $('#imeiInput').addClass('is-invalid').removeClass('is-valid');
+                    let errorMsg = 'Este equipo se encuentra actualmente en GARANTÍA y no puede ser vendido.';
+                    $('#imeiFeedback').html('<div class="alert alert-warning py-1 mb-0"><i class="fa-solid fa-wrench mr-1"></i>' + errorMsg + '</div>');
+                    notifyImeiError(errorMsg);
+                    return;
+                }
+
+                @if(!auth()->user()?->can('financieras.inventario.all_branches'))
+                let userBranchId = {{ auth()->user()->branch_id ?? 'null' }};
+                if (userBranchId && d.branch_id && d.branch_id != userBranchId) {
+                    clearDeviceData();
+                    $('#imeiInput').addClass('is-invalid').removeClass('is-valid');
+                    let errorMsg = 'El equipo pertenece a otra sucursal (' + (d.branch ? d.branch.name : '') + ') y no tienes permiso para venderlo.';
+                    $('#imeiFeedback').html('<div class="alert alert-danger py-1 mb-0"><i class="fa-solid fa-circle-xmark mr-1"></i>' + errorMsg + '</div>');
+                    notifyImeiError(errorMsg);
+                    return;
+                }
+                @endif
+
+                // Dispositivo válido y disponible
                 $('#deviceIdInput').val(d.id);
-                // Bloquear estrictamente la edición manual de la información del producto
                 $('#modelInput').val(d.model).prop('readonly', true).addClass('bg-light');
-                if (d.color) {
-                    $('#colorInput').val(d.color).prop('readonly', true).addClass('bg-light');
-                } else {
-                    $('#colorInput').val('').prop('readonly', false).removeClass('bg-light');
-                }
-                if (d.storage) {
-                    $('#storageInput').val(d.storage).prop('readonly', true).addClass('bg-light');
-                } else {
-                    $('#storageInput').val('').prop('readonly', false).removeClass('bg-light');
-                }
+                $('#colorInput').val(d.color || '').prop('readonly', true).addClass('bg-light');
+                $('#storageInput').val(d.storage || '').prop('readonly', true).addClass('bg-light');
                 if (d.brand) {
                     $('#brandInput').val(d.brand.name).prop('readonly', true).addClass('bg-light');
                     $('#brandIdInput').val(d.brand.id);
                 } else {
-                    $('#brandInput').val('').prop('readonly', false).removeClass('bg-light');
+                    $('#brandInput').val('').prop('readonly', true).addClass('bg-light');
                     $('#brandIdInput').val('');
                 }
                 $('#brandSuggestions').hide();
@@ -549,29 +599,29 @@ $(document).ready(function() {
                     $('#branchSelect').val(d.branch_id);
                 }
 
-                if (d.status === 'vendido') {
-                    $('#imeiFeedback').html('<div class="alert alert-danger py-1 mb-0"><i class="fa-solid fa-ban mr-1"></i>Este equipo ya figura como VENDIDO. Folio venta: ' + (d.latest_sale ? d.latest_sale.sale_code : '') + '</div>');
-                } else if (d.status === 'robado') {
-                    $('#imeiFeedback').html('<div class="alert alert-danger py-1 mb-0"><i class="fa-solid fa-triangle-exclamation mr-1"></i>¡ALERTA! Este equipo tiene reporte de ROBO activo.</div>');
-                } else if (d.status === 'en_garantia') {
-                    $('#imeiFeedback').html('<div class="alert alert-warning py-1 mb-0"><i class="fa-solid fa-wrench mr-1"></i>Este equipo se encuentra actualmente en GARANTÍA.</div>');
-                } else {
-                    $('#imeiFeedback').html('<div class="alert alert-success py-1 mb-0"><i class="fa-solid fa-circle-check mr-1"></i>Equipo disponible en inventario (' + (d.branch ? d.branch.name : '') + '). Información del producto cargada y bloqueada para proteger inventario.</div>');
-                }
+                $('#imeiInput').removeClass('is-invalid').addClass('is-valid');
+                $('#imeiFeedback').html('<div class="alert alert-success py-1 mb-0"><i class="fa-solid fa-circle-check mr-1"></i>Equipo disponible en inventario (' + (d.branch ? d.branch.name : '') + '). Información cargada correctamente.</div>');
             } else {
-                $('#deviceIdInput').val('');
-                $('#modelInput').prop('readonly', false).removeClass('bg-light');
-                $('#colorInput').prop('readonly', false).removeClass('bg-light');
-                $('#storageInput').prop('readonly', false).removeClass('bg-light');
-                $('#brandInput').prop('readonly', false).removeClass('bg-light');
-                $('#brandIdInput').val('');
-                $('#imeiFeedback').html('<div class="alert alert-info py-1 mb-0"><i class="fa-solid fa-plus-circle mr-1"></i>IMEI nuevo. Se registrará automáticamente en el inventario al guardar la venta.</div>');
+                clearDeviceData();
+                $('#imeiInput').addClass('is-invalid').removeClass('is-valid');
+                let notFoundMsg = 'El IMEI no es correcto o no se encuentra registrado en el inventario.';
+                $('#imeiFeedback').html('<div class="alert alert-danger py-1 mb-0"><i class="fa-solid fa-circle-xmark mr-1"></i>' + notFoundMsg + '</div>');
+                notifyImeiError(notFoundMsg);
             }
             updateLivePreview();
         }).fail(function() {
-            $('#imeiFeedback').html('');
+            clearDeviceData();
+            $('#imeiInput').addClass('is-invalid').removeClass('is-valid');
+            let errorMsg = 'El IMEI no es correcto o no se encuentra registrado.';
+            $('#imeiFeedback').html('<div class="alert alert-danger py-1 mb-0"><i class="fa-solid fa-circle-xmark mr-1"></i>' + errorMsg + '</div>');
+            notifyImeiError(errorMsg);
+            updateLivePreview();
         });
     });
+
+    if ($('#imeiInput').val().trim()) {
+        $('#btnVerifyImei').trigger('click');
+    }
 
     // 2. Autocompletado de Marcas (bloqueado si el producto ya fue cargado por IMEI)
     let brandTimeout = null;
@@ -730,12 +780,16 @@ $(document).ready(function() {
     // Ejecutar inicialización
     updateLivePreview();
 
-    // 5. Prevenir envío si el IMEI tiene reporte o está vendido
+    // 5. Prevenir envío si el IMEI no está registrado, tiene reporte o está vendido
     $('#contadoSaleForm').on('submit', function(e) {
-        if ($('#imeiFeedback .alert-danger').length > 0) {
+        let deviceId = $('#deviceIdInput').val();
+        let imei = $('#imeiInput').val().trim();
+
+        if (!imei || !deviceId || $('#imeiInput').hasClass('is-invalid') || $('#imeiFeedback .alert-danger').length > 0) {
             e.preventDefault();
             if (window.resetSubmitButtons) window.resetSubmitButtons($(this));
-            alert('No es posible registrar la venta: el dispositivo ya fue vendido o presenta alertas de reporte de robo.');
+            let msg = 'El IMEI no es correcto o no se encuentra registrado en el inventario. Verifique un IMEI válido para continuar.';
+            notifyImeiError(msg);
             $('#imeiInput').focus();
             return false;
         }
