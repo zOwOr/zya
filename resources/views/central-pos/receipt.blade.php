@@ -82,6 +82,12 @@
 <body id="ticketBody">
 
     <div class="no-print toolbar">
+        <a href="{{ route('central-pos.index') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+            ⬅️ Volver al Punto de Venta
+        </a>
+        <a href="{{ route('dashboard') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+            🏠 Menú Principal
+        </a>
         <button class="btn-tool btn-primary-tool" onclick="window.print()">
             🖨️ Imprimir Ticket
         </button>

@@ -38,7 +38,7 @@ class DashboardController extends Controller
         $branchId = $this->resolveBranchFilter($request);
         $search = $request->input('fin_search');
 
-        return FinSalePayment::with(['sale.customer', 'financiera', 'branch', 'user'])
+        return FinSalePayment::with(['sale', 'financiera', 'branch', 'user'])
             ->when($startDate, fn($q) => $q->whereDate('payment_date', '>=', $startDate))
             ->when($endDate, fn($q) => $q->whereDate('payment_date', '<=', $endDate))
             ->when($financieraId, fn($q) => $q->where('financiera_id', $financieraId))
@@ -182,7 +182,7 @@ class DashboardController extends Controller
             $sheet->setCellValue("C{$row}", $p->financiera->name ?? ($p->sale->financiera ?? 'Financiera'));
             $sheet->setCellValue("D{$row}", $p->tag_contrato);
             $sheet->setCellValue("E{$row}", $p->imei);
-            $sheet->setCellValue("F{$row}", $p->customer_name ?? ($p->sale->customer->full_name ?? 'Cliente'));
+            $sheet->setCellValue("F{$row}", $p->customer_name ?? ($p->sale->customer_name ?? 'Cliente'));
             $sheet->setCellValue("G{$row}", $p->branch->name ?? 'General');
             $sheet->setCellValue("H{$row}", strtoupper($p->payment_method));
             $sheet->setCellValue("I{$row}", (float) $p->amount);

@@ -205,7 +205,7 @@
                                 <td><span class="badge badge-primary">{{ $fp->finSupplier->name ?? ($fp->finSale->financiera ?? 'Financiera') }}</span></td>
                                 <td class="font-weight-bold"><code>{{ $fp->device_tag ?? '-' }}</code></td>
                                 <td><small>{{ $fp->imei ?? '-' }}</small></td>
-                                <td>{{ $fp->customer_name ?? ($fp->finSale->customer->full_name ?? 'Cliente') }}</td>
+                                <td>{{ $fp->customer_name ?? ($fp->finSale->customer_name ?? 'Cliente') }}</td>
                                 <td>{{ $fp->branch->name ?? 'General' }}</td>
                                 <td>
                                     <span class="badge badge-secondary text-uppercase">{{ $fp->payment_method }}</span>

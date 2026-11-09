@@ -51,7 +51,7 @@
                     <td>{{ $p->finSupplier->name ?? ($p->finSale->financiera ?? 'Financiera') }}</td>
                     <td><strong>{{ $p->device_tag ?? '-' }}</strong></td>
                     <td>{{ $p->imei ?? '-' }}</td>
-                    <td>{{ $p->customer_name ?? ($p->finSale->customer->full_name ?? 'Cliente') }}</td>
+                    <td>{{ $p->customer_name ?? ($p->finSale->customer_name ?? 'Cliente') }}</td>
                     <td>{{ $p->branch->name ?? 'General' }}</td>
                     <td>{{ strtoupper($p->payment_method) }}</td>
                     <td class="text-right">${{ number_format($p->amount, 2) }}</td>

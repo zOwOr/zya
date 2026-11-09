@@ -142,6 +142,19 @@ class FinSale extends Model
         return $this->sale_type !== 'contado';
     }
 
+    public function getCustomerAttribute()
+    {
+        return (object) [
+            'name' => $this->customer_name,
+            'full_name' => $this->customer_name,
+            'tit_name' => $this->customer_name,
+            'phone' => $this->customer_phone,
+            'email' => $this->customer_email,
+            'address' => $this->customer_address,
+            'ine' => $this->customer_ine,
+        ];
+    }
+
     public function getPriceInWordsAttribute(): string
     {
         return static::numberToWords($this->price);
