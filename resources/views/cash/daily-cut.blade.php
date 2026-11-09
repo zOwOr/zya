@@ -556,7 +556,6 @@
 @endif
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="{{ asset('assets/js/pos-hardware.js') }}"></script>
 <script>
 // Apertura AUTOMÁTICA del cajón USB al enfocar el conteo de efectivo o al registrar corte
 document.addEventListener('DOMContentLoaded', function () {

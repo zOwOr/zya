@@ -84,8 +84,52 @@
         </div>
     </div>
 
-    <script src="{{ asset('assets/js/pos-hardware.js') }}"></script>
     <script>
+        window.ZyaPosHardware = {
+            KICK_BYTES: new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA, 0x10, 0x14, 0x01, 0x00, 0x05, 0x07, 0x0A]),
+            _kickPort: async function (port) {
+                await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' });
+                try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
+                const writer = port.writable.getWriter();
+                await writer.write(this.KICK_BYTES);
+                writer.releaseLock();
+                await new Promise(r => setTimeout(r, 120));
+                try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
+                await port.close();
+            },
+            autoOpenUsbDrawer: async function () {
+                if (!('serial' in navigator)) return false;
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    if (ports && ports.length > 0) {
+                        await this._kickPort(ports[0]);
+                        return true;
+                    }
+                } catch (e) {}
+                return false;
+            },
+            manualOpenUsbDrawer: async function () {
+                if (!('serial' in navigator)) {
+                    alert('Para controlar el cajón USB se recomienda Google Chrome o Microsoft Edge.');
+                    return false;
+                }
+                try {
+                    let ports = await navigator.serial.getPorts();
+                    let port = (ports && ports.length > 0) ? ports[0] : null;
+                    if (!port) {
+                        port = await navigator.serial.requestPort();
+                    }
+                    await this._kickPort(port);
+                    return true;
+                } catch (err) {
+                    if (err.name !== 'NotFoundError') {
+                        alert('No se pudo comunicar con el cajón USB: ' + (err.message || err));
+                    }
+                    return false;
+                }
+            }
+        };
+
         const statusAlert = document.getElementById('statusAlert');
 
         document.getElementById('btnKickUsb').addEventListener('click', async function () {

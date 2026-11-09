@@ -882,7 +882,6 @@
     </div>
 </div>
 
-<script src="{{ asset('assets/js/pos-hardware.js') }}"></script>
 <script>
 // Función global para el botón independiente de apertura física de cajón USB
 window.triggerPhysicalCashDrawer = async function () {

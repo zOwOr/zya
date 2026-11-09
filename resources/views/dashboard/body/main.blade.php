@@ -454,6 +454,88 @@
             }
         });
 
+        // ==========================================
+        // CONTROLADOR GLOBAL DE CAJÓN FÍSICO USB (ZYA)
+        // ==========================================
+        window.ZyaPosHardware = {
+            KICK_DRAWER_BYTES: new Uint8Array([
+                0x1B, 0x70, 0x00, 0x19, 0xFA,
+                0x1B, 0x70, 0x01, 0x19, 0xFA,
+                0x10, 0x14, 0x01, 0x00, 0x05,
+                0x07, 0x0A
+            ]),
+
+            isWebSerialSupported: function () {
+                return 'serial' in navigator;
+            },
+
+            _kickPort: async function (port) {
+                await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' });
+                try {
+                    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+                } catch (e) {}
+
+                const writer = port.writable.getWriter();
+                await writer.write(this.KICK_DRAWER_BYTES);
+                writer.releaseLock();
+
+                await new Promise(resolve => setTimeout(resolve, 120));
+
+                try {
+                    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+                } catch (e) {}
+
+                await port.close();
+            },
+
+            autoOpenUsbDrawer: async function () {
+                if (!this.isWebSerialSupported()) return false;
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    if (ports && ports.length > 0) {
+                        await this._kickPort(ports[0]);
+                        return true;
+                    }
+                } catch (err) {
+                    console.warn('[ZyaPosHardware] Error en apertura automática USB:', err);
+                }
+                return false;
+            },
+
+            manualOpenUsbDrawer: async function () {
+                if (!this.isWebSerialSupported()) {
+                    alert('Para controlar el cajón USB se recomienda usar Google Chrome o Microsoft Edge.');
+                    return false;
+                }
+                try {
+                    let ports = await navigator.serial.getPorts();
+                    let port = (ports && ports.length > 0) ? ports[0] : null;
+                    if (!port) {
+                        port = await navigator.serial.requestPort();
+                    }
+                    await this._kickPort(port);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Cajón Abierto!',
+                            text: 'Señal física enviada correctamente por USB.',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                    }
+                    return true;
+                } catch (err) {
+                    if (err.name !== 'NotFoundError') {
+                        console.error('[ZyaPosHardware] Error al abrir cajón USB:', err);
+                        alert('No se pudo comunicar con el cajón USB: ' + (err.message || err));
+                    }
+                    return false;
+                }
+            }
+        };
+
         $(document).ready(function() {
             if ($('.datatable-export').length > 0) {
                 $('.datatable-export').each(function() {

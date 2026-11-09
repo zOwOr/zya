@@ -191,8 +191,30 @@
     {{-- Margen inferior para que la guillotina de la impresora térmica no corte el texto --}}
     <div style="height: 18mm;"></div>
 
-    <script src="{{ asset('assets/js/pos-hardware.js') }}"></script>
     <script>
+        window.ZyaPosHardware = {
+            KICK_BYTES: new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA, 0x10, 0x14, 0x01, 0x00, 0x05, 0x07, 0x0A]),
+            autoOpenUsbDrawer: async function () {
+                if (!('serial' in navigator)) return false;
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    if (ports && ports.length > 0) {
+                        const port = ports[0];
+                        await port.open({ baudRate: 9600 });
+                        try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
+                        const writer = port.writable.getWriter();
+                        await writer.write(this.KICK_BYTES);
+                        writer.releaseLock();
+                        await new Promise(r => setTimeout(r, 120));
+                        try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
+                        await port.close();
+                        return true;
+                    }
+                } catch (e) {}
+                return false;
+            }
+        };
+
         let is58mm = localStorage.getItem('zya_ticket_width') === '58';
         function applyPaperWidth() {
             const body = document.getElementById('ticketBody');
