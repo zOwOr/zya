@@ -10,6 +10,12 @@ class Branch extends Model
         'name',
         'address',    // si quieres agregar dirección
         'phone',      // teléfono sucursal
+        'auto_cut_enabled',
+        'auto_cut_time',
+    ];
+
+    protected $casts = [
+        'auto_cut_enabled' => 'boolean',
     ];
 
     // Relación con cortes diarios

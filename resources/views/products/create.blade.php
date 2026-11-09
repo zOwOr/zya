@@ -73,8 +73,8 @@
 
                             <div class="form-group col-md-6">
                                 <label for="category_id">Categoria <span class="text-danger">*</span></label>
-                                <select class="form-control" name="category_id" required>
-                                    <option selected="" disabled>-- Seleccionar Categoria --</option>
+                                <select class="form-control select2-autocomplete" name="category_id" data-placeholder="-- Seleccionar Categoria --" required>
+                                    <option value="">-- Seleccionar Categoria --</option>
                                     @foreach ($categories as $category)
                                         <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
                                     @endforeach
@@ -87,10 +87,10 @@
                             </div>
                             <div class="form-group col-md-6">
                                 <label for="supplier_id">Proveedor <span class="text-danger">*</span></label>
-                                <select class="form-control" name="supplier_id" required>
-                                    <option selected="" disabled>-- Seleccionar Proveedor --</option>
+                                <select class="form-control select2-autocomplete" name="supplier_id" data-placeholder="-- Seleccionar Proveedor --" required>
+                                    <option value="">-- Seleccionar Proveedor --</option>
                                     @foreach ($suppliers as $supplier)
-                                        <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }} }}>{{ $supplier->name }}</option>
+                                        <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('supplier_id')

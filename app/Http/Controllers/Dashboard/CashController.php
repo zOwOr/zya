@@ -1,20 +1,19 @@
-<?php 
+<?php
 
 namespace App\Http\Controllers\Dashboard;
 
-use App\Models\Tanda;
-use App\Models\Customer;
-use App\Models\TandaPeriod;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use App\Console\Commands\AutoDailyCutCommand;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\ModulePermissionTrait;
+use App\Models\Branch;
 use App\Models\CashFlow;
 use App\Models\DailyCut;
-use Illuminate\Support\Facades\Log;
-use App\Models\PaymentHistory;
 use App\Models\OrderDetails;
+use App\Models\PaymentHistory;
+use App\Services\CashFlowService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CashController extends Controller
 {
@@ -26,7 +25,9 @@ class CashController extends Controller
         'index' => 'read',
         'dailyCut' => 'read',
         'store' => 'create',
+        'applyPreCut' => 'pre_cut',
         'applyCut' => 'edit',
+        'updateAutoCutConfig' => 'edit',
         'filterByDate' => 'read',
         'printCut' => 'read',
     ];
@@ -35,293 +36,555 @@ class CashController extends Controller
     {
         $this->initializeModulePermission();
     }
-    // Mostrar todos los movimientos de caja
+
+    protected function canAccessAllBranches(): bool
+    {
+        return auth()->check() && (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.all_branches'));
+    }
+
+    protected function resolveBranchId(?Request $request = null): int
+    {
+        if ($request && $this->canAccessAllBranches() && $request->filled('branch_id')) {
+            return (int) $request->input('branch_id');
+        }
+        return (int) (auth()->user()->branch_id ?? Branch::value('id') ?? 1);
+    }
+
+    /**
+     * Asegura que los días anteriores con movimientos tengan su Corte Final (Corte Z) si la sucursal tiene corte automático activo.
+     */
+    protected function ensurePastDaysAutoClosed(int $branchId): void
+    {
+        try {
+            $branch = Branch::find($branchId);
+            // Solo auto-cerrar días pasados si la sucursal tiene habilitado el corte automático
+            if ($branch && $branch->auto_cut_enabled) {
+                $yesterday = Carbon::yesterday()->toDateString();
+                AutoDailyCutCommand::closeBranchDayIfPending($branchId, $yesterday, 'programado');
+            }
+        } catch (\Throwable $e) {
+            // Continuar sin interrumpir la vista
+        }
+    }
+
     public function index(Request $request)
     {
-        $perPage = 5;
+        $perPage = 15;
         $date = $request->input('date');
-        $branchId = auth()->user()->branch_id;
+        $branchId = $this->resolveBranchId($request);
+        $this->ensurePastDaysAutoClosed($branchId);
 
-        $cashFlows = CashFlow::where('branch_id', $branchId)
+        $cashFlows = CashFlow::with(['user', 'branch'])
+            ->where('branch_id', $branchId)
             ->when($date, fn($q) => $q->whereDate('created_at', $date))
             ->orderByDesc('created_at')
             ->paginate($perPage)
             ->withQueryString();
 
-        $totalIncome = CashFlow::where('branch_id', $branchId)
+        $allForPeriod = CashFlow::where('branch_id', $branchId)
             ->when($date, fn($q) => $q->whereDate('created_at', $date))
-            ->where('type', 'income')->sum('amount');
+            ->get();
 
-        $totalExpense = CashFlow::where('branch_id', $branchId)
-            ->when($date, fn($q) => $q->whereDate('created_at', $date))
-            ->where('type', 'expense')->sum('amount');
-
+        $totalIncome = $allForPeriod->where('type', 'income')->sum('amount');
+        $totalExpense = $allForPeriod->where('type', 'expense')->sum('amount');
         $balance = $totalIncome - $totalExpense;
 
-        return view('cash.index', compact('cashFlows', 'date', 'totalIncome', 'totalExpense', 'balance', 'perPage'));
+        // Desglose por cliente del día/periodo consultado
+        $customerMovements = $allForPeriod->groupBy(fn($f) => $f->customer_display_name)
+            ->map(function ($items, $customerName) {
+                return [
+                    'customer_name' => $customerName,
+                    'count' => $items->count(),
+                    'income' => $items->where('type', 'income')->sum('amount'),
+                    'expense' => $items->where('type', 'expense')->sum('amount'),
+                    'cash' => $items->where('type', 'income')->sum('cash_amount'),
+                    'card' => $items->where('type', 'income')->sum('card_amount'),
+                    'transfer' => $items->where('type', 'income')->sum('transfer_amount'),
+                    'items' => $items,
+                ];
+            });
+
+        $branches = $this->canAccessAllBranches()
+            ? Branch::orderBy('name')->get()
+            : Branch::where('id', $branchId)->get();
+
+        return view('cash.index', compact(
+            'cashFlows',
+            'date',
+            'totalIncome',
+            'totalExpense',
+            'balance',
+            'perPage',
+            'customerMovements',
+            'branches',
+            'branchId'
+        ));
     }
 
-    // Mostrar los movimientos del día (corte diario)
-public function dailyCut(Request $request)
-{
-    $today = Carbon::today();
-    $branchId = auth()->user()->branch_id;
+    public function dailyCut(Request $request)
+    {
+        $selectedDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+        $branchId = $this->resolveBranchId($request);
+        $this->ensurePastDaysAutoClosed($branchId);
 
-    $search = $request->input('search');
+        $search = $request->input('search');
 
-    // Mapear términos amigables a métodos reales
-    $methodMap = [
-        'efectivo' => 'HandCash',
-        'transferencia' => 'Cheque',
-        'tarjeta' => 'Due',
-    ];
+        $methodMap = [
+            'efectivo' => 'HandCash',
+            'transferencia' => 'Cheque',
+            'tarjeta' => 'Due',
+        ];
 
-    $searchMethod = null;
-    $searchLower = strtolower($search);
+        $searchMethod = null;
+        $searchLower = strtolower((string) $search);
+        if (isset($methodMap[$searchLower])) {
+            $searchMethod = $methodMap[$searchLower];
+        }
 
-    if (isset($methodMap[$searchLower])) {
-        $searchMethod = $methodMap[$searchLower];
-    }
+        $specialProviderOrderIds = OrderDetails::whereHas('productRelation.supplier', function ($q) {
+            $q->whereIn('name', ['Payjoy', 'KrediYa']);
+        })->pluck('order_id')->unique()->toArray();
 
-    // IDs de órdenes con productos de proveedores Payjoy o KrediYa
-    $specialProviderOrderIds = OrderDetails::whereHas('product.supplier', function ($q) {
-        $q->whereIn('name', ['Payjoy', 'KrediYa']);
-    })->pluck('order_id')->unique()->toArray();
+        $specialProviderPayments = PaymentHistory::with('user')
+            ->where('branch_id', $branchId)
+            ->whereDate('created_at', $selectedDate)
+            ->whereIn('order_id', $specialProviderOrderIds)
+            ->get();
 
-    // Pagos especiales con filtro
-    $specialProviderPaymentsQuery = PaymentHistory::where('branch_id', $branchId)
-        ->whereDate('created_at', $today)
-        ->whereIn('order_id', $specialProviderOrderIds);
+        $externalPayments = PaymentHistory::with('user')
+            ->where('branch_id', $branchId)
+            ->whereDate('created_at', $selectedDate)
+            ->whereIn('method', ['Cheque', 'Due'])
+            ->whereNotIn('order_id', $specialProviderOrderIds)
+            ->get();
 
-    if ($search) {
-        $specialProviderPaymentsQuery->where(function ($q) use ($search, $searchMethod) {
-            $q->where('order_id', 'like', "%{$search}%")
-              ->orWhereHas('user', fn($q2) => $q2->where('name', 'like', "%{$search}%"));
+        $cashFlows = CashFlow::with('user')
+            ->where('branch_id', $branchId)
+            ->whereDate('created_at', $selectedDate)
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('customer_name', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('reference', 'like', "%{$search}%")
+                        ->orWhere('module', 'like', "%{$search}%")
+                        ->orWhere('payment_method', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('created_at')
+            ->paginate(15)
+            ->withQueryString();
 
-            if ($searchMethod) {
-                $q->orWhere('method', $searchMethod);
-            } else {
-                $q->orWhere('method', 'like', "%{$search}%");
-            }
-        });
-    }
+        $allDailyCashFlows = CashFlow::with('user')
+            ->where('branch_id', $branchId)
+            ->whereDate('created_at', $selectedDate)
+            ->orderByDesc('created_at')
+            ->get();
 
-    $specialProviderPayments = $specialProviderPaymentsQuery->get();
+        $incomes = $allDailyCashFlows->where('type', 'income');
+        $expenses = $allDailyCashFlows->where('type', 'expense');
 
-    // Pagos externos con filtro
-    $externalPaymentsQuery = PaymentHistory::where('branch_id', $branchId)
-        ->whereDate('created_at', $today)
-        ->whereIn('method', ['Cheque', 'Due'])
-        ->whereNotIn('order_id', $specialProviderOrderIds);
+        $totalIncome = (float) $incomes->sum('amount');
+        $totalExpense = (float) $expenses->sum('amount');
 
-    if ($search) {
-        $externalPaymentsQuery->where(function ($q) use ($search, $searchMethod) {
-            $q->where('order_id', 'like', "%{$search}%")
-              ->orWhereHas('user', fn($q2) => $q2->where('name', 'like', "%{$search}%"));
+        // Desglose por método de pago (incluyendo pagos mixtos, abonos de financieras, préstamos, tandas y ventas)
+        $handCash = round((float) $incomes->sum(function ($f) {
+            return (float) $f->cash_amount > 0
+                ? (float) $f->cash_amount
+                : (in_array(strtolower((string) $f->payment_method), ['efectivo', 'handcash', '']) ? (float) $f->amount : 0);
+        }), 2);
 
-            if ($searchMethod) {
-                $q->orWhere('method', $searchMethod);
-            } else {
-                $q->orWhere('method', 'like', "%{$search}%");
-            }
-        });
-    }
+        $due = round((float) $incomes->sum(function ($f) {
+            return (float) $f->card_amount > 0
+                ? (float) $f->card_amount
+                : (in_array(strtolower((string) $f->payment_method), ['tarjeta', 'due']) ? (float) $f->amount : 0);
+        }), 2);
 
-    $externalPayments = $externalPaymentsQuery->get();
+        $cheque = round((float) $incomes->sum(function ($f) {
+            return (float) $f->transfer_amount > 0
+                ? (float) $f->transfer_amount
+                : (in_array(strtolower((string) $f->payment_method), ['transferencia', 'cheque']) ? (float) $f->amount : 0);
+        }), 2);
 
-    $cashFlows = CashFlow::where('branch_id', $branchId)
-        ->whereDate('created_at', $today)
-        ->orderByDesc('created_at')
-        ->paginate(5);
+        $totalBanco = round($handCash + $cheque + $due, 2);
 
-    $allDailyCashFlows = CashFlow::where('branch_id', $branchId)
-        ->whereDate('created_at', $today)
-        ->get();
+        $lastCut = DailyCut::where('branch_id', $branchId)
+            ->where('cut_type', 'corte_z')
+            ->whereDate('date', '<', $selectedDate)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->first();
 
-    $totalIncome = $allDailyCashFlows->where('type', 'income')->sum('amount');
-    $totalExpense = $allDailyCashFlows->where('type', 'expense')->sum('amount');
+        $openingBalance = $lastCut ? (float) $lastCut->balance : 0.0;
+        $balance = round($openingBalance + $totalIncome - $totalExpense, 2);
 
-    $lastCut = DailyCut::where('branch_id', $branchId)
-        ->where('date', '<', $today)
-        ->orderBy('date', 'desc')
-        ->first();
+        // Corte Z final del día (si ya se aplicó)
+        $finalDailyCut = DailyCut::with('user')
+            ->where('branch_id', $branchId)
+            ->whereDate('date', $selectedDate)
+            ->where('cut_type', 'corte_z')
+            ->latest('id')
+            ->first();
 
-    $openingBalance = $lastCut ? $lastCut->balance : 0;
-    $balance = $openingBalance + $totalIncome - $totalExpense;
+        // Pre-Cortes (Cortes X) realizados en el día
+        $preCuts = DailyCut::with('user')
+            ->where('branch_id', $branchId)
+            ->whereDate('date', $selectedDate)
+            ->where('cut_type', 'pre_corte')
+            ->orderByDesc('created_at')
+            ->get();
 
-    $dailyCut = DailyCut::where('branch_id', $branchId)
-        ->where('date', $today)
-        ->first();
-
-    if (!$dailyCut) {
-        $dailyCut = (object)[
+        $dailyCut = $finalDailyCut ?: (object) [
+            'id' => null,
+            'date' => $selectedDate,
+            'cut_type' => 'en_curso',
+            'cut_mode' => 'activo',
             'opening_balance' => $openingBalance,
             'total_income' => $totalIncome,
+            'cash_income' => $handCash,
+            'card_income' => $due,
+            'transfer_income' => $cheque,
             'total_expense' => $totalExpense,
             'balance' => $balance,
         ];
+
+        // Desglose por cliente de todo el movimiento por día
+        $customerBreakdown = $allDailyCashFlows->groupBy(fn($f) => $f->customer_display_name)
+            ->map(function ($group, $clientName) {
+                $inc = $group->where('type', 'income');
+                return [
+                    'customer_name' => $clientName,
+                    'movements_count' => $group->count(),
+                    'total_income' => round((float) $inc->sum('amount'), 2),
+                    'total_expense' => round((float) $group->where('type', 'expense')->sum('amount'), 2),
+                    'cash' => round((float) $inc->sum(fn($f) => (float) $f->cash_amount > 0 ? $f->cash_amount : ($f->payment_method === 'efectivo' || empty($f->payment_method) ? $f->amount : 0)), 2),
+                    'card' => round((float) $inc->sum(fn($f) => (float) $f->card_amount > 0 ? $f->card_amount : ($f->payment_method === 'tarjeta' ? $f->amount : 0)), 2),
+                    'transfer' => round((float) $inc->sum(fn($f) => (float) $f->transfer_amount > 0 ? $f->transfer_amount : ($f->payment_method === 'transferencia' ? $f->amount : 0)), 2),
+                    'commission' => round((float) $inc->sum('commission_amount'), 2),
+                    'modules' => $group->pluck('module')->filter()->unique()->implode(', '),
+                    'movements' => $group,
+                ];
+            });
+
+        // Desglose por módulo integrado (Financieras, Préstamos, Tandas, Ventas, etc.)
+        $moduleBreakdown = $allDailyCashFlows->groupBy(fn($f) => $f->module ?: 'General')
+            ->map(function ($group, $modName) {
+                return [
+                    'module' => $modName,
+                    'count' => $group->count(),
+                    'income' => round((float) $group->where('type', 'income')->sum('amount'), 2),
+                    'expense' => round((float) $group->where('type', 'expense')->sum('amount'), 2),
+                ];
+            });
+
+        $branches = $this->canAccessAllBranches()
+            ? Branch::orderBy('name')->get()
+            : Branch::where('id', $branchId)->get();
+        $currentBranch = $branches->firstWhere('id', $branchId) ?? Branch::find($branchId);
+
+        return view('cash.daily-cut', compact(
+            'cashFlows',
+            'specialProviderPayments',
+            'dailyCut',
+            'finalDailyCut',
+            'preCuts',
+            'externalPayments',
+            'handCash',
+            'cheque',
+            'due',
+            'totalBanco',
+            'search',
+            'selectedDate',
+            'customerBreakdown',
+            'moduleBreakdown',
+            'branches',
+            'branchId',
+            'currentBranch'
+        ));
     }
 
-    // Totales para banco, excluyendo órdenes especiales
-    $paymentTotalsByMethod = PaymentHistory::where('branch_id', $branchId)
-        ->whereDate('created_at', $today)
-        ->whereIn('method', ['HandCash', 'Cheque', 'Due'])
-        ->whereNotIn('order_id', $specialProviderOrderIds)
-        ->select('method', DB::raw('SUM(amount) as total'))
-        ->groupBy('method')
-        ->pluck('total', 'method');
-
-    $handCash = $paymentTotalsByMethod['HandCash'] ?? 0;
-    $cheque = $paymentTotalsByMethod['Cheque'] ?? 0;
-    $due = $paymentTotalsByMethod['Due'] ?? 0;
-
-    $totalBanco = $handCash + $cheque + $due;
-
-    return view('cash.daily-cut', compact(
-        'cashFlows',
-        'specialProviderPayments',
-        'dailyCut',
-        'externalPayments',
-        'handCash',
-        'cheque',
-        'due',
-        'totalBanco',
-        'search'
-    ));
-}
-
-
-
-
-    // Registrar un nuevo movimiento manual (opcional)
+    /**
+     * Registrar un movimiento manual en Caja (con soporte de pagos mixtos y cliente nominal).
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
+            'customer_name' => 'nullable|string|max:190',
+            'payment_method' => 'nullable|in:efectivo,tarjeta,transferencia,mixto',
+            'cash_amount' => 'nullable|numeric|min:0',
+            'card_amount' => 'nullable|numeric|min:0',
+            'transfer_amount' => 'nullable|numeric|min:0',
             'description' => 'nullable|string|max:255',
             'reference' => 'nullable|string|max:100',
             'module' => 'nullable|string|max:100',
+            'branch_id' => 'nullable|exists:branches,id',
         ]);
 
-        $validated['branch_id'] = auth()->user()->branch_id;
+        $branchId = $this->resolveBranchId($request);
+        $amount = round((float) $validated['amount'], 2);
+        $method = $validated['payment_method'] ?? 'efectivo';
 
-        CashFlow::create($validated);
+        $cashAmount = $method === 'mixto' ? round((float) $request->input('cash_amount', 0), 2) : ($method === 'efectivo' ? $amount : 0);
+        $cardAmount = $method === 'mixto' ? round((float) $request->input('card_amount', 0), 2) : ($method === 'tarjeta' ? $amount : 0);
+        $transferAmount = $method === 'mixto' ? round((float) $request->input('transfer_amount', 0), 2) : ($method === 'transferencia' ? $amount : 0);
 
-        return redirect()->route('cash.index')->with('success', 'Movimiento registrado correctamente.');
+        CashFlowService::register(
+            $validated['type'],
+            $amount,
+            $validated['description'] ?? 'Movimiento manual de caja',
+            $validated['reference'] ?? null,
+            $validated['module'] ?? 'Movimiento Manual',
+            $branchId,
+            [
+                'customer_name' => $validated['customer_name'] ?? 'Operación Manual en Caja',
+                'payment_method' => $method,
+                'cash_amount' => $cashAmount,
+                'card_amount' => $cardAmount,
+                'transfer_amount' => $transferAmount,
+            ]
+        );
+
+        return redirect()->route('cash.index')->with('success', 'Movimiento registrado en caja correctamente.');
     }
 
-public function applyCut(Request $request)
-{
-    $today = Carbon::today();
-    $branchId = auth()->user()->branch_id;
+    /**
+     * Generar Pre-Corte (Corte X) sin cerrar la caja del día.
+     */
+    public function applyPreCut(Request $request)
+    {
+        $today = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+        $branchId = $this->resolveBranchId($request);
 
-    // Validar si ya existe un corte para hoy en esta sucursal
-    if (DailyCut::where('branch_id', $branchId)->where('date', $today)->exists()) {
-        return back()->with('info', 'El corte ya fue aplicado hoy.');
-    }
+        $flows = CashFlow::where('branch_id', $branchId)
+            ->whereDate('created_at', $today)
+            ->get();
 
-    // Ingresos y egresos del día actual, solo de esta sucursal
-    $totalIncome = CashFlow::where('branch_id', $branchId)
-        ->whereDate('created_at', $today)
-        ->where('type', 'income')
-        ->sum('amount');
+        $incomes = $flows->where('type', 'income');
+        $expenses = $flows->where('type', 'expense');
 
-    $totalExpense = CashFlow::where('branch_id', $branchId)
-        ->whereDate('created_at', $today)
-        ->where('type', 'expense')
-        ->sum('amount');
+        $totalIncome = round((float) $incomes->sum('amount'), 2);
+        $totalExpense = round((float) $expenses->sum('amount'), 2);
+        $cashIncome = round((float) $incomes->sum(fn($f) => (float) $f->cash_amount > 0 ? $f->cash_amount : ($f->payment_method === 'efectivo' || empty($f->payment_method) ? $f->amount : 0)), 2);
+        $cardIncome = round((float) $incomes->sum(fn($f) => (float) $f->card_amount > 0 ? $f->card_amount : ($f->payment_method === 'tarjeta' ? $f->amount : 0)), 2);
+        $transferIncome = round((float) $incomes->sum(fn($f) => (float) $f->transfer_amount > 0 ? $f->transfer_amount : ($f->payment_method === 'transferencia' ? $f->amount : 0)), 2);
 
-    // Corte anterior SOLO de la sucursal actual
-    $lastCut = DailyCut::where('branch_id', $branchId)
-        ->where('date', '<', $today)
-        ->orderBy('date', 'desc')
-        ->first();
+        $lastCut = DailyCut::where('branch_id', $branchId)
+            ->where('cut_type', 'corte_z')
+            ->whereDate('date', '<', $today)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->first();
 
-    $openingBalance = $lastCut ? $lastCut->balance : 0;
+        $openingBalance = $lastCut ? (float) $lastCut->balance : 0.0;
+        $balance = round($openingBalance + $totalIncome - $totalExpense, 2);
+        $declaredCash = $request->filled('declared_cash') ? round((float) $request->input('declared_cash'), 2) : null;
+        $expectedCashInDrawer = round($openingBalance + $cashIncome - $totalExpense, 2);
+        $difference = $declaredCash !== null ? round($declaredCash - $expectedCashInDrawer, 2) : 0;
 
-    // Leer retiro ingresado
-    $withdrawAmount = floatval($request->input('withdraw_amount', 0));
-    $withdrawAmount = max($withdrawAmount, 0);
-
-    // Registrar retiro como egreso en la misma sucursal
-    if ($withdrawAmount > 0) {
-        CashFlow::create([
+        $preCut = DailyCut::create([
             'branch_id' => $branchId,
-            'type' => 'expense',
-            'amount' => $withdrawAmount,
-            'description' => 'Retiro al aplicar corte',
-            'module' => 'Corte',
-            'reference' => 'Retiro Corte Diario',
+            'date' => $today,
+            'cut_type' => 'pre_corte',
+            'cut_mode' => 'manual',
+            'user_id' => auth()->id(),
+            'opening_balance' => $openingBalance,
+            'total_income' => $totalIncome,
+            'cash_income' => $cashIncome,
+            'card_income' => $cardIncome,
+            'transfer_income' => $transferIncome,
+            'total_expense' => $totalExpense,
+            'withdraw_amount' => 0,
+            'balance' => $balance,
+            'declared_cash' => $declaredCash,
+            'difference_amount' => $difference,
+            'notes' => $request->input('notes', 'Pre-Corte parcial (Corte X)'),
+            'closed_at' => now(),
         ]);
 
-        $totalExpense += $withdrawAmount;
+        return redirect()
+            ->route('cash.dailyCut', ['date' => $today, 'branch_id' => $branchId])
+            ->with('success', 'Pre-Corte (Corte X) #' . $preCut->id . ' generado correctamente. La caja continúa abierta.');
     }
 
-    // Cálculo correcto del saldo final
-    $finalBalance = $openingBalance + $totalIncome - $totalExpense;
+    /**
+     * Aplicar Corte Final (Corte Z) manual del día.
+     */
+    public function applyCut(Request $request)
+    {
+        $today = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+        $branchId = $this->resolveBranchId($request);
 
-    // Registrar el corte
-    DailyCut::create([
-        'branch_id' => $branchId,
-        'date' => $today,
-        'opening_balance' => $openingBalance,
-        'total_income' => $totalIncome,
-        'total_expense' => $totalExpense,
-        'balance' => $finalBalance,
-    ]);
+        if (DailyCut::where('branch_id', $branchId)->whereDate('date', $today)->where('cut_type', 'corte_z')->exists()) {
+            return back()->with('info', 'El Corte Final (Corte Z) ya fue aplicado para esta fecha en esta sucursal.');
+        }
 
-    return redirect()->route('cash.dailyCut')->with('success', 'Corte aplicado correctamente.');
-}
+        $flows = CashFlow::where('branch_id', $branchId)
+            ->whereDate('created_at', $today)
+            ->get();
 
+        $incomes = $flows->where('type', 'income');
+        $expenses = $flows->where('type', 'expense');
 
+        $totalIncome = round((float) $incomes->sum('amount'), 2);
+        $totalExpense = round((float) $expenses->sum('amount'), 2);
+        $cashIncome = round((float) $incomes->sum(fn($f) => (float) $f->cash_amount > 0 ? $f->cash_amount : ($f->payment_method === 'efectivo' || empty($f->payment_method) ? $f->amount : 0)), 2);
+        $cardIncome = round((float) $incomes->sum(fn($f) => (float) $f->card_amount > 0 ? $f->card_amount : ($f->payment_method === 'tarjeta' ? $f->amount : 0)), 2);
+        $transferIncome = round((float) $incomes->sum(fn($f) => (float) $f->transfer_amount > 0 ? $f->transfer_amount : ($f->payment_method === 'transferencia' ? $f->amount : 0)), 2);
 
+        $lastCut = DailyCut::where('branch_id', $branchId)
+            ->where('cut_type', 'corte_z')
+            ->whereDate('date', '<', $today)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->first();
+
+        $openingBalance = $lastCut ? (float) $lastCut->balance : 0.0;
+
+        $withdrawAmount = max(0, round((float) $request->input('withdraw_amount', 0), 2));
+        if ($withdrawAmount > 0) {
+            CashFlowService::register(
+                'expense',
+                $withdrawAmount,
+                'Retiro de efectivo al aplicar Corte Final (Corte Z)',
+                'CORTE-Z-' . $today,
+                'Corte Final',
+                $branchId,
+                [
+                    'customer_name' => 'Retiro Interno de Corte',
+                    'payment_method' => 'efectivo',
+                    'cash_amount' => $withdrawAmount,
+                ]
+            );
+            $totalExpense = round($totalExpense + $withdrawAmount, 2);
+        }
+
+        $finalBalance = round($openingBalance + $totalIncome - $totalExpense, 2);
+        $declaredCash = $request->filled('declared_cash') ? round((float) $request->input('declared_cash'), 2) : null;
+        $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
+        $difference = $declaredCash !== null ? round($declaredCash - $expectedCash, 2) : 0;
+
+        $customerBreakdown = $flows->groupBy(fn($f) => $f->customer_display_name)
+            ->map(function ($group, $clientName) {
+                return [
+                    'customer_name' => $clientName,
+                    'movements_count' => $group->count(),
+                    'total_income' => round((float) $group->where('type', 'income')->sum('amount'), 2),
+                    'total_expense' => round((float) $group->where('type', 'expense')->sum('amount'), 2),
+                ];
+            })->values()->toArray();
+
+        $cut = DailyCut::create([
+            'branch_id' => $branchId,
+            'date' => $today,
+            'cut_type' => 'corte_z',
+            'cut_mode' => 'manual',
+            'user_id' => auth()->id(),
+            'opening_balance' => $openingBalance,
+            'total_income' => $totalIncome,
+            'cash_income' => $cashIncome,
+            'card_income' => $cardIncome,
+            'transfer_income' => $transferIncome,
+            'total_expense' => $totalExpense,
+            'withdraw_amount' => $withdrawAmount,
+            'balance' => $finalBalance,
+            'declared_cash' => $declaredCash,
+            'difference_amount' => $difference,
+            'customer_breakdown' => $customerBreakdown,
+            'notes' => $request->input('notes', 'Corte Final (Corte Z) manual.'),
+            'closed_at' => now(),
+        ]);
+
+        CashFlow::where('branch_id', $branchId)
+            ->whereDate('created_at', $today)
+            ->whereNull('daily_cut_id')
+            ->update(['daily_cut_id' => $cut->id]);
+
+        return redirect()
+            ->route('cash.dailyCut', ['date' => $today, 'branch_id' => $branchId])
+            ->with('success', 'Corte Final (Corte Z) aplicado correctamente.');
+    }
+
+    /**
+     * Actualizar configuración de corte automático (activado/desactivado y hora programada) por sucursal.
+     */
+    public function updateAutoCutConfig(Request $request)
+    {
+        $canAll = $this->canAccessAllBranches();
+
+        $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
+            'auto_cut_enabled' => 'nullable|boolean',
+            'auto_cut_time' => 'required|date_format:H:i',
+        ]);
+
+        $targetBranchId = $validated['branch_id'] ?? $this->resolveBranchId($request);
+
+        if (!$canAll) {
+            $userBranchId = (int) auth()->user()->branch_id;
+            if ($userBranchId !== (int) $targetBranchId || !auth()->user()->can('cash.edit')) {
+                abort(403, 'No tienes permiso para modificar la configuración de corte de esta sucursal.');
+            }
+        }
+
+        $branch = Branch::findOrFail($targetBranchId);
+
+        $branch->update([
+            'auto_cut_enabled' => $request->boolean('auto_cut_enabled'),
+            'auto_cut_time' => $validated['auto_cut_time'],
+        ]);
+
+        return back()->with('success', 'Configuración de corte para la sucursal "' . $branch->name . '" actualizada correctamente.');
+    }
 
     public function filterByDate(Request $request)
     {
-        $date = $request->input('date', Carbon::today()->toDateString());
-        $branchId = auth()->user()->branch_id;
-
-        $cashFlows = CashFlow::where('branch_id', $branchId)
-            ->whereDate('created_at', $date)
-            ->orderByDesc('created_at')
-            ->paginate(5)
-            ->withQueryString();
-
-        // Aquí NO uses los datos paginados para sumar ingresos/egresos, sino consulta toda la fecha
-        $totalIncome = CashFlow::where('branch_id', $branchId)
-            ->whereDate('created_at', $date)
-            ->where('type', 'income')
-            ->sum('amount');
-
-        $totalExpense = CashFlow::where('branch_id', $branchId)
-            ->whereDate('created_at', $date)
-            ->where('type', 'expense')
-            ->sum('amount');
-
-        $balance = $totalIncome - $totalExpense;
-
-        return view('cash.index', compact('cashFlows', 'date', 'totalIncome', 'totalExpense', 'balance'));
+        return $this->index($request);
     }
 
-    public function printCut()
+    public function printCut(Request $request)
     {
-        $today = Carbon::today();
-        $branchId = auth()->user()->branch_id;
+        $cutId = $request->input('cut_id');
+        $date = $request->input('date', Carbon::today()->toDateString());
+        $branchId = $this->resolveBranchId($request);
 
-        $dailyCut = DailyCut::where('branch_id', $branchId)
-            ->where('date', $today)
-            ->first();
-
-        if (!$dailyCut) {
-            return redirect()->route('cash.daily-cut')->with('error', 'No hay corte aplicado para hoy en esta sucursal');
+        if ($cutId) {
+            $dailyCut = DailyCut::with(['branch', 'user'])->where('branch_id', $branchId)->findOrFail($cutId);
+            $date = $dailyCut->date->toDateString();
+        } else {
+            $dailyCut = DailyCut::with(['branch', 'user'])
+                ->where('branch_id', $branchId)
+                ->whereDate('date', $date)
+                ->orderByDesc('id')
+                ->first();
         }
 
-        $cashFlows = CashFlow::where('branch_id', $branchId)
-            ->whereDate('created_at', $dailyCut->date)
+        $cashFlows = CashFlow::with('user')
+            ->where('branch_id', $branchId)
+            ->whereDate('created_at', $date)
             ->orderBy('created_at')
             ->get();
 
-        return view('cash.print', compact('dailyCut', 'cashFlows'));
+        if (!$dailyCut) {
+            $incomes = $cashFlows->where('type', 'income');
+            $totalIncome = (float) $incomes->sum('amount');
+            $totalExpense = (float) $cashFlows->where('type', 'expense')->sum('amount');
+            $dailyCut = (object) [
+                'date' => $date,
+                'cut_type' => 'pre_corte',
+                'cut_mode' => 'vista_previa',
+                'opening_balance' => 0,
+                'total_income' => $totalIncome,
+                'cash_income' => $incomes->sum('cash_amount'),
+                'card_income' => $incomes->sum('card_amount'),
+                'transfer_income' => $incomes->sum('transfer_amount'),
+                'total_expense' => $totalExpense,
+                'balance' => $totalIncome - $totalExpense,
+            ];
+        }
+
+        $customerBreakdown = $cashFlows->groupBy(fn($f) => $f->customer_display_name);
+
+        return view('cash.print', compact('dailyCut', 'cashFlows', 'customerBreakdown'));
     }
 }

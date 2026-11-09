@@ -627,6 +627,7 @@ class FinSaleController extends Controller
             'seller',
             'canceller',
             'notes.user',
+            'payments.user',
             'warranties.currentStage',
             'theftReports'
         ]);

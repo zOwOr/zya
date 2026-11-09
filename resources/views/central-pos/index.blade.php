@@ -1,0 +1,1771 @@
+@extends('dashboard.body.main')
+
+@section('specificpagestyles')
+<style>
+    /* =========================================================
+       DISEÑO ESTANDARIZADO POS & COBROS CENTRALIZADO (UX MEJORADO)
+       ========================================================= */
+
+    /* Barra Superior de Pestañas Multi-Proceso (Light Modern Theme) */
+    .pos-tabs-bar {
+        display: flex;
+        align-items: flex-end;
+        overflow-x: auto;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-bottom: 2px solid #cbd5e1;
+        padding: 8px 12px 0 12px;
+        border-radius: 12px 12px 0 0;
+        gap: 6px;
+        scrollbar-width: thin;
+    }
+    .pos-tabs-bar::-webkit-scrollbar {
+        height: 4px;
+    }
+    .pos-tabs-bar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .pos-tab-item {
+        display: inline-flex;
+        align-items: center;
+        background: #ffffff;
+        color: #64748b;
+        padding: 9px 16px;
+        border-radius: 10px 10px 0 0;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+        transition: all 0.2s ease;
+        position: relative;
+        bottom: -2px;
+    }
+    .pos-tab-item:hover {
+        background: #f1f5f9;
+        color: #334155;
+    }
+    .pos-tab-item.active {
+        background: #ffffff;
+        color: #0f172a;
+        font-weight: 700;
+        border-color: #cbd5e1;
+        border-top: 3px solid #32BDEA;
+        border-bottom: 2px solid #ffffff;
+        box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.04);
+        z-index: 2;
+    }
+    .pos-tab-item .tab-badge {
+        background: #e2e8f0;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 20px;
+        padding: 2px 7px;
+        margin-left: 8px;
+        transition: all 0.2s;
+    }
+    .pos-tab-item.active .tab-badge {
+        background: #32BDEA;
+        color: #ffffff;
+    }
+    .pos-tab-item .tab-close {
+        margin-left: 8px;
+        color: #94a3b8;
+        font-size: 16px;
+        line-height: 1;
+        padding: 2px 4px;
+        border-radius: 50%;
+        transition: all 0.15s;
+    }
+    .pos-tab-item .tab-close:hover {
+        color: #ef4444;
+        background: #fee2e2;
+    }
+    .btn-new-tab {
+        align-self: center;
+        margin-bottom: 4px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 14px;
+    }
+
+    /* Navegación de Secciones (1: Financieras, 2: Préstamos, 3: Tandas, 4: Productos) */
+    .section-pill-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .section-pill-nav .nav-item {
+        margin: 0;
+    }
+    .section-pill-nav .nav-link {
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 9px 14px;
+        color: #475569;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+    .section-pill-nav .nav-link:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+        border-color: #cbd5e1;
+    }
+    .section-pill-nav .nav-link.active {
+        background: #ffffff;
+        color: #0f172a;
+        box-shadow: 0 2px 6px rgba(50, 189, 234, 0.15);
+        position: relative;
+    }
+    .section-pill-nav .nav-link.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 15%;
+        right: 15%;
+        height: 3px;
+        border-radius: 3px 3px 0 0;
+    }
+
+    /* Indicadores y bordes por Sección */
+    .pill-fin.active { border-color: #32BDEA; }
+    .pill-fin.active::after { background: #32BDEA; }
+    .pill-loan.active { border-color: #10b981; }
+    .pill-loan.active::after { background: #10b981; }
+    .pill-tanda.active { border-color: #8b5cf6; }
+    .pill-tanda.active::after { background: #8b5cf6; }
+    .pill-prod.active { border-color: #f59e0b; }
+    .pill-prod.active::after { background: #f59e0b; }
+
+    /* Panel de Carrito / Checkout */
+    .cart-checkout-panel {
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+        background: #ffffff;
+    }
+    .cart-checkout-panel .card-header {
+        background: #ffffff;
+        border-bottom: 1px solid #edf2f7;
+        padding: 12px 16px;
+        border-radius: 12px 12px 0 0;
+    }
+    .cart-items-scroll {
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #f1f5f9;
+        border-radius: 8px;
+    }
+    .cart-items-scroll::-webkit-scrollbar {
+        width: 5px;
+    }
+    .cart-items-scroll::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    /* Caja de Totales Resaltada */
+    .cart-totals-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 16px;
+    }
+    .cart-grand-total {
+        font-size: 26px;
+        font-weight: 800;
+        color: #1e3a8a;
+        line-height: 1;
+    }
+
+    /* Selector de Métodos de Pago Moderno */
+    .pay-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+    .pay-method-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 4px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-align: center;
+        user-select: none;
+    }
+    .pay-method-btn i {
+        font-size: 16px;
+        margin-bottom: 3px;
+    }
+    .pay-method-btn:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    .pay-method-btn.active {
+        background: #eff6ff;
+        border-color: #3b82f6;
+        color: #1d4ed8;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    /* Caja de Cambio Resaltada (UX de Prevención de Errores) */
+    .cash-change-display {
+        background: #ecfdf5 !important;
+        border: 2px solid #a7f3d0 !important;
+        color: #047857 !important;
+        font-weight: 800 !important;
+        font-size: 18px !important;
+        text-align: right;
+    }
+
+    /* Botón de Checkout */
+    .btn-checkout-unified {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: none;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 15px;
+        padding: 12px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        transition: all 0.2s ease;
+    }
+    .btn-checkout-unified:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        transform: translateY(-1px);
+        color: #ffffff;
+    }
+    .btn-checkout-unified:active {
+        transform: translateY(0);
+    }
+</style>
+@endsection
+
+@section('container')
+<div class="container-fluid">
+    <!-- Encabezado Estandarizado del Sistema -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+        <div>
+            <h3 class="mb-0 font-weight-bold">
+                <i class="las la-cash-register text-primary"></i> Punto de Venta
+            </h3>
+            <small class="text-muted">
+                Sucursal Activa: <strong>{{ $branches->firstWhere('id', $branchId)->name ?? (auth()->user()->branch->name ?? 'Principal') }}</strong> &bull; Operador: <strong>{{ auth()->user()->name }}</strong>
+            </small>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center mt-2 mt-md-0">
+            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.open_drawer') || auth()->user()->can('cash.open_drawer'))
+                <button type="button" id="btnOpenPhysicalDrawer" class="btn btn-warning btn-sm mr-2 shadow-sm font-weight-bold">
+                    <i class="las la-lock-open mr-1"></i> Abrir Cajón Físico
+                </button>
+            @endif
+            <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId]) }}" class="btn btn-outline-info btn-sm mr-2 shadow-sm font-weight-bold">
+                <i class="las la-calculator mr-1"></i> Pre-Corte X / Z
+            </a>
+            <a href="{{ route('loans.index') }}" class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold">
+                <i class="las la-hand-holding-usd mr-1"></i> Préstamos
+            </a>
+        </div>
+    </div>
+
+    <!-- Barra Superior de Pestañas Multi-Proceso (Light Modern Theme) -->
+    <div class="pos-tabs-bar" id="posTabsContainer">
+        <!-- Render dinámico por JS -->
+    </div>
+
+    <!-- Cuerpo Principal del Punto de Venta Centralizado -->
+    <div class="card border-0 shadow-sm rounded-0 rounded-bottom mb-4">
+        <div class="card-body p-3">
+            <div class="row">
+                <!-- COLUMNA IZQUIERDA: Las 4 Secciones Interactivas -->
+                <div class="col-lg-7">
+                    <ul class="nav section-pill-nav" id="centralSectionTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link pill-fin active" data-toggle="pill" href="#sec-financieras" role="tab">
+                                <i class="fa-solid fa-mobile-screen-button text-primary"></i>
+                                <span>1. Financieras (TAG / Device ID)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link pill-loan" data-toggle="pill" href="#sec-prestamos" role="tab">
+                                <i class="fa-solid fa-hand-holding-dollar text-success"></i>
+                                <span>2. Préstamos</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link pill-tanda" data-toggle="pill" href="#sec-tandas" role="tab">
+                                <i class="fa-solid fa-piggy-bank" style="color: #8b5cf6;"></i>
+                                <span>3. Tandas</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link pill-prod" data-toggle="pill" href="#sec-productos" role="tab">
+                                <i class="fa-solid fa-boxes-stacked text-warning"></i>
+                                <span>4. Productos (Stock y Libre)</span>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content border rounded p-3 bg-white shadow-sm">
+                        <!-- ==================== SECCIÓN 1: FINANCIERAS ==================== -->
+                        <div class="tab-pane fade show active" id="sec-financieras" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="font-weight-bold text-primary mb-0">
+                                    <i class="fa-solid fa-landmark mr-1"></i>Cobro de Abono por Equipo de Financiera
+                                </h6>
+                                <span class="badge badge-light border text-muted">Device ID / TAG / IMEI</span>
+                            </div>
+                            <p class="text-muted font-size-12 mb-3">
+                                Selecciona la financiera y busca el equipo del cliente por <strong>Device ID</strong>, <strong>TAG</strong>, <strong>IMEI</strong> o nombre.
+                            </p>
+                            <div class="row">
+                                <div class="col-md-5 form-group mb-2">
+                                    <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Catálogo de Financiera</label>
+                                    <select id="finCatalogSelect" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Todas las Financieras --">
+                                        <option value="">-- Todas las Financieras --</option>
+                                        @foreach ($financieras as $fin)
+                                            <option value="{{ $fin->id }}">{{ $fin->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-7 form-group mb-2">
+                                    <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Device ID / TAG / IMEI / Nombre *</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="finSearchInput" class="form-control" placeholder="Escribe TAG, Device ID, IMEI o cliente...">
+                                        <div class="input-group-append">
+                                            <button type="button" id="btnSearchFinanciera" class="btn btn-primary font-weight-bold">
+                                                <i class="fa-solid fa-magnifying-glass mr-1"></i>Buscar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="finSearchResults" class="mt-2"></div>
+
+                            <!-- Formulario de abono de financiera seleccionado -->
+                            <div id="finSelectedContractBox" class="p-3 rounded border mt-3 d-none" style="background: #f0f9ff; border-color: #bae6fd !important;">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="badge badge-primary" id="finSelFinanciera"></span>
+                                        <h6 class="font-weight-bold mb-0 mt-1 text-dark" id="finSelCustomer"></h6>
+                                        <small class="text-muted font-weight-bold" id="finSelDevice"></small>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="font-size-11 text-muted d-block text-uppercase">Abono Sugerido:</span>
+                                        <strong class="text-success font-size-16" id="finSelSuggested">$0.00</strong>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="finSelSaleId">
+                                <input type="hidden" id="finSelTitle">
+                                <input type="hidden" id="finSelCustomerName">
+                                <div class="row mt-2">
+                                    <div class="col-md-4 form-group mb-2">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Monto Abono ($) *</label>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                            <input type="number" step="0.01" min="0.01" id="finAbonoAmount" class="form-control form-control-sm font-weight-bold">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 form-group mb-2">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Comisión Extra ($)</label>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                            <input type="number" step="0.01" min="0" id="finCommissionAmount" class="form-control form-control-sm" value="0">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 form-group mb-2 d-flex align-items-end">
+                                        <button type="button" id="btnAddFinAbonoToTab" class="btn btn-success btn-sm btn-block font-weight-bold shadow-sm">
+                                            <i class="fa-solid fa-cart-plus mr-1"></i>Agregar al Proceso
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ==================== SECCIÓN 2: PRÉSTAMOS ==================== -->
+                        <div class="tab-pane fade" id="sec-prestamos" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="font-weight-bold text-primary mb-0">
+                                    <i class="fa-solid fa-hand-holding-dollar mr-1"></i>Préstamos: Abonar Cuotas o Crear Préstamo
+                                </h6>
+                                <a href="{{ route('loans.create') }}" class="btn btn-xs btn-outline-primary font-weight-bold">
+                                    <i class="fa-solid fa-up-right-from-square mr-1"></i>Expediente / Pagaré
+                                </a>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">
+                                    <i class="fa-solid fa-user mr-1 text-primary"></i>Seleccionar Cliente (Búsqueda / Autocomplete)
+                                </label>
+                                <select id="posLoanCustomerSelect" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Buscar cliente por nombre o teléfono --">
+                                    <option value="">-- Buscar cliente por nombre o teléfono --</option>
+                                    @foreach ($customers as $c)
+                                        <option value="{{ $c->id }}" data-name="{{ $c->tit_name }}" data-phone="{{ $c->tit_phone }}">
+                                            {{ $c->tit_name }} ({{ $c->tit_phone ?? 'Sin tel' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Alerta de préstamos abiertos / pagos pendientes -->
+                            <div id="posLoanAlertBanner" class="alert alert-warning py-2 px-3 d-none font-size-13 mb-3 border"></div>
+
+                            <!-- Tabla de préstamos activos del cliente para abonar -->
+                            <div id="posCustomerOpenLoansContainer" class="mb-3"></div>
+
+                            <!-- Sub-sección Colapsable para crear un préstamo rápido -->
+                            <div class="card border mb-2 shadow-none bg-light">
+                                <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center" role="button" data-toggle="collapse" data-target="#collapseNewLoan" aria-expanded="false" style="cursor: pointer;">
+                                    <span class="font-weight-bold font-size-13 text-dark">
+                                        <i class="fa-solid fa-plus-circle text-primary mr-1"></i>Crear Nuevo Préstamo en este Proceso
+                                    </span>
+                                    <span class="badge badge-light border text-muted">
+                                        <i class="fa-solid fa-chevron-down mr-1"></i>Expandir Formulario
+                                    </span>
+                                </div>
+                                <div id="collapseNewLoan" class="collapse">
+                                    <div class="card-body p-3">
+                                        <small class="text-muted d-block mb-2">
+                                            <i class="fa-solid fa-circle-info text-info mr-1"></i>Nota: Solo entra a Caja la Comisión por Apertura. El capital no impacta egreso en esta venta.
+                                        </small>
+                                        <div class="row">
+                                            <div class="col-md-6 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Tipo de Préstamo</label>
+                                                <select id="posNewLoanType" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Seleccionar tipo de préstamo --">
+                                                    @foreach ($loanTypes as $lt)
+                                                        <option value="{{ $lt->id }}" data-rate="{{ $lt->default_interest_rate }}" data-fee="{{ $lt->default_opening_fee }}" data-freq="{{ $lt->default_frequency }}" data-periods="{{ $lt->default_periods }}">
+                                                            {{ $lt->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Capital Prestado ($)</label>
+                                                <input type="number" step="0.01" min="1" id="posNewLoanPrincipal" class="form-control form-control-sm" value="1000">
+                                            </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Interés (%)</label>
+                                                <input type="number" step="0.01" min="0" id="posNewLoanRate" class="form-control form-control-sm" value="20">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Frecuencia / Pagos</label>
+                                                <div class="input-group input-group-sm">
+                                                    <select id="posNewLoanFreq" class="form-control">
+                                                        <option value="semanal">Semanal</option>
+                                                        <option value="quincenal">Quincenal</option>
+                                                        <option value="mensual">Mensual</option>
+                                                    </select>
+                                                    <input type="number" min="1" id="posNewLoanPeriods" class="form-control" value="8" style="max-width:65px;">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-success text-uppercase mb-1">Comisión Apertura ($)</label>
+                                                <input type="number" step="0.01" min="0" id="posNewLoanComm" class="form-control form-control-sm font-weight-bold text-success" value="150">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2 d-flex align-items-end">
+                                                <button type="button" id="btnAddNewLoanToTab" class="btn btn-primary btn-sm btn-block font-weight-bold shadow-sm">
+                                                    <i class="fa-solid fa-plus mr-1"></i>Agregar Apertura
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ==================== SECCIÓN 3: TANDAS ==================== -->
+                        <div class="tab-pane fade" id="sec-tandas" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="font-weight-bold text-primary mb-0">
+                                    <i class="fa-solid fa-piggy-bank mr-1"></i>Cobro de Tandas (Clientes Básicos Directos)
+                                </h6>
+                                <a href="{{ route('tandas.create') }}" class="btn btn-xs btn-outline-primary font-weight-bold">
+                                    <i class="fa-solid fa-plus mr-1"></i>Nueva Tanda
+                                </a>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 form-group mb-2">
+                                    <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Seleccionar Tanda Activa *</label>
+                                    <select id="posTandaSelect" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Elige una tanda --">
+                                        <option value="">-- Elige una tanda --</option>
+                                        @foreach ($tandas as $tanda)
+                                            @php
+                                                $tandaParticipants = $tanda->participants->map(function ($p) {
+                                                    return [
+                                                        'id' => $p->id,
+                                                        'name' => $p->display_name,
+                                                        'phone' => $p->display_phone,
+                                                        'position' => $p->position,
+                                                    ];
+                                                })->values();
+                                            @endphp
+                                            <option value="{{ $tanda->id }}"
+                                                data-name="{{ $tanda->description }}"
+                                                data-amount="{{ $tanda->payment_amount }}"
+                                                data-participants='@json($tandaParticipants)'>
+                                                {{ $tanda->description }} (Aportación: ${{ number_format($tanda->payment_amount, 2) }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6 form-group mb-2">
+                                    <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Participante de la Tanda</label>
+                                    <select id="posTandaParticipantSelect" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Selecciona participante existente --">
+                                        <option value="">-- Selecciona participante existente --</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Opción para crear nuevo participante en la tanda al instante -->
+                            <div class="p-2 rounded border mb-3 bg-light">
+                                <small class="font-weight-bold text-dark d-block mb-1">
+                                    <i class="fa-solid fa-user-plus text-primary mr-1"></i>¿Nuevo participante en esta tanda? Llena aquí:
+                                </small>
+                                <div class="row">
+                                    <div class="col-md-5 mb-1">
+                                        <input type="text" id="posTandaNewName" class="form-control form-control-sm" placeholder="Nombre completo...">
+                                    </div>
+                                    <div class="col-md-4 mb-1">
+                                        <input type="text" id="posTandaNewPhone" class="form-control form-control-sm" placeholder="Teléfono...">
+                                    </div>
+                                    <div class="col-md-3 mb-1">
+                                        <input type="number" id="posTandaNewPos" class="form-control form-control-sm" placeholder="# Turno" min="1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row align-items-end">
+                                <div class="col-md-4 form-group mb-2">
+                                    <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">No. Periodo a Pagar *</label>
+                                    <input type="number" id="posTandaPeriodNo" class="form-control form-control-sm font-weight-bold" value="1" min="1">
+                                </div>
+                                <div class="col-md-4 form-group mb-2">
+                                    <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Monto Aportación ($) *</label>
+                                    <div class="input-group input-group-sm">
+                                        <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                        <input type="number" step="0.01" min="0.01" id="posTandaAmount" class="form-control form-control-sm font-weight-bold" value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4 form-group mb-2">
+                                    <button type="button" id="btnAddTandaToTab" class="btn btn-success btn-sm btn-block font-weight-bold shadow-sm">
+                                        <i class="fa-solid fa-cart-plus mr-1"></i>Agregar Aportación
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ==================== SECCIÓN 4: VENTA DE PRODUCTOS (INVENTARIO + DINÁMICOS) ==================== -->
+                        <div class="tab-pane fade" id="sec-productos" role="tabpanel">
+                            <!-- Sub-pestañas para Catálogo vs Producto Libre -->
+                            <ul class="nav nav-pills mb-3 bg-light p-1 rounded" id="pills-prod-subtabs" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active font-size-12 py-1 px-3 font-weight-bold" id="pills-stock-tab" data-toggle="pill" href="#subtab-stock" role="tab">
+                                        <i class="fa-solid fa-barcode mr-1 text-primary"></i>A) Catálogo (Inventario Real con Stock)
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link font-size-12 py-1 px-3 font-weight-bold" id="pills-dynamic-tab" data-toggle="pill" href="#subtab-dynamic" role="tab">
+                                        <i class="fa-solid fa-box-open mr-1 text-warning"></i>B) Producto Libre / Servicio (Sin Stock)
+                                    </a>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="pills-prod-content">
+                                <!-- 4A: PRODUCTOS CON IMPACTO EN INVENTARIO -->
+                                <div class="tab-pane fade show active" id="subtab-stock" role="tabpanel">
+                                    <div class="form-group mb-2">
+                                        <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">
+                                            <i class="fa-solid fa-cart-arrow-down mr-1 text-primary"></i>Buscar Producto en Catálogo
+                                        </label>
+                                        <select id="posCatalogProductSelect" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Escribe para buscar producto por nombre, código o IMEI --">
+                                            <option value="">-- Escribe para buscar producto por nombre, código de barras o IMEI --</option>
+                                            @foreach ($products as $prod)
+                                                <option value="{{ $prod->id }}"
+                                                    data-id="{{ $prod->id }}"
+                                                    data-name="{{ $prod->product_name }}"
+                                                    data-price="{{ $prod->selling_price }}"
+                                                    data-stock="{{ $prod->stock_quantity }}"
+                                                    data-code="{{ $prod->product_code }}"
+                                                    data-imei="{{ $prod->imei }}"
+                                                    {{ $prod->stock_quantity <= 0 ? 'disabled' : '' }}>
+                                                    {{ $prod->product_name }} [{{ $prod->product_code }}] {{ $prod->imei ? 'IMEI: ' . $prod->imei : '' }} — ${{ number_format($prod->selling_price, 2) }} (Stock: {{ $prod->stock_quantity }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    <div class="input-group input-group-sm mb-2">
+                                        <div class="input-group-prepend"><span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span></div>
+                                        <input type="text" id="posProductSearchInput" class="form-control" placeholder="Escanea código de barras, IMEI o escribe nombre...">
+                                        <div class="input-group-append">
+                                            <button type="button" id="btnSearchCatalogProduct" class="btn btn-primary font-weight-bold">
+                                                Buscar
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive border rounded" style="max-height: 220px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover mb-0 font-size-12">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th>Código</th>
+                                                    <th>Producto</th>
+                                                    <th class="text-center">Stock</th>
+                                                    <th class="text-right">Precio</th>
+                                                    <th class="text-right">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="posCatalogProductsBody">
+                                                @foreach ($products as $prod)
+                                                    <tr>
+                                                        <td><span class="badge badge-light border">{{ $prod->product_code }}</span></td>
+                                                        <td>
+                                                            <strong>{{ $prod->product_name }}</strong>
+                                                            @if ($prod->imei)
+                                                                <small class="d-block text-muted">IMEI: {{ $prod->imei }}</small>
+                                                            @endif
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge badge-pill badge-{{ $prod->stock_quantity > 0 ? 'success' : 'danger' }}">
+                                                                {{ $prod->stock_quantity }}
+                                                            </span>
+                                                        </td>
+                                                        <td class="text-right font-weight-bold text-dark">${{ number_format($prod->selling_price, 2) }}</td>
+                                                        <td class="text-right">
+                                                            <button type="button"
+                                                                class="btn btn-xs btn-primary btn-add-stock-product"
+                                                                data-id="{{ $prod->id }}"
+                                                                data-name="{{ $prod->product_name }}"
+                                                                data-price="{{ $prod->selling_price }}"
+                                                                data-stock="{{ $prod->stock_quantity }}"
+                                                                {{ $prod->stock_quantity <= 0 ? 'disabled' : '' }}>
+                                                                <i class="fa-solid fa-plus"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- 4B: PRODUCTO MANUAL / LIBRE (SIN IMPACTO EN INVENTARIO) -->
+                                <div class="tab-pane fade" id="subtab-dynamic" role="tabpanel">
+                                    <div class="p-3 rounded border bg-light">
+                                        <h6 class="font-weight-bold text-dark mb-2 font-size-13">
+                                            <i class="fa-solid fa-box-open text-warning mr-1"></i>Producto Libre / Mano de Obra / Accesorio Sin Código
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-md-5 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Nombre / Descripción *</label>
+                                                <input type="text" id="dynProdName" class="form-control form-control-sm" placeholder="Ej. Mica Hidrogel / Reparación...">
+                                            </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Precio ($) *</label>
+                                                <input type="number" step="0.01" min="0.01" id="dynProdPrice" class="form-control form-control-sm font-weight-bold" placeholder="0.00">
+                                            </div>
+                                            <div class="col-md-2 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Cantidad *</label>
+                                                <input type="number" min="1" id="dynProdQty" class="form-control form-control-sm" value="1">
+                                            </div>
+                                            <div class="col-md-2 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Estado</label>
+                                                <select id="dynProdStatus" class="form-control form-control-sm">
+                                                    <option value="Nuevo">Nuevo</option>
+                                                    <option value="Seminuevo">Seminuevo</option>
+                                                    <option value="Servicio">Servicio</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 text-muted text-uppercase mb-1">Marca</label>
+                                                <input type="text" id="dynProdBrand" class="form-control form-control-sm" placeholder="Opcional...">
+                                            </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 text-muted text-uppercase mb-1">Modelo</label>
+                                                <input type="text" id="dynProdModel" class="form-control form-control-sm" placeholder="Opcional...">
+                                            </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 text-muted text-uppercase mb-1">IMEI / Serie</label>
+                                                <input type="text" id="dynProdImei" class="form-control form-control-sm" placeholder="Opcional...">
+                                            </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 text-muted text-uppercase mb-1">Garantía</label>
+                                                <input type="text" id="dynProdWarranty" class="form-control form-control-sm" placeholder="Ej. 30 días">
+                                            </div>
+                                            <div class="col-md-8 form-group mb-0">
+                                                <input type="text" id="dynProdObs" class="form-control form-control-sm" placeholder="Observaciones o notas del producto libre...">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-0">
+                                                <button type="button" id="btnAddDynamicProductToTab" class="btn btn-warning btn-sm btn-block font-weight-bold shadow-sm">
+                                                    <i class="fa-solid fa-plus mr-1"></i>Añadir Producto Libre
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: Carrito y Checkout de la Pestaña Activa -->
+                <div class="col-lg-5 mt-3 mt-lg-0">
+                    <div class="card cart-checkout-panel h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="badge badge-primary font-size-12 px-2 py-1 mr-2" id="activeTabTitleBadge">Proceso #1</span>
+                                <strong class="text-dark"><i class="las la-shopping-cart text-primary"></i> Cobro en Curso</strong>
+                            </div>
+                            <button type="button" id="btnClearCurrentTab" class="btn btn-xs btn-outline-danger font-weight-bold" title="Vaciar todos los artículos de esta pestaña">
+                                <i class="fa-solid fa-trash-can mr-1"></i>Vaciar
+                            </button>
+                        </div>
+                        <div class="card-body p-3">
+                            <!-- Datos del Cliente para el Desglose y Ticket -->
+                            <div class="card border mb-3 bg-light shadow-none">
+                                <div class="card-body p-2">
+                                    <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">
+                                        <i class="fa-solid fa-user-check text-primary mr-1"></i>Cliente para Ticket y Caja
+                                    </label>
+                                    <div class="mb-2">
+                                        <select id="posCartCustomerSelect" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Buscar cliente registrado en catálogo --">
+                                            <option value="">-- Buscar cliente registrado en catálogo --</option>
+                                            @foreach ($customers as $c)
+                                                <option value="{{ $c->id }}" data-name="{{ $c->tit_name }}" data-phone="{{ $c->tit_phone }}">
+                                                    {{ $c->tit_name }} ({{ $c->tit_phone ?? 'Sin tel' }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-7 pr-1">
+                                            <input type="text" id="tabCustomerName" class="form-control form-control-sm" placeholder="O nombre mostrador...">
+                                        </div>
+                                        <div class="col-5 pl-1">
+                                            <input type="text" id="tabCustomerPhone" class="form-control form-control-sm" placeholder="Teléfono...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lista de Conceptos en Carrito -->
+                            <div class="table-responsive cart-items-scroll mb-3">
+                                <table class="table table-sm table-hover mb-0 font-size-12">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>Concepto</th>
+                                            <th class="text-center" style="width: 45px;">Cant.</th>
+                                            <th class="text-right" style="width: 75px;">Importe</th>
+                                            <th class="text-right" style="width: 70px;">Comisión</th>
+                                            <th style="width: 35px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabCartItemsBody"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Totales -->
+                            <div class="cart-totals-card mb-3">
+                                <div class="d-flex justify-content-between font-size-13 mb-1">
+                                    <span class="text-muted">Subtotal Conceptos:</span>
+                                    <strong id="tabSubtotalText" class="text-dark">$0.00</strong>
+                                </div>
+                                <div class="d-flex justify-content-between font-size-13 mb-2">
+                                    <span class="text-muted">Comisiones (Financieras / Apertura):</span>
+                                    <strong class="text-info font-weight-bold" id="tabCommissionText">$0.00</strong>
+                                </div>
+                                <div class="pt-2 border-top d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="font-size-11 font-weight-bold text-uppercase text-muted d-block">Total a Cobrar</span>
+                                        <span class="badge badge-primary font-size-11">Caja Sucursal</span>
+                                    </div>
+                                    <div class="cart-grand-total" id="tabGrandTotalText">$0.00</div>
+                                </div>
+                            </div>
+
+                            <!-- Método de Pago Visual Moderno -->
+                            <div class="form-group mb-2">
+                                <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Método de Pago</label>
+                                <div class="pay-methods-grid" id="paymentMethodBtnGroup">
+                                    <div class="pay-method-btn active" data-method="efectivo">
+                                        <i class="fa-solid fa-money-bill-wave text-success"></i>
+                                        <span>Efectivo</span>
+                                    </div>
+                                    <div class="pay-method-btn" data-method="tarjeta">
+                                        <i class="fa-solid fa-credit-card text-primary"></i>
+                                        <span>Tarjeta</span>
+                                    </div>
+                                    <div class="pay-method-btn" data-method="transferencia">
+                                        <i class="fa-solid fa-mobile-screen-button text-info"></i>
+                                        <span>Transf.</span>
+                                    </div>
+                                    <div class="pay-method-btn" data-method="mixto">
+                                        <i class="fa-solid fa-layer-group text-warning"></i>
+                                        <span>Mixto</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Desglose Pago Mixto -->
+                            <div id="posMixedPaymentBox" class="p-2 rounded border mb-2 bg-light d-none">
+                                <small class="font-weight-bold text-primary d-block mb-1">
+                                    <i class="fa-solid fa-sliders mr-1"></i>Desglose de Pago Mixto:
+                                </small>
+                                <div class="row">
+                                    <div class="col-4 pr-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Efectivo ($)</label>
+                                        <input type="number" step="0.01" min="0" id="mixCashInput" class="form-control form-control-sm font-weight-bold" value="0">
+                                    </div>
+                                    <div class="col-4 px-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Tarjeta ($)</label>
+                                        <input type="number" step="0.01" min="0" id="mixCardInput" class="form-control form-control-sm font-weight-bold" value="0">
+                                    </div>
+                                    <div class="col-4 pl-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Transf. ($)</label>
+                                        <input type="number" step="0.01" min="0" id="mixTransferInput" class="form-control form-control-sm font-weight-bold" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Efectivo Recibido y Cambio -->
+                            <div class="row mb-3">
+                                <div class="col-6 pr-1">
+                                    <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Efectivo Recibido ($)</label>
+                                    <div class="input-group input-group-sm">
+                                        <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                        <input type="number" step="0.01" min="0" id="posCashReceivedInput" class="form-control form-control-sm font-weight-bold font-size-14" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-6 pl-1">
+                                    <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Cambio a Entregar</label>
+                                    <input type="text" id="posChangeOutput" class="form-control form-control-sm cash-change-display" value="$0.00" readonly>
+                                </div>
+                            </div>
+
+                            <div class="custom-control custom-checkbox mb-3">
+                                <input type="checkbox" class="custom-control-input" id="posOpenDrawerCheck" checked>
+                                <label class="custom-control-label font-size-12 font-weight-bold text-dark" for="posOpenDrawerCheck">
+                                    <i class="fa-solid fa-print text-primary mr-1"></i>Abrir cajón físico y generar ticket al cobrar
+                                </label>
+                            </div>
+
+                            <button type="button" id="btnCompleteUnifiedSale" class="btn btn-checkout-unified btn-block">
+                                <i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ asset('assets/js/pos-hardware.js') }}"></script>
+<script>
+// Función global para el botón independiente de apertura física de cajón USB
+window.triggerPhysicalCashDrawer = async function () {
+    if (window.ZyaPosHardware) {
+        await ZyaPosHardware.manualOpenUsbDrawer();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    const STORAGE_KEY = 'zya_central_pos_tabs_v1_{{ auth()->id() ?? 0 }}_{{ $branchId ?? 0 }}';
+
+    let state = {
+        activeTabId: 'tab-1',
+        nextTabNumber: 2,
+        tabs: [
+            {
+                id: 'tab-1',
+                name: 'Proceso #1',
+                customerId: '',
+                customerName: '',
+                customerPhone: '',
+                paymentMethod: 'efectivo',
+                mixCash: 0,
+                mixCard: 0,
+                mixTransfer: 0,
+                cashReceived: '',
+                items: []
+            }
+        ]
+    };
+
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length > 0) {
+                state = parsed;
+            }
+        }
+    } catch (e) {}
+
+    function saveState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {}
+    }
+
+    function getActiveTab() {
+        return state.tabs.find(t => t.id === state.activeTabId) || state.tabs[0];
+    }
+
+    function calculateTabTotals(tab) {
+        let subtotal = 0;
+        let commission = 0;
+        tab.items.forEach(item => {
+            const qty = Math.max(1, parseInt(item.quantity) || 1);
+            const amt = parseFloat(item.amount) || 0;
+            const comm = parseFloat(item.commission) || 0;
+            if (item.section === 'prestamo_apertura') {
+                commission += comm;
+            } else {
+                subtotal += (amt * qty);
+                commission += comm;
+            }
+        });
+        return {
+            subtotal: subtotal,
+            commission: commission,
+            total: subtotal + commission
+        };
+    }
+
+    function renderTabsBar() {
+        const container = document.getElementById('posTabsContainer');
+        container.innerHTML = '';
+
+        state.tabs.forEach(tab => {
+            const div = document.createElement('div');
+            div.className = 'pos-tab-item ' + (tab.id === state.activeTabId ? 'active' : '');
+            const count = tab.items.length;
+            div.innerHTML = `
+                <span class="tab-label"><i class="fa-solid fa-receipt mr-1 text-primary"></i>${tab.name}${tab.customerName ? ' (' + tab.customerName.substring(0, 12) + ')' : ''}</span>
+                <span class="tab-badge">${count}</span>
+                ${state.tabs.length > 1 ? `<span class="tab-close" data-close-id="${tab.id}" title="Cerrar pestaña">&times;</span>` : ''}
+            `;
+
+            div.addEventListener('click', function (e) {
+                const closeTarget = e.target.closest('[data-close-id]');
+                if (closeTarget) {
+                    e.stopPropagation();
+                    removeTab(closeTarget.dataset.closeId);
+                    return;
+                }
+                state.activeTabId = tab.id;
+                saveState();
+                renderAll();
+            });
+
+            container.appendChild(div);
+        });
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn btn-sm btn-primary btn-new-tab shadow-sm';
+        addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i>Nuevo Proceso';
+        addBtn.addEventListener('click', addNewTab);
+        container.appendChild(addBtn);
+    }
+
+    function addNewTab() {
+        const num = state.nextTabNumber++;
+        const newId = 'tab-' + Date.now();
+        state.tabs.push({
+            id: newId,
+            name: 'Proceso #' + num,
+            customerId: '',
+            customerName: '',
+            customerPhone: '',
+            paymentMethod: 'efectivo',
+            mixCash: 0,
+            mixCard: 0,
+            mixTransfer: 0,
+            cashReceived: '',
+            items: []
+        });
+        state.activeTabId = newId;
+        saveState();
+        renderAll();
+    }
+
+    function removeTab(tabId) {
+        if (state.tabs.length <= 1) return;
+        state.tabs = state.tabs.filter(t => t.id !== tabId);
+        if (!state.tabs.some(t => t.id === state.activeTabId)) {
+            state.activeTabId = state.tabs[0].id;
+        }
+        saveState();
+        renderAll();
+    }
+
+    function renderActiveCart() {
+        const tab = getActiveTab();
+        document.getElementById('activeTabTitleBadge').textContent = tab.name;
+        document.getElementById('tabCustomerName').value = tab.customerName || '';
+        document.getElementById('tabCustomerPhone').value = tab.customerPhone || '';
+
+        const $custSelect = $('#posCartCustomerSelect');
+        if (tab.customerId) {
+            if ($custSelect.val() != tab.customerId) {
+                $custSelect.val(tab.customerId).trigger('change.select2');
+            }
+        } else {
+            if ($custSelect.val()) {
+                $custSelect.val('').trigger('change.select2');
+            }
+        }
+
+        const tbody = document.getElementById('tabCartItemsBody');
+        tbody.innerHTML = '';
+
+        if (tab.items.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">
+                        <i class="fa-solid fa-basket-shopping fa-2x text-muted mb-2 d-block" style="opacity: 0.35;"></i>
+                        <span class="font-weight-bold">No hay conceptos en este proceso</span>
+                        <small class="d-block text-muted mt-1">Selecciona financieras, préstamos, tandas o productos del panel izquierdo.</small>
+                    </td>
+                </tr>
+            `;
+        } else {
+            tab.items.forEach((item, idx) => {
+                const badgeMap = {
+                    'financiera_abono': '<span class="badge badge-primary">Financiera</span>',
+                    'prestamo_abono': '<span class="badge badge-success">Préstamo</span>',
+                    'prestamo_apertura': '<span class="badge badge-dark">Apertura</span>',
+                    'tanda_abono': '<span class="badge text-white" style="background:#8b5cf6;">Tanda</span>',
+                    'producto_inventario': '<span class="badge badge-info">Stock</span>',
+                    'producto_dinamico': '<span class="badge badge-warning">Libre</span>',
+                };
+                const tr = document.createElement('tr');
+                const qty = Math.max(1, parseInt(item.quantity) || 1);
+                const lineAmt = item.section === 'prestamo_apertura' ? 0 : ((parseFloat(item.amount) || 0) * qty);
+                const commAmt = parseFloat(item.commission) || 0;
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="mb-1">${badgeMap[item.section] || ''}</div>
+                        <div class="font-weight-bold text-dark">${item.title}</div>
+                        ${item.subtitle ? `<small class="text-muted d-block font-size-11">${item.subtitle}</small>` : ''}
+                    </td>
+                    <td class="text-center font-weight-bold">${qty}</td>
+                    <td class="text-right font-weight-bold text-dark">$${lineAmt.toFixed(2)}</td>
+                    <td class="text-right text-info font-weight-bold">${commAmt > 0 ? '$' + commAmt.toFixed(2) : '-'}</td>
+                    <td class="text-right">
+                        <button type="button" class="btn btn-xs btn-outline-danger btn-remove-item" data-idx="${idx}" title="Quitar concepto">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        const totals = calculateTabTotals(tab);
+        document.getElementById('tabSubtotalText').textContent = '$' + totals.subtotal.toFixed(2);
+        document.getElementById('tabCommissionText').textContent = '$' + totals.commission.toFixed(2);
+        document.getElementById('tabGrandTotalText').textContent = '$' + totals.total.toFixed(2);
+
+        // Actualizar método de pago activo en la cuadrícula
+        document.querySelectorAll('#paymentMethodBtnGroup [data-method]').forEach(lbl => {
+            if (lbl.dataset.method === tab.paymentMethod) {
+                lbl.classList.add('active');
+            } else {
+                lbl.classList.remove('active');
+            }
+        });
+
+        const mixBox = document.getElementById('posMixedPaymentBox');
+        if (tab.paymentMethod === 'mixto') {
+            mixBox.classList.remove('d-none');
+        } else {
+            mixBox.classList.add('d-none');
+        }
+
+        document.getElementById('mixCashInput').value = tab.mixCash || 0;
+        document.getElementById('mixCardInput').value = tab.mixCard || 0;
+        document.getElementById('mixTransferInput').value = tab.mixTransfer || 0;
+        document.getElementById('posCashReceivedInput').value = tab.cashReceived || '';
+
+        updateChangeCalculation();
+        if (typeof renderOpenLoansList === 'function') {
+            renderOpenLoansList();
+        }
+    }
+
+    function updateChangeCalculation() {
+        const tab = getActiveTab();
+        const totals = calculateTabTotals(tab);
+        const cashToPay = tab.paymentMethod === 'mixto'
+            ? (parseFloat(tab.mixCash) || 0)
+            : (tab.paymentMethod === 'efectivo' ? totals.total : 0);
+        const received = parseFloat(document.getElementById('posCashReceivedInput').value) || 0;
+        const change = Math.max(0, received - cashToPay);
+        document.getElementById('posChangeOutput').value = '$' + change.toFixed(2);
+    }
+
+    function renderAll() {
+        renderTabsBar();
+        renderActiveCart();
+    }
+
+    function addItemToCurrentTab(item) {
+        const tab = getActiveTab();
+        if (!tab.customerName && item.customer_name) {
+            tab.customerName = item.customer_name;
+        }
+        if (!tab.customerId && item.customer_id) {
+            tab.customerId = item.customer_id;
+        }
+        tab.items.push(item);
+        saveState();
+        renderAll();
+    }
+
+    // Eventos del carrito
+    document.getElementById('tabCartItemsBody').addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-remove-item');
+        if (btn) {
+            const idx = parseInt(btn.dataset.idx);
+            const tab = getActiveTab();
+            tab.items.splice(idx, 1);
+            saveState();
+            renderAll();
+        }
+    });
+
+    document.getElementById('btnClearCurrentTab').addEventListener('click', function () {
+        const tab = getActiveTab();
+        tab.items = [];
+        tab.customerName = '';
+        tab.customerPhone = '';
+        tab.customerId = '';
+        saveState();
+        renderAll();
+    });
+
+    document.getElementById('tabCustomerName').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.customerName = this.value;
+        saveState();
+        renderTabsBar();
+    });
+
+    document.getElementById('tabCustomerPhone').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.customerPhone = this.value;
+        saveState();
+    });
+
+    $('#posCartCustomerSelect').on('change', function () {
+        const cid = $(this).val();
+        const tab = getActiveTab();
+        if (!cid) {
+            tab.customerId = '';
+            saveState();
+            return;
+        }
+        const opt = this.options[this.selectedIndex];
+        tab.customerId = cid;
+        tab.customerName = opt ? (opt.dataset.name || '') : '';
+        tab.customerPhone = opt ? (opt.dataset.phone || '') : '';
+        saveState();
+        document.getElementById('tabCustomerName').value = tab.customerName;
+        document.getElementById('tabCustomerPhone').value = tab.customerPhone;
+        renderTabsBar();
+
+        if ($('#posLoanCustomerSelect').val() != cid) {
+            $('#posLoanCustomerSelect').val(cid).trigger('change');
+        }
+    });
+
+    $('#posCatalogProductSelect').on('change', function () {
+        const prodId = $(this).val();
+        if (!prodId) return;
+        const opt = this.options[this.selectedIndex];
+        if (!opt) return;
+
+        addItemToCurrentTab({
+            section: 'producto_inventario',
+            product_id: opt.dataset.id,
+            title: opt.dataset.name,
+            subtitle: `Impacto real en Inventario | Código: ${opt.dataset.code || '-'}${opt.dataset.imei ? ' | IMEI: ' + opt.dataset.imei : ''}`,
+            quantity: 1,
+            amount: parseFloat(opt.dataset.price) || 0,
+            commission: 0
+        });
+
+        $(this).val('').trigger('change.select2');
+    });
+
+    function filterCatalogTable() {
+        const q = (document.getElementById('posProductSearchInput').value || '').toLowerCase().trim();
+        const rows = document.querySelectorAll('#posCatalogProductsBody tr');
+        rows.forEach(tr => {
+            const text = tr.innerText.toLowerCase();
+            tr.style.display = (!q || text.includes(q)) ? '' : 'none';
+        });
+    }
+    const searchInput = document.getElementById('posProductSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterCatalogTable);
+        const searchBtn = document.getElementById('btnSearchCatalogProduct');
+        if (searchBtn) searchBtn.addEventListener('click', filterCatalogTable);
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                filterCatalogTable();
+                const visibleRows = Array.from(document.querySelectorAll('#posCatalogProductsBody tr')).filter(r => r.style.display !== 'none');
+                if (visibleRows.length === 1) {
+                    const addBtn = visibleRows[0].querySelector('.btn-add-stock-product');
+                    if (addBtn) addBtn.click();
+                    this.value = '';
+                    filterCatalogTable();
+                }
+            }
+        });
+    }
+
+    document.querySelectorAll('#paymentMethodBtnGroup [data-method]').forEach(lbl => {
+        lbl.addEventListener('click', function () {
+            const tab = getActiveTab();
+            tab.paymentMethod = this.dataset.method;
+            if (tab.paymentMethod === 'mixto') {
+                const totals = calculateTabTotals(tab);
+                tab.mixCash = totals.total;
+                tab.mixCard = 0;
+                tab.mixTransfer = 0;
+            }
+            saveState();
+            renderActiveCart();
+        });
+    });
+
+    ['mixCashInput', 'mixCardInput', 'mixTransferInput'].forEach(id => {
+        document.getElementById(id).addEventListener('input', function () {
+            const tab = getActiveTab();
+            tab.mixCash = parseFloat(document.getElementById('mixCashInput').value) || 0;
+            tab.mixCard = parseFloat(document.getElementById('mixCardInput').value) || 0;
+            tab.mixTransfer = parseFloat(document.getElementById('mixTransferInput').value) || 0;
+            saveState();
+            updateChangeCalculation();
+        });
+    });
+
+    document.getElementById('posCashReceivedInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.cashReceived = this.value;
+        saveState();
+        updateChangeCalculation();
+        if (typeof renderOpenLoansList === 'function') {
+            renderOpenLoansList();
+        }
+    });
+
+    // ==================== 1. BÚSQUEDA Y ABONO DE FINANCIERAS ====================
+    function searchFinancieras() {
+        const q = document.getElementById('finSearchInput').value.trim();
+        const finId = document.getElementById('finCatalogSelect').value;
+        const container = document.getElementById('finSearchResults');
+        container.innerHTML = '<div class="text-muted font-size-12"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Buscando contratos por Device ID / TAG...</div>';
+
+        fetch(`{{ route('central-pos.lookup-financiera') }}?q=${encodeURIComponent(q)}&financiera_id=${encodeURIComponent(finId)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.results || data.results.length === 0) {
+                    container.innerHTML = '<div class="alert alert-light border py-2 font-size-12 mb-0">No se encontraron equipos con ese TAG / Device ID / IMEI.</div>';
+                    return;
+                }
+                let rows = data.results.map(r => `
+                    <tr>
+                        <td><strong>${r.tag_contrato}</strong><small class="d-block text-muted">ID: #${r.device_id} | IMEI: ${r.imei}</small></td>
+                        <td>${r.financiera_name}</td>
+                        <td><strong>${r.customer_name}</strong><small class="d-block text-muted">${r.device_model}</small></td>
+                        <td>$${r.abono_semanal.toFixed(2)}<small class="d-block text-success font-size-11">Abonado: $${r.total_abonos_paid.toFixed(2)}</small></td>
+                        <td class="text-right">
+                            <button type="button" class="btn btn-xs btn-primary btn-select-fin shadow-sm"
+                                data-sale-id="${r.sale_id}"
+                                data-fin="${r.financiera_name}"
+                                data-customer="${r.customer_name}"
+                                data-device="Device #${r.device_id} | IMEI: ${r.imei} | TAG: ${r.tag_contrato}"
+                                data-tag="${r.tag_contrato}"
+                                data-abono="${r.abono_semanal}">
+                                Seleccionar
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                container.innerHTML = `
+                    <div class="table-responsive border rounded mt-2" style="max-height: 180px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered table-hover mb-0 font-size-12">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>TAG / Device ID</th>
+                                    <th>Financiera</th>
+                                    <th>Cliente / Equipo</th>
+                                    <th>Abono Semanal</th>
+                                    <th class="text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                `;
+            });
+    }
+
+    document.getElementById('btnSearchFinanciera').addEventListener('click', searchFinancieras);
+    document.getElementById('finSearchInput').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            searchFinancieras();
+        }
+    });
+
+    document.getElementById('finSearchResults').addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-select-fin');
+        if (!btn) return;
+        document.getElementById('finSelectedContractBox').classList.remove('d-none');
+        document.getElementById('finSelSaleId').value = btn.dataset.saleId;
+        document.getElementById('finSelFinanciera').textContent = btn.dataset.fin;
+        document.getElementById('finSelCustomer').textContent = btn.dataset.customer;
+        document.getElementById('finSelCustomerName').value = btn.dataset.customer;
+        document.getElementById('finSelDevice').textContent = btn.dataset.device;
+        document.getElementById('finSelTitle').value = `Abono Financiera (${btn.dataset.fin}) TAG: ${btn.dataset.tag}`;
+        const abono = parseFloat(btn.dataset.abono) || 0;
+        document.getElementById('finSelSuggested').textContent = '$' + abono.toFixed(2);
+        document.getElementById('finAbonoAmount').value = abono > 0 ? abono.toFixed(2) : '';
+    });
+
+    document.getElementById('btnAddFinAbonoToTab').addEventListener('click', function () {
+        const saleId = document.getElementById('finSelSaleId').value;
+        const amount = parseFloat(document.getElementById('finAbonoAmount').value) || 0;
+        const comm = parseFloat(document.getElementById('finCommissionAmount').value) || 0;
+        if (!saleId || amount <= 0) {
+            alert('Selecciona un contrato y especifica un monto de abono válido.');
+            return;
+        }
+        addItemToCurrentTab({
+            section: 'financiera_abono',
+            sale_id: saleId,
+            title: document.getElementById('finSelTitle').value,
+            subtitle: document.getElementById('finSelDevice').textContent,
+            customer_name: document.getElementById('finSelCustomerName').value,
+            quantity: 1,
+            amount: amount,
+            commission: comm
+        });
+    });
+
+    // ==================== 2. PRÉSTAMOS EN CONSOLA CENTRAL ====================
+    const posLoanCustomerSelect = document.getElementById('posLoanCustomerSelect');
+    const posLoanAlertBanner = document.getElementById('posLoanAlertBanner');
+    const posOpenLoansContainer = document.getElementById('posCustomerOpenLoansContainer');
+    let currentCustomerLoansData = null;
+
+    function renderOpenLoansList() {
+        if (!currentCustomerLoansData) return;
+        const data = currentCustomerLoansData;
+        if (!data.has_open_loans || !data.open_loans || data.open_loans.length === 0) {
+            posLoanAlertBanner.classList.add('d-none');
+            posOpenLoansContainer.innerHTML = '<div class="alert alert-success py-2 font-size-12 mb-0"><i class="fa-solid fa-circle-check mr-1"></i>El cliente no tiene préstamos abiertos ni pagos pendientes.</div>';
+            return;
+        }
+
+        posLoanAlertBanner.classList.remove('d-none');
+        posLoanAlertBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-danger mr-1"></i><strong>¡Alerta!</strong> El cliente tiene <strong>${data.open_loans_count} préstamo(s) abierto(s)</strong> con pagos pendientes.`;
+
+        const tab = getActiveTab();
+        let html = '';
+        data.open_loans.forEach(loan => {
+            let instRows = loan.pending_installments.map(inst => {
+                const addedItem = tab.items.find(it => it.section === 'prestamo_abono' && String(it.installment_id) === String(inst.id));
+                const isAdded = !!addedItem;
+                return `
+                    <tr class="${inst.is_overdue ? 'table-danger' : ''}">
+                        <td>
+                            <strong>Pago #${inst.installment_number}</strong>
+                            ${inst.status === 'parcial' ? '<span class="badge badge-warning ml-1">Parcial</span>' : ''}
+                        </td>
+                        <td>${inst.scheduled_date_formatted}</td>
+                        <td>
+                            <strong class="text-dark">$${inst.remaining_amount.toFixed(2)}</strong>
+                            ${inst.paid_amount > 0 ? `<small class="d-block text-success font-size-11">Abonado: $${inst.paid_amount.toFixed(2)}</small>` : ''}
+                        </td>
+                        <td style="width: 140px;">
+                            <div class="input-group input-group-sm">
+                                <div class="input-group-prepend"><span class="input-group-text py-0 px-2 font-size-11">$</span></div>
+                                <input type="number" step="0.01" min="0.01" max="${inst.remaining_amount}"
+                                    class="form-control form-control-sm px-1 py-0 font-size-12 font-weight-bold text-right"
+                                    id="loan_inst_amt_${inst.id}"
+                                    value="${isAdded ? addedItem.amount.toFixed(2) : inst.remaining_amount.toFixed(2)}"
+                                    ${isAdded ? 'disabled' : ''}>
+                            </div>
+                        </td>
+                        <td class="text-right">
+                            ${isAdded ? `
+                                <button type="button" class="btn btn-xs btn-outline-secondary" disabled title="Este período de pago ya fue agregado al proceso actual">
+                                    <i class="fa-solid fa-check text-success mr-1"></i>En Carrito ($${addedItem.amount.toFixed(2)})
+                                </button>
+                            ` : `
+                                <button type="button" class="btn btn-xs btn-success btn-add-loan-abono shadow-sm font-weight-bold"
+                                    data-loan-id="${loan.id}"
+                                    data-loan-code="${loan.loan_code}"
+                                    data-inst-id="${inst.id}"
+                                    data-inst-num="${inst.installment_number}"
+                                    data-scheduled="${inst.scheduled_date_formatted}"
+                                    data-max="${inst.remaining_amount}">
+                                    + Abonar Pago #${inst.installment_number}
+                                </button>
+                            `}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            html += `
+                <div class="card border mb-2 shadow-sm">
+                    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center font-size-12">
+                        <span><strong>${loan.loan_code}</strong> (${loan.type_name}) — Saldo Pendiente: <strong class="text-danger">$${loan.balance_amount.toFixed(2)}</strong></span>
+                        <a href="/loans/${loan.id}" target="_blank" class="font-weight-bold text-primary">Ver / Pagaré <i class="fa-solid fa-arrow-up-right-from-square ml-1"></i></a>
+                    </div>
+                    <div class="card-body p-2">
+                        <table class="table table-sm mb-0 font-size-12">
+                            <thead>
+                                <tr>
+                                    <th>Cuota</th>
+                                    <th>Día Programado</th>
+                                    <th>Pendiente</th>
+                                    <th>Monto a Abonar</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>${instRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        });
+        posOpenLoansContainer.innerHTML = html;
+    }
+
+    $('#posLoanCustomerSelect').on('change', function () {
+        const customerId = $(this).val();
+        const opt = this.options[this.selectedIndex];
+        if (!customerId) {
+            currentCustomerLoansData = null;
+            posLoanAlertBanner.classList.add('d-none');
+            posOpenLoansContainer.innerHTML = '';
+            return;
+        }
+
+        const tab = getActiveTab();
+        tab.customerId = customerId;
+        tab.customerName = opt ? (opt.dataset.name || '') : '';
+        tab.customerPhone = opt ? (opt.dataset.phone || '') : '';
+        saveState();
+        renderActiveCart();
+
+        fetch(`{{ route('central-pos.lookup-loans') }}?customer_id=${encodeURIComponent(customerId)}`)
+            .then(r => r.json())
+            .then(data => {
+                currentCustomerLoansData = data;
+                renderOpenLoansList();
+            });
+    });
+
+    posOpenLoansContainer.addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-add-loan-abono');
+        if (!btn) return;
+
+        const tab = getActiveTab();
+        const instId = btn.dataset.instId;
+
+        // Validar que no se duplique el mismo período de pago en la misma cuenta
+        const alreadyInTab = tab.items.some(it => it.section === 'prestamo_abono' && String(it.installment_id) === String(instId));
+        if (alreadyInTab) {
+            alert(`El Pago #${btn.dataset.instNum} ya está agregado al proceso actual.`);
+            return;
+        }
+
+        // Obtener el monto ingresado para este período
+        const inputEl = document.getElementById(`loan_inst_amt_${instId}`);
+        const maxVal = parseFloat(btn.dataset.max) || 0;
+        let amount = inputEl ? parseFloat(inputEl.value) : maxVal;
+
+        if (isNaN(amount) || amount <= 0) {
+            alert('Ingresa un monto de abono válido mayor a $0.00.');
+            if (inputEl) inputEl.focus();
+            return;
+        }
+
+        const opt = posLoanCustomerSelect.options[posLoanCustomerSelect.selectedIndex];
+        addItemToCurrentTab({
+            section: 'prestamo_abono',
+            loan_id: btn.dataset.loanId,
+            installment_id: instId,
+            title: `Abono Préstamo ${btn.dataset.loanCode} (Pago #${btn.dataset.instNum})`,
+            subtitle: `Día Programado: ${btn.dataset.scheduled}`,
+            customer_id: posLoanCustomerSelect.value,
+            customer_name: opt ? opt.dataset.name : '',
+            quantity: 1,
+            amount: amount,
+            commission: 0
+        });
+
+        renderOpenLoansList();
+    });
+
+    document.getElementById('btnAddNewLoanToTab').addEventListener('click', function () {
+        const customerId = posLoanCustomerSelect.value;
+        if (!customerId) {
+            alert('Selecciona primero al cliente del préstamo.');
+            return;
+        }
+        const opt = posLoanCustomerSelect.options[posLoanCustomerSelect.selectedIndex];
+        const typeSelect = document.getElementById('posNewLoanType');
+        const typeOpt = typeSelect.options[typeSelect.selectedIndex];
+        const principal = parseFloat(document.getElementById('posNewLoanPrincipal').value) || 0;
+        const rate = parseFloat(document.getElementById('posNewLoanRate').value) || 0;
+        const freq = document.getElementById('posNewLoanFreq').value;
+        const periods = parseInt(document.getElementById('posNewLoanPeriods').value) || 4;
+        const comm = parseFloat(document.getElementById('posNewLoanComm').value) || 0;
+
+        addItemToCurrentTab({
+            section: 'prestamo_apertura',
+            customer_id: customerId,
+            customer_name: opt ? opt.dataset.name : '',
+            loan_type_id: typeSelect.value,
+            principal_amount: principal,
+            interest_rate: rate,
+            payment_frequency: freq,
+            term_periods: periods,
+            title: `Apertura Préstamo (${typeOpt.text.trim()})`,
+            subtitle: `Capital $${principal.toFixed(2)} (Sin impacto en caja) | Solo cobra Comisión por Apertura`,
+            quantity: 1,
+            amount: 0,
+            commission: comm
+        });
+    });
+
+    // ==================== 3. TANDAS EN CONSOLA CENTRAL ====================
+    const posTandaSelect = document.getElementById('posTandaSelect');
+    const posTandaParticipantSelect = document.getElementById('posTandaParticipantSelect');
+    const posTandaAmount = document.getElementById('posTandaAmount');
+
+    $('#posTandaSelect').on('change', function () {
+        const opt = this.options[this.selectedIndex];
+        posTandaParticipantSelect.innerHTML = '<option value="">-- Selecciona participante existente --</option>';
+        if (!opt || !opt.value) {
+            $('#posTandaParticipantSelect').trigger('change.select2');
+            return;
+        }
+
+        posTandaAmount.value = parseFloat(opt.dataset.amount || 0).toFixed(2);
+        let participants = [];
+        try {
+            participants = JSON.parse(opt.dataset.participants || '[]');
+        } catch (e) {}
+
+        participants.forEach(p => {
+            const o = document.createElement('option');
+            o.value = p.id;
+            o.dataset.name = p.name;
+            o.textContent = `#${p.position} - ${p.name} (${p.phone || '-'})`;
+            posTandaParticipantSelect.appendChild(o);
+        });
+        $('#posTandaParticipantSelect').trigger('change.select2');
+    });
+
+    document.getElementById('btnAddTandaToTab').addEventListener('click', function () {
+        const tandaId = posTandaSelect.value;
+        if (!tandaId) {
+            alert('Selecciona una tanda.');
+            return;
+        }
+        const tandaOpt = posTandaSelect.options[posTandaSelect.selectedIndex];
+        const participantId = posTandaParticipantSelect.value;
+        const newName = document.getElementById('posTandaNewName').value.trim();
+        const newPhone = document.getElementById('posTandaNewPhone').value.trim();
+        const newPos = document.getElementById('posTandaNewPos').value;
+        const periodNo = parseInt(document.getElementById('posTandaPeriodNo').value) || 1;
+        const amount = parseFloat(posTandaAmount.value) || 0;
+
+        if (!participantId && !newName) {
+            alert('Selecciona un participante de la tanda o escribe el nombre del nuevo cliente.');
+            return;
+        }
+
+        const pName = participantId
+            ? posTandaParticipantSelect.options[posTandaParticipantSelect.selectedIndex].dataset.name
+            : newName;
+
+        addItemToCurrentTab({
+            section: 'tanda_abono',
+            tanda_id: tandaId,
+            participant_id: participantId || null,
+            customer_name: pName,
+            customer_phone: newPhone,
+            position: newPos,
+            period_number: periodNo,
+            title: `Tanda: ${tandaOpt.dataset.name} (Periodo #${periodNo})`,
+            subtitle: `Participante: ${pName}`,
+            quantity: 1,
+            amount: amount,
+            commission: 0
+        });
+    });
+
+    // ==================== 4. PRODUCTOS (STOCK REAL + DINÁMICOS SIN STOCK) ====================
+    document.getElementById('posCatalogProductsBody').addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-add-stock-product');
+        if (!btn) return;
+        addItemToCurrentTab({
+            section: 'producto_inventario',
+            product_id: btn.dataset.id,
+            title: btn.dataset.name,
+            subtitle: 'Impacto real en Inventario',
+            quantity: 1,
+            amount: parseFloat(btn.dataset.price) || 0,
+            commission: 0
+        });
+    });
+
+    document.getElementById('btnAddDynamicProductToTab').addEventListener('click', function () {
+        const name = document.getElementById('dynProdName').value.trim();
+        const price = parseFloat(document.getElementById('dynProdPrice').value) || 0;
+        const qty = Math.max(1, parseInt(document.getElementById('dynProdQty').value) || 1);
+        if (!name || price <= 0) {
+            alert('Ingresa nombre y precio del producto manual.');
+            return;
+        }
+        const brand = document.getElementById('dynProdBrand').value.trim();
+        const model = document.getElementById('dynProdModel').value.trim();
+        const imei = document.getElementById('dynProdImei').value.trim();
+        const status = document.getElementById('dynProdStatus').value;
+        const warranty = document.getElementById('dynProdWarranty').value.trim();
+        const obs = document.getElementById('dynProdObs').value.trim();
+
+        addItemToCurrentTab({
+            section: 'producto_dinamico',
+            name: name,
+            brand: brand,
+            model: model,
+            imei: imei,
+            category_status: status,
+            warranty_time: warranty,
+            observations: obs,
+            title: `${name} (${status})`,
+            subtitle: `Sin impacto en inventario ${imei ? '| IMEI: ' + imei : ''}`,
+            quantity: qty,
+            amount: price,
+            commission: 0
+        });
+
+        document.getElementById('dynProdName').value = '';
+        document.getElementById('dynProdPrice').value = '';
+        document.getElementById('dynProdImei').value = '';
+        document.getElementById('dynProdObs').value = '';
+    });
+
+    // ==================== 5. CHECKOUT UNIFICADO Y APERTURA DE CAJÓN ====================
+    document.getElementById('btnOpenPhysicalDrawer').addEventListener('click', function () {
+        window.triggerPhysicalCashDrawer();
+    });
+
+    document.getElementById('btnCompleteUnifiedSale').addEventListener('click', function () {
+        const tab = getActiveTab();
+        if (tab.items.length === 0) {
+            alert('Esta pestaña no tiene conceptos agregados.');
+            return;
+        }
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Procesando Cobro...';
+
+        fetch("{{ route('central-pos.checkout') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                branch_id: '{{ $branchId }}',
+                customer_id: tab.customerId || null,
+                customer_name: tab.customerName || 'Cliente Mostrador',
+                customer_phone: tab.customerPhone || null,
+                payment_method: tab.paymentMethod,
+                cash_amount: tab.mixCash,
+                card_amount: tab.mixCard,
+                transfer_amount: tab.mixTransfer,
+                cash_received: parseFloat(tab.cashReceived) || 0,
+                open_drawer: document.getElementById('posOpenDrawerCheck').checked ? 1 : 0,
+                items: tab.items
+            })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success) {
+                alert(res.message || 'No se pudo procesar el cobro.');
+                return;
+            }
+
+            // Limpiar el proceso actual tras cerrarlo exitosamente
+            tab.items = [];
+            tab.customerName = '';
+            tab.customerPhone = '';
+            tab.customerId = '';
+            tab.cashReceived = '';
+            saveState();
+            renderAll();
+
+            // Apertura AUTOMÁTICA del cajón por USB en procesos de venta
+            if (window.ZyaPosHardware) {
+                ZyaPosHardware.autoOpenUsbDrawer();
+            }
+
+            if (res.receipt_url) {
+                window.open(res.receipt_url, '_blank');
+            }
+        })
+        .catch(() => {
+            alert('Error de red al procesar el movimiento.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket';
+        });
+    });
+
+    renderAll();
+});
+</script>
+@endsection

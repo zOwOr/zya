@@ -12,7 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Verifica periódicamente y aplica el corte final automático (Corte Z)
+        // según la hora configurada para cada sucursal (o se omite si la sucursal está en corte manual).
+        $schedule->command('zya:daily-cut-auto')->everyFifteenMinutes()->withoutOverlapping();
     }
 
     /**

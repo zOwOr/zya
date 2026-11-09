@@ -47,6 +47,13 @@ class Permission extends SpatiePermission
             'transfer' => 'Transferir',
             'assign_seller' => 'Asignar Vendedor',
             'export' => 'Exportar Datos',
+            'abonar' => 'Registrar Abono',
+            'close_manual' => 'Cierre Manual',
+            'open_drawer' => 'Abrir Cajón de Dinero',
+            'pre_cut' => 'Generar Pre-Corte (Corte X)',
+            'final_cut' => 'Aplicar Corte Final (Corte Z)',
+            'all_branches' => 'Acceso a Todas las Sucursales',
+            'deliver' => 'Registrar Entrega a Cliente',
         ];
 
         $actionLabel = $actionTranslations[strtolower($action)] ?? ucfirst(str_replace('_', ' ', $action));
@@ -84,6 +91,9 @@ class Permission extends SpatiePermission
             'repairs' => 'Reparaciones',
             'tandas' => 'Tandas',
             'financieras' => 'Módulo de Financieras',
+            'cobros' => 'Módulo Centralizado de Cobros (4 en 1)',
+            'prestamos' => 'Módulo de Préstamos',
+            'gifts' => 'Gifts y Promocionales por Proveedor',
         ];
 
         return $labels[strtolower(trim($group_name))] ?? ucfirst($group_name);

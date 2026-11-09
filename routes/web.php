@@ -27,31 +27,83 @@ use App\Http\Controllers\Dashboard\FinDeviceController;
 use App\Http\Controllers\Dashboard\FinWarrantyController;
 use App\Http\Controllers\Dashboard\FinTheftReportController;
 use App\Http\Controllers\Dashboard\FinCatalogController;
+use App\Http\Controllers\Dashboard\LoanController;
+use App\Http\Controllers\Dashboard\UnifiedPosController;
+use App\Http\Controllers\Dashboard\GiftController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
 */
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-
 // DEFAULT DASHBOARD & PROFILE
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/financieras/export-pdf', [DashboardController::class, 'exportFinancieraPaymentsPdf'])->name('dashboard.financieras.pdf');
+    Route::get('/dashboard/financieras/export-excel', [DashboardController::class, 'exportFinancieraPaymentsExcel'])->name('dashboard.financieras.excel');
+    Route::post('/dashboard/transactions/{transaction}/cancel', [DashboardController::class, 'cancelTransaction'])->name('dashboard.transactions.cancel');
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/profile/change-password', [ProfileController::class, 'changePassword'])->name('profile.change-password');
+});
+
+// ====== MÓDULO CENTRALIZADO DE COBROS Y VENTAS (4 EN 1) ======
+Route::middleware(['auth', 'permission:cobros.menu|cobros.read|pos.menu|pos.read'])->prefix('central-pos')->name('central-pos.')->group(function () {
+    Route::get('/', [UnifiedPosController::class, 'index'])->name('index');
+    Route::get('/lookup-financiera', [UnifiedPosController::class, 'lookupFinanciera'])->name('lookup-financiera');
+    Route::get('/lookup-loans', [UnifiedPosController::class, 'lookupCustomerLoans'])->name('lookup-loans');
+    Route::get('/lookup-tanda', [UnifiedPosController::class, 'lookupTanda'])->name('lookup-tanda');
+    Route::get('/lookup-products', [UnifiedPosController::class, 'lookupProducts'])->name('lookup-products');
+    Route::post('/checkout', [UnifiedPosController::class, 'checkout'])->name('checkout');
+    Route::get('/receipt/{transaction}', [UnifiedPosController::class, 'printReceipt'])->name('receipt');
+    Route::get('/open-drawer', [UnifiedPosController::class, 'openCashDrawer'])->name('open-drawer');
+    Route::get('/open-drawer-view', [UnifiedPosController::class, 'openCashDrawer'])->name('open-drawer.view');
+});
+
+// ====== MÓDULO DE PRÉSTAMOS ======
+Route::middleware(['auth', 'permission:prestamos.menu|prestamos.read'])->prefix('loans')->name('loans.')->group(function () {
+    Route::get('/', [LoanController::class, 'index'])->name('index');
+    Route::get('/create', [LoanController::class, 'create'])->name('create');
+    Route::post('/', [LoanController::class, 'store'])->name('store');
+    Route::get('/check-customer-alerts', [LoanController::class, 'checkCustomerAlerts'])->name('check-customer-alerts');
+
+    // Catálogo CRUD Completo de Tipos de Préstamos
+    Route::get('/types', [LoanController::class, 'loanTypesIndex'])->name('types.index');
+    Route::post('/types', [LoanController::class, 'storeLoanType'])->name('types.store');
+    Route::put('/types/{loanType}', [LoanController::class, 'updateLoanType'])->name('types.update');
+    Route::patch('/types/{loanType}/toggle', [LoanController::class, 'toggleLoanType'])->name('types.toggle');
+    Route::delete('/types/{loanType}', [LoanController::class, 'destroyLoanType'])->name('types.destroy');
+
+    Route::get('/ticket/{payment}', [LoanController::class, 'printTicket'])->name('ticket');
+
+    Route::get('/{loan}', [LoanController::class, 'show'])->name('show');
+    Route::post('/{loan}/payments', [LoanController::class, 'registerPayment'])->name('payments.store');
+    Route::post('/{loan}/close-manual', [LoanController::class, 'manualClose'])->name('close-manual');
+    Route::get('/{loan}/pagare/print', [LoanController::class, 'printPromissoryNote'])->name('pagare.print');
+    Route::post('/{loan}/pagare/upload', [LoanController::class, 'uploadPromissoryNote'])->name('pagare.upload');
+    Route::get('/{loan}/pagare/download', [LoanController::class, 'downloadPromissoryNote'])->name('pagare.download');
+
+    // Video de evidencia exclusivo para SuperAdmin
+    Route::get('/{loan}/video/stream', [LoanController::class, 'streamVideo'])->name('video.stream');
+    Route::post('/{loan}/video', [LoanController::class, 'updateVideo'])->name('video.update');
+    Route::delete('/{loan}/video', [LoanController::class, 'deleteVideo'])->name('video.delete');
+});
+
+// ====== MÓDULO DE GIFTS Y PROMOCIONALES POR PROVEEDOR ======
+Route::middleware(['auth', 'permission:gifts.menu|gifts.read'])->prefix('gifts')->name('gifts.')->group(function () {
+    Route::get('/', [GiftController::class, 'index'])->name('index');
+    Route::post('/', [GiftController::class, 'store'])->name('store');
+    Route::post('/entry', [GiftController::class, 'registerEntry'])->name('entry');
+    Route::post('/deliver', [GiftController::class, 'registerDelivery'])->name('deliver');
+    Route::put('/{gift}', [GiftController::class, 'update'])->name('update');
+    Route::delete('/{gift}', [GiftController::class, 'destroy'])->name('destroy');
 });
 
 // ====== USERS ======
@@ -113,9 +165,11 @@ Route::middleware(['permission:category.menu|category.read'])->group(function ()
     Route::resource('/categories', CategoryController::class);
 });
 
-// ====== POS ======
+// ====== POS (Redirección automática al Módulo Centralizado) ======
 Route::middleware(['permission:pos.menu|pos.read'])->group(function () {
-    Route::get('/pos', [PosController::class,'index'])->name('pos.index');
+    Route::get('/pos', function () {
+        return redirect()->route('central-pos.index');
+    })->name('pos.index');
     Route::post('/pos/add', [PosController::class, 'addCart'])->name('pos.addCart');
     Route::post('/pos/add-dynamic', [PosController::class, 'addDynamicProduct'])->name('pos.addDynamicProduct');
     Route::post('/pos/update/{rowId}', [PosController::class, 'updateCart'])->name('pos.updateCart');
@@ -132,39 +186,25 @@ Route::middleware(['permission:pos.menu|pos.read'])->group(function () {
 });
 
 Route::middleware(['permission:repairs.menu|repairs.read'])->group(function () {
-
     Route::resource('repairs', RepairsController::class);
     Route::get('/buscar-opciones', [RepairsController::class, 'buscarOpciones'])->name('buscar.opciones');
 });
 
-
 Route::middleware(['permission:tandas.menu|tandas.read'])->group(function () {
-
     Route::resource('tandas', TandaController::class);
     Route::patch('/tanda-periods/{period}', [TandaPeriodController::class, 'updatePayment'])->name('tanda-periods.updatePayment');
     Route::post('/tandas/{tanda}/payments', [TandaController::class, 'updatePayments'])->name('tandas.payments.update');
-
-
-
-
 });
+
 Route::middleware(['permission:cash.menu|cash.read'])->group(function () {
-
     Route::get('/cash', [CashController::class, 'index'])->name('cash.index');
-
-    // Ver el corte diario (los movimientos del día)
     Route::get('/cash/daily-cut', [CashController::class, 'dailyCut'])->name('cash.dailyCut');
-
-
-    // Registrar un movimiento manual (ingreso o egreso)
     Route::post('/cash', [CashController::class, 'store'])->name('cash.store');
-
+    Route::post('/cash/pre-cut', [CashController::class, 'applyPreCut'])->name('cash.preCut');
     Route::post('/cash/apply-cut', [CashController::class, 'applyCut'])->name('cash.applyCut');
-
+    Route::post('/cash/auto-cut-config', [CashController::class, 'updateAutoCutConfig'])->name('cash.autoCutConfig');
     Route::get('/cash/filter-by-date', [CashController::class, 'filterByDate'])->name('cash.filterByDate');
     Route::get('/cash/print', [CashController::class, 'printCut'])->name('cash.printCut');
-
-
 });
 
 // ====== ORDERS ======
@@ -177,10 +217,7 @@ Route::middleware(['permission:orders.menu|orders.read'])->group(function () {
     Route::delete('order/{id}', [OrderController::class, 'destroy'])->name('order.delete');
     Route::post('/order/updateAmount', [OrderController::class, 'updateAmount'])->name('order.updateAmount');
     Route::post('/video-upload', [OrderController::class, 'uploadVideo'])->name('video.upload');
-
-
-Route::get('/orders/{id}/contract', [OrderController::class, 'contract'])->name('order.contract');
-
+    Route::get('/orders/{id}/contract', [OrderController::class, 'contract'])->name('order.contract');
 
     // Pending Due
     Route::get('/pending/due', [OrderController::class, 'pendingDue'])->name('order.pendingDue');
@@ -189,10 +226,7 @@ Route::get('/orders/{id}/contract', [OrderController::class, 'contract'])->name(
 
     // Stock Management
     Route::get('/stock', [OrderController::class, 'stockManage'])->name('order.stockManage');
-
     Route::post('/order/update-device-id', [OrderController::class, 'updateDeviceId'])->name('order.updateDeviceId');
-
-
 });
 
 // ====== DATABASE BACKUP ======
@@ -243,7 +277,7 @@ Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financi
         Route::get('/create', [FinSaleController::class, 'create'])->name('create');
         Route::get('/create-contado', [FinSaleController::class, 'createContado'])->name('create-contado');
         Route::post('/', [FinSaleController::class, 'store'])->name('store');
-        Route::post('/store-contado', [FinSaleController::class, 'storeContado'])->name('store-contado');
+        Route::post('/store-contado', [FinSaleController::class, 'storeContado'])->name('storeContado');
         Route::get('/export/excel', [FinSaleController::class, 'exportExcel'])->name('export.excel');
         Route::get('/template/excel', [FinSaleController::class, 'downloadTemplate'])->name('template.excel');
         Route::post('/import/excel', [FinSaleController::class, 'importExcel'])->name('import.excel');
@@ -254,6 +288,7 @@ Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financi
         Route::delete('/{sale}', [FinSaleController::class, 'destroy'])->name('destroy');
         Route::post('/{sale}/cancel', [FinSaleController::class, 'cancel'])->name('cancel');
         Route::post('/{sale}/notes', [FinSaleController::class, 'addNote'])->name('notes.store');
+        Route::post('/{sale}/abonos', [UnifiedPosController::class, 'registerDirectFinancieraAbono'])->name('abonos.store');
         Route::get('/{sale}/pdf', [FinSaleController::class, 'exportPdf'])->name('pdf');
     });
 
@@ -322,4 +357,3 @@ Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financi
 });
 
 require __DIR__.'/auth.php';
-

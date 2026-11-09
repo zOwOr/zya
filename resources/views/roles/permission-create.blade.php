@@ -67,6 +67,26 @@
             'slug' => 'database',
             'name' => 'Database'
         ],
+        [
+            'slug' => 'cobros',
+            'name' => 'Cobros Centralizados (4 en 1)'
+        ],
+        [
+            'slug' => 'prestamos',
+            'name' => 'Préstamos'
+        ],
+        [
+            'slug' => 'financieras',
+            'name' => 'Financieras'
+        ],
+        [
+            'slug' => 'gifts',
+            'name' => 'Gifts y Promocionales'
+        ],
+        [
+            'slug' => 'branch',
+            'name' => 'Sucursales'
+        ],
     ]
 @endphp
 

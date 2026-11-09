@@ -17,33 +17,42 @@
                     <span>Principal</span>
                 </li>
 
-                <li class="{{ Request::is('dashboard') ? 'active' : '' }}">
+                <li class="{{ Request::is('dashboard*') ? 'active' : '' }}">
                     <a href="{{ route('dashboard') }}" class="svg-icon">
                         <i class="fa-solid fa-chart-pie text-primary"></i>
                         <span class="ml-3">Dashboard</span>
                     </a>
                 </li>
 
-                @if (auth()->user()->can('pos.menu') || auth()->user()->can('pos.read'))
-                    <li class="{{ Request::is('pos*') ? 'active' : '' }}">
-                        <a href="{{ route('pos.index') }}" class="svg-icon">
-                            <i class="fa-solid fa-cart-shopping text-success"></i>
-                            <span class="ml-3">Punto de Venta</span>
+                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.menu') || auth()->user()->can('cobros.read') || auth()->user()->can('pos.menu'))
+                    <li class="{{ Request::is('central-pos*') ? 'active' : '' }}">
+                        <a href="{{ route('central-pos.index') }}" class="svg-icon">
+                            <i class="fa-solid fa-cash-register text-primary"></i>
+                            <span class="ml-3 font-weight-bold">Punto de Venta</span>
                         </a>
                     </li>
                 @endif
 
                 {{-- ===================== 2. OPERACIONES ===================== --}}
-                @if (auth()->user()->can('cash.menu') || auth()->user()->can('cash.read') || auth()->user()->can('orders.menu') || auth()->user()->can('orders.read') || auth()->user()->can('repairs.menu') || auth()->user()->can('repairs.read') || auth()->user()->can('tandas.menu') || auth()->user()->can('tandas.read'))
+                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.menu') || auth()->user()->can('cash.read') || auth()->user()->can('prestamos.menu') || auth()->user()->can('prestamos.read') || auth()->user()->can('orders.menu') || auth()->user()->can('orders.read') || auth()->user()->can('repairs.menu') || auth()->user()->can('repairs.read') || auth()->user()->can('tandas.menu') || auth()->user()->can('tandas.read'))
                     <li class="sidebar-section-title">
                         <span>Operaciones</span>
                     </li>
 
-                    @if (auth()->user()->can('cash.menu') || auth()->user()->can('cash.read'))
+                    @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.menu') || auth()->user()->can('cash.read'))
                         <li class="{{ Request::is('cash*') ? 'active' : '' }}">
                             <a href="{{ route('cash.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-vault text-info"></i>
                                 <span class="ml-3">Corte y Caja</span>
+                            </a>
+                        </li>
+                    @endif
+
+                    @if (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.menu') || auth()->user()->can('prestamos.read'))
+                        <li class="{{ Request::is('loans*') ? 'active' : '' }}">
+                            <a href="{{ route('loans.index') }}" class="svg-icon">
+                                <i class="fa-solid fa-hand-holding-dollar text-success"></i>
+                                <span class="ml-3">Préstamos</span>
                             </a>
                         </li>
                     @endif
@@ -121,7 +130,7 @@
                 @endif
 
                 {{-- ===================== 4. CATÁLOGO & STOCK ===================== --}}
-                @if (auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('category.menu') || auth()->user()->can('category.read') || auth()->user()->can('stock.menu') || auth()->user()->can('stock.read'))
+                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('category.menu') || auth()->user()->can('category.read') || auth()->user()->can('stock.menu') || auth()->user()->can('stock.read') || auth()->user()->can('gifts.menu') || auth()->user()->can('gifts.read'))
                     <li class="sidebar-section-title">
                         <span>Inventario</span>
                     </li>
@@ -174,6 +183,15 @@
                             <a href="{{ route('order.stockManage') }}" class="svg-icon">
                                 <i class="fa-solid fa-warehouse text-warning"></i>
                                 <span class="ml-3">Stock y Almacén</span>
+                            </a>
+                        </li>
+                    @endif
+
+                    @if (auth()->user()->isSuperAdmin() || auth()->user()->can('gifts.menu') || auth()->user()->can('gifts.read'))
+                        <li class="{{ Request::is('gifts*') ? 'active' : '' }}">
+                            <a href="{{ route('gifts.index') }}" class="svg-icon">
+                                <i class="fa-solid fa-gift text-danger"></i>
+                                <span class="ml-3">Gifts por Proveedor</span>
                             </a>
                         </li>
                     @endif

@@ -40,6 +40,9 @@ class FinSale extends Model
         'enganche_descuento',
         'credit_amount',
         'abono_semanal',
+        'total_abonos_paid',
+        'abonos_count',
+        'last_abono_at',
         'term_months',
         'term_weeks',
         'tag_contrato',
@@ -65,6 +68,9 @@ class FinSale extends Model
         'price' => 'decimal:2',
         'down_payment' => 'decimal:2',
         'credit_amount' => 'decimal:2',
+        'total_abonos_paid' => 'decimal:2',
+        'abonos_count' => 'integer',
+        'last_abono_at' => 'datetime',
         'term_months' => 'integer',
         'sale_date' => 'datetime',
         'cancelled_at' => 'datetime',
@@ -109,6 +115,11 @@ class FinSale extends Model
     public function notes()
     {
         return $this->hasMany(FinSaleNote::class, 'sale_id')->latest();
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(FinSalePayment::class, 'fin_sale_id')->orderByDesc('payment_date');
     }
 
     public function warranties()

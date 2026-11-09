@@ -21,6 +21,52 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
 
 <style>
+  /* Select2 Bootstrap 4 styling & autocomplete */
+  .select2-container .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px) !important;
+    padding: .375rem .75rem !important;
+    border: 1px solid #ced4da !important;
+    border-radius: .25rem !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .form-control-sm + .select2-container .select2-selection--single,
+  .select2-sm + .select2-container .select2-selection--single {
+    height: calc(1.5em + .5rem + 2px) !important;
+    padding: .25rem .5rem !important;
+    font-size: .875rem !important;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: normal !important;
+    padding-left: 0 !important;
+    color: #495057 !important;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100% !important;
+    right: 8px !important;
+    top: 0 !important;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #6c757d !important;
+  }
+  .select2-container .select2-selection--single:focus,
+  .select2-container--open .select2-selection--single {
+    border-color: #80bdff !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+  }
+  .select2-dropdown {
+    border-color: #80bdff !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    z-index: 1065 !important;
+  }
+  .select2-search--dropdown .select2-search__field {
+    border: 1px solid #ced4da !important;
+    border-radius: .25rem !important;
+    padding: .375rem .75rem !important;
+    outline: none !important;
+  }
+
   .iq-sidebar {
     height: 100vh;
     overflow: hidden !important;
@@ -192,6 +238,142 @@
       opacity: 1 !important;
     }
   }
+
+  /* =========================================================
+     SISTEMA DE DISEÑO GLOBAL ESTANDARIZADO DE TABLAS ZYA
+     ========================================================= */
+  .table {
+      color: #1e293b;
+      vertical-align: middle;
+      font-size: 13px;
+      width: 100% !important;
+  }
+  .table thead th,
+  .table .thead-light th,
+  .table .thead-dark th,
+  .table thead.thead-dark th,
+  .table thead.thead-light th,
+  .table thead.bg-light th,
+  .table thead.bg-white th,
+  .table .ligth th,
+  .table .ligth.ligth-data th,
+  table.dataTable thead th,
+  table.dataTable thead td {
+      background-color: #f8fafc !important;
+      border-bottom: 2px solid #e2e8f0 !important;
+      border-top: none !important;
+      border-left: none !important;
+      border-right: none !important;
+      color: #475569 !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+      padding: 12px 14px !important;
+      white-space: nowrap !important;
+      vertical-align: middle !important;
+      line-height: 1.4 !important;
+  }
+  .table tbody td,
+  .table .ligth-body tr td,
+  table.dataTable tbody td {
+      padding: 12px 14px !important;
+      vertical-align: middle !important;
+      border-top: 1px solid #f1f5f9 !important;
+      border-bottom: none !important;
+      border-left: none !important;
+      border-right: none !important;
+      color: #1e293b;
+      font-size: 13px;
+  }
+  .table-hover tbody tr:hover,
+  .table tbody tr:hover,
+  table.dataTable tbody tr:hover {
+      background-color: #f8fafc !important;
+  }
+
+  /* Contenedores de Tarjetas para Tablas */
+  .card {
+      border-radius: 12px !important;
+      border: 1px solid #e2e8f0 !important;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  }
+  .card .card-header {
+      border-top-left-radius: 12px !important;
+      border-top-right-radius: 12px !important;
+  }
+  .table-responsive {
+      border-radius: 0 0 12px 12px !important;
+  }
+
+  /* Botones DataTables de Exportación (Excel, PDF, Copiar) */
+  .dt-buttons {
+      margin-bottom: 12px !important;
+  }
+  .dt-buttons .btn,
+  .dt-buttons .btn-secondary,
+  .dt-buttons button.dt-button,
+  div.dt-buttons .dt-button {
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      padding: 6px 14px !important;
+      border-radius: 6px !important;
+      background: #ffffff !important;
+      color: #475569 !important;
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+      margin-right: 6px !important;
+      transition: all 0.15s ease !important;
+  }
+  .dt-buttons .btn:hover,
+  div.dt-buttons .dt-button:hover {
+      background: #f1f5f9 !important;
+      color: #1e293b !important;
+      border-color: #94a3b8 !important;
+  }
+  .dataTables_filter {
+      margin-bottom: 12px !important;
+  }
+  .dataTables_filter input {
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 6px !important;
+      padding: 6px 12px !important;
+      font-size: 13px !important;
+      outline: none !important;
+  }
+  .dataTables_filter input:focus {
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  }
+  .dataTables_length select {
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 6px !important;
+      padding: 5px 10px !important;
+      font-size: 13px !important;
+  }
+  .dataTables_info {
+      font-size: 12px !important;
+      color: #64748b !important;
+      padding-top: 14px !important;
+  }
+  .dataTables_paginate {
+      padding-top: 10px !important;
+  }
+  .dataTables_paginate .pagination .page-item .page-link,
+  .dataTables_paginate .paginate_button {
+      font-size: 12px !important;
+      padding: 6px 12px !important;
+      border-radius: 6px !important;
+      margin: 0 2px !important;
+      color: #475569 !important;
+      border: 1px solid #e2e8f0 !important;
+  }
+  .dataTables_paginate .pagination .page-item.active .page-link,
+  .dataTables_paginate .paginate_button.current {
+      background-color: #0d6efd !important;
+      border-color: #0d6efd !important;
+      color: #ffffff !important;
+  }
 </style>
 
     @yield('specificpagestyles')
@@ -302,6 +484,13 @@
                     };
 
                     if (!$.fn.DataTable.isDataTable(this)) {
+                        // Evitar error tn/18 de DataTables ("Incorrect column count") cuando Blade renderiza una fila vacía con colspan
+                        table.find('tbody tr').each(function() {
+                            if ($(this).find('td[colspan]').length > 0) {
+                                $(this).remove();
+                            }
+                        });
+
                         table.DataTable({
                             dom: '<"row align-items-center mb-3"<"col-md-12 text-right"B>>rt',
                             buttons: [
@@ -332,6 +521,44 @@
                     }
                 });
             }
+        });
+
+        // ==========================================
+        // AUTOCOMPLETE GLOBAL PARA SELECTS (CLIENTES / PRODUCTOS / ETC)
+        // ==========================================
+        window.initSelect2Autocompletes = function(container) {
+            var $scope = container ? $(container) : $(document);
+            $scope.find('.select2-autocomplete, select[data-autocomplete="true"]').each(function() {
+                var $select = $(this);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+                var placeholder = $select.attr('placeholder') || $select.data('placeholder') || '-- Escribe para buscar o seleccionar --';
+                var $modal = $select.closest('.modal');
+                var config = {
+                    width: '100%',
+                    placeholder: placeholder,
+                    allowClear: !$select.prop('required'),
+                    tags: $select.data('tags') === true || $select.data('tags') === 'true',
+                    language: {
+                        noResults: function() { return "No se encontraron coincidencias"; },
+                        searching: function() { return "Buscando..."; }
+                    }
+                };
+                if ($modal.length > 0) {
+                    config.dropdownParent = $modal;
+                }
+                $select.select2(config);
+            });
+        };
+
+        $(document).ready(function() {
+            window.initSelect2Autocompletes();
+        });
+
+        // Re-inicializar cuando se abra cualquier modal
+        $(document).on('shown.bs.modal', '.modal', function() {
+            window.initSelect2Autocompletes(this);
         });
 
         // ==========================================

@@ -207,6 +207,14 @@
                                         <span class="text-muted font-size-12 d-block">Monto Financiado</span>
                                         <span class="font-weight-bold font-size-18 text-primary">${{ number_format($sale->credit_amount, 2) }}</span>
                                     </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Total Abonado ({{ $sale->abonos_count ?? 0 }} pagos)</span>
+                                        <span class="font-weight-bold font-size-18 text-success">${{ number_format($sale->total_abonos_paid ?? 0, 2) }}</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <span class="text-muted font-size-12 d-block">Saldo Restante</span>
+                                        <span class="font-weight-bold font-size-18 text-danger">${{ number_format(max(0, (float)$sale->credit_amount - (float)($sale->total_abonos_paid ?? 0)), 2) }}</span>
+                                    </div>
                                     @if($sale->abono_semanal)
                                     <div class="col-md-3 col-6 mb-3">
                                         <span class="text-muted font-size-12 d-block">Abono Semanal</span>
@@ -237,6 +245,128 @@
                             </div>
                         </div>
                     @endif
+
+                    <!-- Historial de Abonos de Financiera por Equipo (Device ID / TAG) -->
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="font-weight-bold mb-0 text-success">
+                                <i class="fa-solid fa-money-bill-transfer mr-2"></i>Historial de Abonos de Financiera (Device ID #{{ $sale->device_id }} / TAG: {{ $sale->tag_contrato ?: 'N/A' }})
+                            </h6>
+                            @if ($sale->status === 'activa' && (auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.abonar') || auth()->user()->can('cobros.financieras')))
+                                <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#registerFinAbonoModal">
+                                    <i class="fa-solid fa-plus mr-1"></i>Registrar Abono en Caja
+                                </button>
+                            @endif
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>Recibo</th>
+                                            <th># Abono</th>
+                                            <th>Fecha</th>
+                                            <th>Abono</th>
+                                            <th>Comisión</th>
+                                            <th>Total en Caja</th>
+                                            <th>Método</th>
+                                            <th>Cajero</th>
+                                            <th class="text-right">Ticket</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse ($sale->payments ?? [] as $abono)
+                                            <tr>
+                                                <td class="font-weight-bold">{{ $abono->receipt_code }}</td>
+                                                <td>#{{ $abono->installment_number }}</td>
+                                                <td>{{ $abono->payment_date ? $abono->payment_date->format('d/m/Y H:i') : '-' }}</td>
+                                                <td class="font-weight-bold text-success">${{ number_format($abono->amount, 2) }}</td>
+                                                <td class="text-info">${{ number_format($abono->commission_amount, 2) }}</td>
+                                                <td class="font-weight-bold">${{ number_format($abono->total_amount, 2) }}</td>
+                                                <td><span class="badge badge-light border">{{ strtoupper($abono->payment_method) }}</span></td>
+                                                <td>{{ $abono->user?->name ?? 'Sistema' }}</td>
+                                                <td class="text-right">
+                                                    @if ($abono->pos_transaction_id)
+                                                        <a href="{{ route('central-pos.receipt', $abono->pos_transaction_id) }}" target="_blank" class="btn btn-xs btn-outline-dark">
+                                                            <i class="fa-solid fa-print"></i>
+                                                        </a>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="9" class="text-center py-3 text-muted">No se han registrado abonos para este contrato/equipo aún.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal para Registrar Abono de Financiera con Impacto en Caja -->
+                    <div class="modal fade" id="registerFinAbonoModal" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header bg-success text-white">
+                                    <h5 class="modal-title text-white"><i class="fa-solid fa-hand-holding-dollar mr-2"></i>Registrar Abono de Financiera</h5>
+                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <form action="{{ route('financieras.ventas.abonos.store', $sale->id) }}" method="POST">
+                                    @csrf
+                                    <div class="modal-body">
+                                        <div class="alert alert-light border py-2 font-size-13">
+                                            <strong>Cliente:</strong> {{ $sale->customer_name }}<br>
+                                            <strong>Device ID:</strong> #{{ $sale->device_id }} | <strong>IMEI:</strong> {{ $sale->device?->imei ?? 'N/A' }} | <strong>TAG:</strong> {{ $sale->tag_contrato ?: 'N/A' }}
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6 form-group">
+                                                <label class="font-weight-bold">Monto del Abono ($) *</label>
+                                                <input type="number" step="0.01" min="0.01" name="amount" class="form-control font-weight-bold" value="{{ $sale->abono_semanal ?: '' }}" required>
+                                            </div>
+                                            <div class="col-md-6 form-group">
+                                                <label class="font-weight-bold">Comisión (Opcional) ($)</label>
+                                                <input type="number" step="0.01" min="0" name="commission_amount" class="form-control" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="font-weight-bold">Método de Pago (Entra en Caja y Corte) *</label>
+                                            <select name="payment_method" id="finShowPayMethod" class="form-control" required onchange="document.getElementById('finShowMixBox').classList.toggle('d-none', this.value !== 'mixto')">
+                                                <option value="efectivo">Efectivo</option>
+                                                <option value="transferencia">Transferencia</option>
+                                                <option value="tarjeta">Tarjeta</option>
+                                                <option value="mixto">Pago Mixto</option>
+                                            </select>
+                                        </div>
+                                        <div id="finShowMixBox" class="row d-none bg-light p-2 rounded border mb-3">
+                                            <div class="col-4">
+                                                <label class="font-size-11 font-weight-bold">Efectivo</label>
+                                                <input type="number" step="0.01" min="0" name="cash_amount" class="form-control form-control-sm" value="0">
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="font-size-11 font-weight-bold">Tarjeta</label>
+                                                <input type="number" step="0.01" min="0" name="card_amount" class="form-control form-control-sm" value="0">
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="font-size-11 font-weight-bold">Transferencia</label>
+                                                <input type="number" step="0.01" min="0" name="transfer_amount" class="form-control form-control-sm" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="form-group mb-0">
+                                            <label>Notas (Opcional)</label>
+                                            <input type="text" name="notes" class="form-control" placeholder="Referencia o comentario...">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-success"><i class="fa-solid fa-check mr-1"></i>Guardar Abono y Reflejar en Caja</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Bitácora de Notas Libres -->
                     <div class="card shadow-sm border-0 mb-4">
