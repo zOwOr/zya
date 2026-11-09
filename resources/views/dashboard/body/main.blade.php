@@ -331,6 +331,29 @@
       color: #1e293b !important;
       border-color: #94a3b8 !important;
   }
+
+  /* =========================================================
+     COLORES DE ALTA LEGIBILIDAD PARA TRANSFERENCIA Y TEXT-INFO
+     ========================================================= */
+  .text-transfer,
+  .text-transf,
+  .text-info {
+      color: #0284c7 !important; /* Azul Océano / Sky-600 legible con alto contraste */
+  }
+  input.text-transfer,
+  input.text-transf,
+  input.text-info,
+  label.text-transfer,
+  label.text-transf,
+  label.text-info {
+      color: #0369a1 !important; /* Sky-700 / Más oscuro y nítido para textos y números */
+  }
+  .badge-info,
+  .badge-transfer {
+      background-color: #e0f2fe !important;
+      color: #0369a1 !important;
+      border: 1px solid #bae6fd !important;
+  }
   .dataTables_filter {
       margin-bottom: 12px !important;
   }

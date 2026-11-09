@@ -35,12 +35,17 @@ class OrderDetails extends Model
     ];
 
     /**
-     * Relación con el modelo Product (solo para productos del inventario).
+     * Relación formal Eloquent con el modelo Product (solo para productos del inventario).
      * Para productos dinámicos, esta relación devolverá null.
      */
-    public function productRelation()
+    public function product()
     {
         return $this->belongsTo(Product::class, 'product_id', 'id');
+    }
+
+    public function productRelation()
+    {
+        return $this->product();
     }
 
     /**
@@ -65,6 +70,10 @@ class OrderDetails extends Model
             $virtual->product_image   = null;
             $virtual->stock_quantity  = 0;
             return $virtual;
+        }
+
+        if ($this->relationLoaded('product')) {
+            return $this->getRelation('product');
         }
 
         return $this->productRelation;

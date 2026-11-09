@@ -87,8 +87,19 @@
                                         </a>
                                     </li>
                                     <li class="{{ Request::is('pending/due*') ? 'active' : '' }}">
-                                        <a href="{{ route('order.pendingDue') }}">
-                                            <i class="fa-solid fa-arrow-right"></i><span>Pendiente de Pago</span>
+                                        <a href="{{ route('order.pendingDue') }}" style="display: flex; align-items: center; justify-content: space-between; padding-right: 18px;">
+                                            <span style="display: inline-flex; align-items: center;">
+                                                <i class="fa-solid fa-arrow-right"></i>
+                                                <span>Saldo Pendiente</span>
+                                            </span>
+                                            @php
+                                                $pendingDueCount = \App\Models\Order::where('due', '>', 0)->count();
+                                            @endphp
+                                            @if ($pendingDueCount > 0)
+                                                <span class="badge badge-danger font-weight-bold" style="background-color: #ef4444 !important; color: #ffffff !important; font-size: 11px; padding: 3px 7px; border-radius: 12px; line-height: 1; flex-shrink: 0; margin-left: 8px;">
+                                                    {{ $pendingDueCount }}
+                                                </span>
+                                            @endif
                                         </a>
                                     </li>
                                 @endif

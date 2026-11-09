@@ -219,10 +219,12 @@ Route::middleware(['permission:orders.menu|orders.read'])->group(function () {
     Route::post('/video-upload', [OrderController::class, 'uploadVideo'])->name('video.upload');
     Route::get('/orders/{id}/contract', [OrderController::class, 'contract'])->name('order.contract');
 
-    // Pending Due
+    // Pending Due / Notas de Venta con Saldo Pendiente
     Route::get('/pending/due', [OrderController::class, 'pendingDue'])->name('order.pendingDue');
     Route::get('/order/due/{id}', [OrderController::class, 'orderDueAjax'])->name('order.orderDueAjax');
     Route::post('/update/due', [OrderController::class, 'updateDue'])->name('order.updateDue');
+    Route::get('/orders/{order}/ticket-abono/{historyId}', [OrderController::class, 'printAbonoTicket'])->name('order.abonoTicket');
+    Route::get('/orders/{order}/abonos-history', [OrderController::class, 'abonosHistoryAjax'])->name('order.abonosHistoryAjax');
 
     // Stock Management
     Route::get('/stock', [OrderController::class, 'stockManage'])->name('order.stockManage');

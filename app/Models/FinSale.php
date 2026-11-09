@@ -142,6 +142,18 @@ class FinSale extends Model
         return $this->sale_type !== 'contado';
     }
 
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'id', 'id')->whereRaw('1 = 0')->withDefault(function () {
+            return new Customer([
+                'name' => $this->customer_name,
+                'email' => $this->customer_email,
+                'phone' => $this->customer_phone,
+                'address' => $this->customer_address,
+            ]);
+        });
+    }
+
     public function getCustomerAttribute()
     {
         return (object) [

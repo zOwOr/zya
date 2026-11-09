@@ -159,10 +159,34 @@
             <span>${{ number_format($transaction->commission_total, 2) }}</span>
         </div>
     @endif
+    @php
+        $paidToday = round((float) $transaction->paid_amount - (float) $transaction->change_amount, 2);
+        $dueAmount = max(0, round((float) $transaction->total_amount - $paidToday, 2));
+    @endphp
+
     <div class="row-flex bold" style="font-size: 14px; margin: 4px 0;">
-        <span>TOTAL PAGADO:</span>
+        <span>TOTAL DE LA NOTA:</span>
         <span>${{ number_format($transaction->total_amount, 2) }} MXN</span>
     </div>
+
+    @if ($dueAmount > 0)
+        <div class="row-flex bold" style="font-size: 13px; color: #16a34a; margin: 2px 0;">
+            <span>ABONADO HOY:</span>
+            <span>${{ number_format($paidToday, 2) }} MXN</span>
+        </div>
+        <div class="row-flex bold" style="font-size: 13px; color: #dc2626; border: 1px dashed #dc2626; padding: 3px 5px; margin: 4px 0; background: #fff5f5;">
+            <span>SALDO PENDIENTE:</span>
+            <span>${{ number_format($dueAmount, 2) }} MXN</span>
+        </div>
+        <div class="center bold" style="font-size: 10px; color: #dc2626; margin-bottom: 4px;">
+            *** NOTA CON SALDO PENDIENTE POR LIQUIDAR ***
+        </div>
+    @else
+        <div class="row-flex bold" style="font-size: 12px; color: #16a34a;">
+            <span>ESTADO:</span>
+            <span>TOTALMENTE PAGADO</span>
+        </div>
+    @endif
     <div class="divider"></div>
 
     <div class="row-flex">

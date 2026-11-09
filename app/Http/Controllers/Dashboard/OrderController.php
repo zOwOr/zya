@@ -20,6 +20,9 @@ use Haruncpi\LaravelIdGenerator\IdGenerator;
 use App\Services\CashFlowService;
 use App\Models\DailyCut;
 use App\Models\PaymentHistory;
+use App\Models\Branch;
+use App\Models\Loan;
+use App\Models\Customer;
 class OrderController extends Controller
 {
     use ModulePermissionTrait;
@@ -35,6 +38,8 @@ class OrderController extends Controller
         'contract' => 'read',
         'pendingDue' => 'read',
         'orderDueAjax' => 'read',
+        'printAbonoTicket' => 'read',
+        'abonosHistoryAjax' => 'read',
         'storeOrder' => 'create',
         'updateAmount' => 'edit',
         'updateStatus' => 'edit',
@@ -380,123 +385,341 @@ class OrderController extends Controller
         ]);
     }
 
-public function pendingDue()
-{
-    $row = (int) request('row', 10);
+    public function pendingDue()
+    {
+        $row = (int) request('row', 15);
 
-    if ($row < 1 || $row > 100000) {
-        abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
+        if ($row < 1 || $row > 100000) {
+            abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
+        }
+
+        $canAccessAllBranches = auth()->user()->isSuperAdmin() 
+            || auth()->user()->can('financieras.all_branches') 
+            || auth()->user()->can('corte.caja.all');
+
+        $branches = $canAccessAllBranches ? Branch::orderBy('name')->get() : collect();
+
+        $selectedBranchId = $canAccessAllBranches ? request('branch_id') : (auth()->user()->branch_id);
+
+        $search = request('search');
+        $deviceId = request('device_id');
+        $imei = request('imei');
+        $startDate = request('start_date');
+        $endDate = request('end_date');
+        $activeTab = request('tab', 'notas'); // 'notas' or 'prestamos'
+
+        // 1. Query para Notas de Venta con Saldo Pendiente
+        $query = Order::with(['customer', 'branch', 'posTransaction.branch', 'orderDetails.product', 'paymentHistories.user'])
+            ->where('due', '>', 0);
+
+        if ($selectedBranchId) {
+            $query->where(function($q) use ($selectedBranchId) {
+                $q->where('branch_id', $selectedBranchId)
+                  ->orWhereHas('posTransaction', fn($p) => $p->where('branch_id', $selectedBranchId))
+                  ->orWhereHas('paymentHistories', fn($h) => $h->where('branch_id', $selectedBranchId));
+            });
+        }
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('invoice_no', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function ($q2) use ($search) {
+                      $q2->where('tit_name', 'like', "%{$search}%")
+                         ->orWhere('phone', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($deviceId) {
+            $query->whereHas('orderDetails', fn($q) => $q->where('device_id', 'like', "%{$deviceId}%"));
+        }
+
+        if ($imei) {
+            $query->where(function ($q) use ($imei) {
+                $q->whereHas('orderDetails.product', fn($q2) => $q2->where('imei', 'like', "%{$imei}%"))
+                  ->orWhereHas('orderDetails', fn($q2) => $q2->where('dynamic_imei', 'like', "%{$imei}%"));
+            });
+        }
+
+        if ($startDate) {
+            $query->whereDate('order_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('order_date', '<=', $endDate);
+        }
+
+        // Totales de KPI de Notas de Venta
+        $allPendingOrders = (clone $query)->get();
+        $notesKpi = [
+            'count' => $allPendingOrders->count(),
+            'total' => round((float) $allPendingOrders->sum('total'), 2),
+            'pay' => round((float) $allPendingOrders->sum('pay'), 2),
+            'due' => round((float) $allPendingOrders->sum('due'), 2),
+        ];
+
+        $orders = $query->orderBy('id', 'desc')->paginate($row)->appends(request()->query());
+
+        // 2. Query para Préstamos con Saldo Pendiente
+        $loansQuery = Loan::with(['customer', 'loanType', 'branch'])
+            ->where('balance_amount', '>', 0)
+            ->whereIn('status', ['activo', 'vencido']);
+
+        if ($selectedBranchId) {
+            $loansQuery->where('branch_id', $selectedBranchId);
+        }
+        if ($search) {
+            $loansQuery->where(function ($q) use ($search) {
+                $q->where('loan_code', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function ($q2) use ($search) {
+                      $q2->where('tit_name', 'like', "%{$search}%")
+                         ->orWhere('phone', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $allPendingLoans = (clone $loansQuery)->get();
+        $loansKpi = [
+            'count' => $allPendingLoans->count(),
+            'total' => round((float) $allPendingLoans->sum('total_amount'), 2),
+            'paid' => round((float) $allPendingLoans->sum('paid_amount'), 2),
+            'due' => round((float) $allPendingLoans->sum('balance_amount'), 2),
+        ];
+
+        $pendingLoans = $loansQuery->orderBy('id', 'desc')->paginate($row, ['*'], 'loans_page')->appends(request()->query());
+
+        return view('orders.pending-due', [
+            'orders' => $orders,
+            'notesKpi' => $notesKpi,
+            'loansKpi' => $loansKpi,
+            'pendingLoans' => $pendingLoans,
+            'canAccessAllBranches' => $canAccessAllBranches,
+            'branches' => $branches,
+            'selectedBranchId' => $selectedBranchId,
+            'activeTab' => $activeTab,
+        ]);
     }
-
-    $search = request('search');
-    $deviceId = request('device_id');
-    $imei = request('imei');
-    $productName = request('product');
-
-    $query = Order::where('due', '>', 0);
-
-    if ($search) {
-        $query->where(function($q) use ($search) {
-            $q->where('invoice_no', 'like', "%{$search}%")
-              ->orWhereHas('customer', fn($q2) => $q2->where('tit_name', 'like', "%{$search}%"));
-        });
-    }
-
-    if ($deviceId) {
-        $query->whereHas('orderDetails', fn($q) => $q->where('device_id', 'like', "%{$deviceId}%"));
-    }
-
-    if ($imei) {
-        $query->whereHas('orderDetails.product', fn($q) => $q->where('imei', 'like', "%{$imei}%"));
-    }
-
-
-
-    $orders = $query->sortable()->paginate($row)->appends(request()->query());
-
-    return view('orders.pending-due', [
-        'orders' => $orders
-    ]);
-}
-
 
     public function orderDueAjax(Int $id)
     {
-        $order = Order::findOrFail($id);
+        $order = Order::with(['customer', 'branch', 'posTransaction.branch', 'paymentHistories.user'])->findOrFail($id);
 
-        return response()->json($order);
-    }public function updateDue(Request $request)
-{
-    $validatedData = $request->validate([
-        'order_id' => 'required|numeric',
-        'due' => 'required|numeric',
-        'payment_method' => 'required|in:HandCash,Cheque,Due',
-    ]);
-
-    $order = Order::findOrFail($validatedData['order_id']);
-
-    // Detectar si la orden tiene productos con proveedores Payjoy o KrediYa
-    $hasSpecialProvider = \App\Models\OrderDetails::where('order_id', $order->id)
-        ->whereHas('product.supplier', function($query) {
-            $query->whereIn('name', ['Payjoy', 'KrediYa']);
-        })->exists();
-
-    if ($validatedData['due'] > $order->due) {
-        return redirect()->route('order.pendingDue')->with('error', 'El monto ingresado excede la cantidad debida.');
+        return response()->json([
+            'id' => $order->id,
+            'invoice_no' => $order->invoice_no,
+            'customer_name' => $order->customer?->tit_name ?? 'Cliente Mostrador',
+            'customer_phone' => $order->customer?->phone ?? '-',
+            'branch_name' => $order->resolved_branch?->name ?? 'Sucursal Principal',
+            'order_date' => $order->order_date,
+            'total' => (float) $order->total,
+            'pay' => (float) $order->pay,
+            'due' => (float) $order->due,
+            'payment_status' => $order->payment_status,
+            'histories' => $order->paymentHistories->map(fn($h) => [
+                'id' => $h->id,
+                'amount' => (float) $h->amount,
+                'method' => $h->method,
+                'note' => $h->note,
+                'user' => $h->user?->name ?? 'Usuario',
+                'date' => $h->created_at ? $h->created_at->format('d/m/Y H:i') : '',
+            ]),
+        ]);
     }
 
-    // Actualizar pagos en la orden
-    $paid_due = $order->due - $validatedData['due'];
-    $paid_pay = $order->pay + $validatedData['due'];
+    public function updateDue(Request $request)
+    {
+        $validatedData = $request->validate([
+            'order_id' => 'required|numeric|exists:orders,id',
+            'due' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|in:efectivo,tarjeta,transferencia,mixto',
+            'cash_amount' => 'nullable|numeric|min:0',
+            'card_amount' => 'nullable|numeric|min:0',
+            'transfer_amount' => 'nullable|numeric|min:0',
+            'cash_received' => 'nullable|numeric|min:0',
+            'note' => 'nullable|string|max:500',
+        ]);
 
-    $order->update([
-        'due' => $paid_due,
-        'pay' => $paid_pay,
-    ]);
+        $order = Order::with(['customer', 'branch', 'posTransaction.branch'])->findOrFail($validatedData['order_id']);
 
-    // Registrar historial siempre
-    PaymentHistory::create([
-        'order_id' => $order->id,
-        'amount' => $validatedData['due'],
-        'method' => $validatedData['payment_method'],
-        'user_id' => auth()->id(),
-        'branch_id' => auth()->user()->branch_id ?? null,
-    ]);
+        $abonoAmount = round((float) $validatedData['due'], 2);
 
-    // Si el proveedor es especial, no registrar en banco nunca
-    if ($hasSpecialProvider) {
-        if ($validatedData['payment_method'] === 'HandCash') {
-            // Registrar solo en caja (CashFlow)
+        if ($abonoAmount > (float) $order->due + 0.05) {
+            return redirect()->route('order.pendingDue')->with('error', 'El monto ingresado ($' . number_format($abonoAmount, 2) . ') excede el saldo pendiente ($' . number_format($order->due, 2) . ').');
+        }
+
+        $method = $validatedData['payment_method'];
+
+        if ($method === 'efectivo') {
+            $cashAmount = isset($validatedData['cash_amount']) && $validatedData['cash_amount'] !== null && $validatedData['cash_amount'] !== '' 
+                ? round((float) $validatedData['cash_amount'], 2) 
+                : $abonoAmount;
+            $cardAmount = 0;
+            $transferAmount = 0;
+            $abonoAmount = min((float) $order->due, $cashAmount);
+        } elseif ($method === 'tarjeta') {
+            $cardAmount = isset($validatedData['card_amount']) && $validatedData['card_amount'] !== null && $validatedData['card_amount'] !== '' 
+                ? round((float) $validatedData['card_amount'], 2) 
+                : $abonoAmount;
+            $cashAmount = 0;
+            $transferAmount = 0;
+            $abonoAmount = min((float) $order->due, $cardAmount);
+        } elseif ($method === 'transferencia') {
+            $transferAmount = isset($validatedData['transfer_amount']) && $validatedData['transfer_amount'] !== null && $validatedData['transfer_amount'] !== '' 
+                ? round((float) $validatedData['transfer_amount'], 2) 
+                : $abonoAmount;
+            $cashAmount = 0;
+            $cardAmount = 0;
+            $abonoAmount = min((float) $order->due, $transferAmount);
+        } else { // mixto
+            $cashAmount = round((float) ($validatedData['cash_amount'] ?? 0), 2);
+            $cardAmount = round((float) ($validatedData['card_amount'] ?? 0), 2);
+            $transferAmount = round((float) ($validatedData['transfer_amount'] ?? 0), 2);
+            $sumMix = round($cashAmount + $cardAmount + $transferAmount, 2);
+
+            if (abs($sumMix - $abonoAmount) > 0.05) {
+                $faltante = round($abonoAmount - $sumMix, 2);
+                if ($faltante > 0) {
+                    return redirect()->route('order.pendingDue')->with('error', 'En pago mixto, falta asignar $' . number_format($faltante, 2) . ' para cubrir el abono de $' . number_format($abonoAmount, 2) . '.');
+                } else {
+                    return redirect()->route('order.pendingDue')->with('error', 'En pago mixto, la suma asignada excede el abono por $' . number_format(abs($faltante), 2) . '.');
+                }
+            }
+        }
+
+        $branchId = $order->branch_id 
+            ?? $order->posTransaction?->branch_id 
+            ?? (auth()->user()->branch_id ?? Branch::value('id'));
+
+        $paymentHistory = DB::transaction(function () use (
+            $order,
+            $abonoAmount,
+            $method,
+            $cashAmount,
+            $cardAmount,
+            $transferAmount,
+            $branchId,
+            $validatedData
+        ) {
+            $newDue = max(0, round((float) $order->due - $abonoAmount, 2));
+            $newPay = round((float) $order->pay + $abonoAmount, 2);
+
+            $order->update([
+                'due' => $newDue,
+                'pay' => $newPay,
+                'order_status' => ($newDue <= 0) ? 'complete' : $order->order_status,
+                'branch_id' => $order->branch_id ?: $branchId,
+            ]);
+
+            $methodMap = [
+                'efectivo' => 'HandCash',
+                'transferencia' => 'Cheque',
+                'tarjeta' => 'Due',
+                'mixto' => 'HandCash',
+            ];
+
+            $note = $validatedData['note'] ?? "Abono a Nota #{$order->invoice_no} ({$method})";
+
+            $histData = [
+                'order_id' => $order->id,
+                'amount' => $abonoAmount,
+                'method' => $methodMap[$method] ?? 'HandCash',
+                'user_id' => auth()->id(),
+                'branch_id' => $branchId,
+            ];
+            if (Schema::hasColumn('payment_histories', 'note')) {
+                $histData['note'] = $note;
+            }
+            if (Schema::hasColumn('payment_histories', 'cash_amount')) {
+                $histData['cash_amount'] = $cashAmount;
+            }
+            if (Schema::hasColumn('payment_histories', 'card_amount')) {
+                $histData['card_amount'] = $cardAmount;
+            }
+            if (Schema::hasColumn('payment_histories', 'transfer_amount')) {
+                $histData['transfer_amount'] = $transferAmount;
+            }
+
+            $history = PaymentHistory::create($histData);
+
+            $customerName = $order->customer?->tit_name ?? 'Cliente Mostrador';
+
             CashFlowService::register(
                 'income',
-                $validatedData['due'],
-                'Pago efectivo orden #' . $order->id . ' - proveedor especial',
-                $order->id,
-                'Orden',
-                auth()->user()->branch_id
+                $abonoAmount,
+                "Abono Nota #{$order->invoice_no}: {$customerName} (Método: " . strtoupper($method) . ")",
+                $order->invoice_no,
+                'Abono Nota Venta',
+                $branchId,
+                [
+                    'user_id' => auth()->id(),
+                    'customer_id' => $order->customer_id,
+                    'customer_name' => $customerName,
+                    'payment_method' => $method,
+                    'cash_amount' => $cashAmount,
+                    'card_amount' => $cardAmount,
+                    'transfer_amount' => $transferAmount,
+                ]
             );
+
+            return $history;
+        });
+
+        $msg = 'Abono de $' . number_format($abonoAmount, 2) . ' registrado exitosamente.';
+        if ($order->fresh()->due <= 0) {
+            $msg .= ' ¡La nota de venta ha sido COMPLETAMENTE LIQUIDADA!';
         }
-        // Para cheque o due no registrar nada en caja ni banco, solo historial (ya hecho)
-    } else {
-        // Para otras órdenes, comportamiento normal
-        if ($validatedData['payment_method'] === 'HandCash') {
-            // Registrar en caja y banco (depende de cómo lo tengas)
-            CashFlowService::register(
-                'income',
-                $validatedData['due'],
-                'Pago efectivo orden #' . $order->id,
-                $order->id,
-                'Orden',
-                auth()->user()->branch_id
-            );
-            // Aquí deberías incluir el registro en banco si tienes servicio/modelo para ello
-        } elseif (in_array($validatedData['payment_method'], ['Cheque', 'Due'])) {
-            // No registrar en caja ni banco, solo historial
-        }
+
+        return redirect()->route('order.pendingDue')
+            ->with('success', $msg)
+            ->with('print_ticket_url', route('order.abonoTicket', ['order' => $order->id, 'historyId' => $paymentHistory->id]));
     }
 
-    return redirect()->route('order.pendingDue')->with('success', 'Pago registrado correctamente.');
-}
+    public function printAbonoTicket(Order $order, $historyId)
+    {
+        $order->load(['customer', 'branch', 'posTransaction.branch', 'orderDetails.product']);
+        $history = PaymentHistory::with(['user', 'branch'])->where('order_id', $order->id)->findOrFail($historyId);
+        $branch = $order->resolved_branch ?? Branch::find(auth()->user()->branch_id) ?? Branch::first();
+
+        return view('orders.abono-ticket', [
+            'order' => $order,
+            'history' => $history,
+            'branch' => $branch,
+        ]);
+    }
+
+    public function abonosHistoryAjax(Order $order)
+    {
+        $histories = PaymentHistory::with(['user', 'branch'])
+            ->where('order_id', $order->id)
+            ->orderByDesc('id')
+            ->get()
+            ->map(function ($h) {
+                return [
+                    'id' => $h->id,
+                    'amount' => (float) $h->amount,
+                    'method' => $h->method,
+                    'note' => $h->note,
+                    'user_name' => $h->user?->name ?? 'Usuario',
+                    'branch_name' => $h->branch?->name ?? 'Sucursal',
+                    'date' => $h->created_at ? $h->created_at->format('d/m/Y H:i') : '',
+                    'ticket_url' => route('order.abonoTicket', ['order' => $h->order_id, 'historyId' => $h->id]),
+                ];
+            });
+
+        return response()->json([
+            'order' => [
+                'id' => $order->id,
+                'invoice_no' => $order->invoice_no,
+                'customer_name' => $order->customer?->tit_name ?? 'Cliente Mostrador',
+                'customer_phone' => $order->customer?->phone ?? '-',
+                'total' => (float) $order->total,
+                'pay' => (float) $order->pay,
+                'due' => (float) $order->due,
+                'order_date' => $order->order_date,
+            ],
+            'histories' => $histories,
+        ]);
+    }
 
 
 public function markAsPaid($orderId)

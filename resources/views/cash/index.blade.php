@@ -301,7 +301,7 @@
                                         </span>
                                     @elseif($method === 'transferencia')
                                         <span class="badge badge-light border text-dark font-weight-bold px-2 py-1">
-                                            <i class="fa-solid fa-building-columns text-info mr-1"></i>Transferencia
+                                            <i class="fa-solid fa-building-columns text-transfer mr-1"></i>Transferencia
                                         </span>
                                     @elseif($method === 'mixto')
                                         <span class="badge badge-light border text-dark font-weight-bold px-2 py-1">
@@ -310,7 +310,7 @@
                                         <div class="font-size-11 text-muted mt-1" style="line-height: 1.3;">
                                             @if($flow->cash_amount > 0)<div><span class="text-success font-weight-bold">Ef:</span> ${{ number_format($flow->cash_amount, 2) }}</div>@endif
                                             @if($flow->card_amount > 0)<div><span class="text-primary font-weight-bold">Tj:</span> ${{ number_format($flow->card_amount, 2) }}</div>@endif
-                                            @if($flow->transfer_amount > 0)<div><span class="text-info font-weight-bold">Tr:</span> ${{ number_format($flow->transfer_amount, 2) }}</div>@endif
+                                            @if($flow->transfer_amount > 0)<div><span class="text-transfer font-weight-bold">Tr:</span> ${{ number_format($flow->transfer_amount, 2) }}</div>@endif
                                         </div>
                                     @else
                                         <span class="badge badge-light border text-dark font-weight-bold px-2 py-1">

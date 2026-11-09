@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante de Abono - {{ $order->invoice_no }}</title>
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 0mm;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Courier New', Courier, 'Lucida Console', Monaco, monospace;
+            width: 76mm;
+            max-width: 76mm;
+            margin: 0 auto;
+            padding: 8px 4px;
+            font-size: 12px;
+            line-height: 1.25;
+            color: #000;
+            background: #fff;
+        }
+        body.paper-58mm {
+            width: 50mm;
+            max-width: 50mm;
+            font-size: 11px;
+            padding: 4px 2px;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: 700; }
+        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        .row-flex { display: flex; justify-content: space-between; margin: 2px 0; }
+        .toolbar {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+        }
+        .btn-tool {
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+        }
+        .btn-primary-tool {
+            background: #2563eb;
+            color: #fff;
+            border-color: #1d4ed8;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body {
+                width: 76mm !important;
+                max-width: 76mm !important;
+                margin: 0 auto !important;
+                padding: 1mm 2mm !important;
+            }
+            body.paper-58mm {
+                width: 48mm !important;
+                max-width: 48mm !important;
+                padding: 1mm !important;
+            }
+        }
+    </style>
+</head>
+<body id="ticketBody">
+
+    <div class="no-print toolbar">
+        <a href="{{ route('order.pendingDue') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+            ⬅️ Volver a Notas Pendientes
+        </a>
+        <a href="{{ route('central-pos.index') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+            🛒 Punto de Venta
+        </a>
+        <a href="{{ route('dashboard') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+            🏠 Menú Principal
+        </a>
+        <button class="btn-tool btn-primary-tool" onclick="window.print()">
+            🖨️ Imprimir Ticket
+        </button>
+        <button class="btn-tool" onclick="togglePaperWidth()">
+            📄 <span id="paperLabel">Modo: 80mm</span>
+        </button>
+    </div>
+
+    <div class="center bold" style="font-size: 16px; letter-spacing: 1px;">ZYA CELULARES</div>
+    <div class="center" style="font-size: 11px;">Tecnología y Accesorios</div>
+    <div class="center bold" style="font-size: 12px; margin-top: 2px;">
+        Sucursal: {{ $branch->name ?? 'Matriz' }}
+    </div>
+    @if (!empty($branch->address))
+        <div class="center" style="font-size: 10px;">{{ $branch->address }}</div>
+    @endif
+    @if (!empty($branch->phone))
+        <div class="center" style="font-size: 10px;">Tel: {{ $branch->phone }}</div>
+    @endif
+
+    <div class="divider"></div>
+    <div class="center bold" style="font-size: 13px; text-transform: uppercase;">
+        COMPROBANTE DE ABONO
+    </div>
+    <div class="center" style="font-size: 11px;">
+        Abono #{{ str_pad($history->id, 5, '0', STR_PAD_LEFT) }}
+    </div>
+    <div class="divider"></div>
+
+    <div class="row-flex">
+        <span>Folio Nota Venta:</span>
+        <span class="bold">{{ $order->invoice_no }}</span>
+    </div>
+    <div class="row-flex">
+        <span>Fecha Venta:</span>
+        <span>{{ \Carbon\Carbon::parse($order->order_date)->format('d/m/Y') }}</span>
+    </div>
+    <div class="row-flex">
+        <span>Fecha Abono:</span>
+        <span>{{ $history->created_at ? $history->created_at->format('d/m/Y H:i') : date('d/m/Y H:i') }}</span>
+    </div>
+    <div class="row-flex">
+        <span>Cliente:</span>
+        <span class="bold">{{ $order->customer?->tit_name ?? 'Cliente Mostrador' }}</span>
+    </div>
+    @if ($order->customer?->phone)
+        <div class="row-flex">
+            <span>Teléfono:</span>
+            <span>{{ $order->customer->phone }}</span>
+        </div>
+    @endif
+    <div class="row-flex">
+        <span>Cajero:</span>
+        <span>{{ $history->user?->name ?? auth()->user()->name }}</span>
+    </div>
+
+    <div class="divider"></div>
+    <div class="bold" style="margin-bottom: 3px;">RESUMEN DE CUENTA:</div>
+
+    @php
+        $prevDue = (float) $order->due + (float) $history->amount;
+    @endphp
+
+    <div class="row-flex">
+        <span>Total Original de la Nota:</span>
+        <span>${{ number_format($order->total, 2) }}</span>
+    </div>
+    <div class="row-flex">
+        <span>Saldo Anterior:</span>
+        <span>${{ number_format($prevDue, 2) }}</span>
+    </div>
+    <div class="divider"></div>
+
+    <div class="row-flex bold" style="font-size: 14px; color: #16a34a; margin: 4px 0;">
+        <span>MONTO ABONADO:</span>
+        <span>${{ number_format($history->amount, 2) }} MXN</span>
+    </div>
+
+    @php
+        $methodLabel = match($history->method) {
+            'HandCash' => 'Efectivo',
+            'Cheque' => 'Transferencia',
+            'Due' => 'Tarjeta',
+            default => ucfirst($history->method)
+        };
+    @endphp
+    <div class="row-flex">
+        <span>Método de Pago:</span>
+        <span class="bold">{{ strtoupper($methodLabel) }}</span>
+    </div>
+
+    @if ($history->cash_amount > 0 && ($history->card_amount > 0 || $history->transfer_amount > 0))
+        <div class="row-flex"><span>• Efectivo:</span><span>${{ number_format($history->cash_amount, 2) }}</span></div>
+    @endif
+    @if ($history->card_amount > 0 && ($history->cash_amount > 0 || $history->transfer_amount > 0))
+        <div class="row-flex"><span>• Tarjeta:</span><span>${{ number_format($history->card_amount, 2) }}</span></div>
+    @endif
+    @if ($history->transfer_amount > 0 && ($history->cash_amount > 0 || $history->card_amount > 0))
+        <div class="row-flex"><span>• Transferencia:</span><span>${{ number_format($history->transfer_amount, 2) }}</span></div>
+    @endif
+
+    @if (!empty($history->note))
+        <div class="row-flex" style="font-size: 11px;">
+            <span>Nota:</span>
+            <span>{{ $history->note }}</span>
+        </div>
+    @endif
+
+    <div class="divider"></div>
+
+    @if ((float) $order->due <= 0)
+        <div class="center bold" style="font-size: 13px; color: #16a34a; border: 1px solid #16a34a; padding: 4px; margin: 6px 0; background: #f0fdf4;">
+            🎉 ¡NOTA COMPLETAMENTE LIQUIDADA! 🎉
+        </div>
+        <div class="row-flex bold" style="font-size: 12px;">
+            <span>SALDO PENDIENTE:</span>
+            <span>$0.00 MXN</span>
+        </div>
+    @else
+        <div class="row-flex bold" style="font-size: 13px; color: #dc2626; border: 1px dashed #dc2626; padding: 4px; margin: 4px 0; background: #fff5f5;">
+            <span>NUEVO SALDO PENDIENTE:</span>
+            <span>${{ number_format($order->due, 2) }} MXN</span>
+        </div>
+        <div class="center" style="font-size: 10px; color: #dc2626;">
+            Favor de conservar su ticket para futuros abonos.
+        </div>
+    @endif
+
+    <div class="divider"></div>
+    <div class="center" style="font-size: 11px; margin-top: 6px;">
+        ¡Gracias por su pago!<br>
+        ZYA Celulares — Siempre contigo.
+    </div>
+
+    <div style="height: 18mm;"></div>
+
+    <script>
+        window.ZyaPosHardware = {
+            KICK_BYTES: new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA, 0x10, 0x14, 0x01, 0x00, 0x05, 0x07, 0x0A]),
+            autoOpenUsbDrawer: async function () {
+                if (!('serial' in navigator)) return false;
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    if (ports && ports.length > 0) {
+                        const port = ports[0];
+                        await port.open({ baudRate: 9600 });
+                        try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
+                        const writer = port.writable.getWriter();
+                        await writer.write(this.KICK_BYTES);
+                        writer.releaseLock();
+                        await new Promise(r => setTimeout(r, 120));
+                        try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
+                        await port.close();
+                        return true;
+                    }
+                } catch (e) {}
+                return false;
+            }
+        };
+
+        let is58mm = localStorage.getItem('zya_ticket_width') === '58';
+        function applyPaperWidth() {
+            const body = document.getElementById('ticketBody');
+            const lbl = document.getElementById('paperLabel');
+            if (is58mm) {
+                body.classList.add('paper-58mm');
+                lbl.textContent = 'Modo: 58mm';
+            } else {
+                body.classList.remove('paper-58mm');
+                lbl.textContent = 'Modo: 80mm';
+            }
+        }
+        function togglePaperWidth() {
+            is58mm = !is58mm;
+            localStorage.setItem('zya_ticket_width', is58mm ? '58' : '80');
+            applyPaperWidth();
+        }
+
+        window.addEventListener('load', async function () {
+            applyPaperWidth();
+
+            @php
+                $isCash = ($history->method === 'HandCash' || $history->cash_amount > 0);
+            @endphp
+            @if($isCash)
+                if (window.ZyaPosHardware) {
+                    try {
+                        await ZyaPosHardware.autoOpenUsbDrawer();
+                    } catch (e) {}
+                }
+            @endif
+
+            window.print();
+        });
+    </script>
+</body>
+</html>
+

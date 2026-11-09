@@ -258,6 +258,18 @@
     .btn-checkout-unified:active {
         transform: translateY(0);
     }
+
+    /* Estilos de Alta Visibilidad y Contraste para Método Transferencia */
+    .text-transfer,
+    .text-transf {
+        color: #0284c7 !important;
+    }
+    input.text-transfer,
+    input.text-transf,
+    label.text-transfer,
+    label.text-transf {
+        color: #0369a1 !important;
+    }
 </style>
 @endsection
 
@@ -279,6 +291,9 @@
                     <i class="las la-lock-open mr-1"></i> Abrir Cajón Físico
                 </button>
             @endif
+            <a href="{{ route('order.pendingDue') }}" class="btn btn-outline-warning btn-sm mr-2 shadow-sm font-weight-bold">
+                <i class="fa-solid fa-receipt mr-1"></i> Notas Pendientes
+            </a>
             <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId]) }}" class="btn btn-outline-info btn-sm mr-2 shadow-sm font-weight-bold">
                 <i class="las la-calculator mr-1"></i> Pre-Corte X / Z
             </a>
@@ -787,7 +802,7 @@
                             </div>
 
                             <!-- Totales -->
-                            <div class="cart-totals-card mb-3">
+                            <div class="cart-totals-card mb-2">
                                 <div class="d-flex justify-content-between font-size-13 mb-1">
                                     <span class="text-muted">Subtotal Conceptos:</span>
                                     <strong id="tabSubtotalText" class="text-dark">$0.00</strong>
@@ -798,10 +813,38 @@
                                 </div>
                                 <div class="pt-2 border-top d-flex justify-content-between align-items-center">
                                     <div>
-                                        <span class="font-size-11 font-weight-bold text-uppercase text-muted d-block">Total a Cobrar</span>
+                                        <span class="font-size-11 font-weight-bold text-uppercase text-muted d-block">Total de la Venta</span>
                                         <span class="badge badge-primary font-size-11">Caja Sucursal</span>
                                     </div>
                                     <div class="cart-grand-total" id="tabGrandTotalText">$0.00</div>
+                                </div>
+                            </div>
+
+                            <!-- Saldo Pendiente / Pago Parcial (Queda debiendo) -->
+                            <div class="card border border-warning bg-light p-2 mb-2 rounded shadow-none">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="font-size-12 font-weight-bold text-dark">
+                                        <i class="fa-solid fa-clock-rotate-left text-warning mr-1"></i>¿Pago Parcial o Saldo Pendiente?
+                                    </span>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="posPartialPayCheck">
+                                        <label class="custom-control-label font-size-11 font-weight-bold text-primary" for="posPartialPayCheck">Activar</label>
+                                    </div>
+                                </div>
+                                <div id="posPartialPayDetails" class="d-none mt-2 pt-2 border-top">
+                                    <div class="row">
+                                        <div class="col-6 pr-1">
+                                            <label class="font-size-11 font-weight-bold text-success mb-0">Abonar / Cobrar Hoy ($)</label>
+                                            <input type="number" step="0.01" min="0" id="posPaidTodayInput" class="form-control form-control-sm font-weight-bold text-success font-size-13" placeholder="0.00">
+                                        </div>
+                                        <div class="col-6 pl-1">
+                                            <label class="font-size-11 font-weight-bold text-danger mb-0">Saldo Pendiente ($)</label>
+                                            <input type="text" id="posDueBalanceText" class="form-control form-control-sm font-weight-bold text-danger font-size-13 bg-white" readonly value="$0.00">
+                                        </div>
+                                    </div>
+                                    <small class="d-block text-danger mt-1 font-size-11 font-weight-bold">
+                                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>El cliente quedará registrado con este saldo pendiente en "Notas con Saldo Pendiente".
+                                    </small>
                                 </div>
                             </div>
 
@@ -818,7 +861,7 @@
                                         <span>Tarjeta</span>
                                     </div>
                                     <div class="pay-method-btn" data-method="transferencia">
-                                        <i class="fa-solid fa-mobile-screen-button text-info"></i>
+                                        <i class="fa-solid fa-mobile-screen-button text-transfer"></i>
                                         <span>Transf.</span>
                                     </div>
                                     <div class="pay-method-btn" data-method="mixto">
@@ -828,39 +871,103 @@
                                 </div>
                             </div>
 
-                            <!-- Desglose Pago Mixto -->
-                            <div id="posMixedPaymentBox" class="p-2 rounded border mb-2 bg-light d-none">
-                                <small class="font-weight-bold text-primary d-block mb-1">
-                                    <i class="fa-solid fa-sliders mr-1"></i>Desglose de Pago Mixto:
-                                </small>
+                            <!-- SECCIÓN DINÁMICA DE DETALLE Y CAPTURA POR MÉTODO DE PAGO -->
+                            
+                            <!-- 1. Detalle para Efectivo -->
+                            <div id="posBoxEfectivo" class="p-2 rounded border mb-2 bg-light">
+                                <div class="row mb-2">
+                                    <div class="col-6 pr-1">
+                                        <label class="font-size-11 font-weight-bold text-success mb-0 text-uppercase">Monto Efectivo ($)</label>
+                                        <input type="number" step="0.01" min="0" id="posCashAmountInput" class="form-control form-control-sm font-weight-bold text-success font-size-14" placeholder="0.00">
+                                    </div>
+                                    <div class="col-6 pl-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Efectivo Recibido ($)</label>
+                                        <input type="number" step="0.01" min="0" id="posCashReceivedInput" class="form-control form-control-sm font-weight-bold font-size-14" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Cambio a Entregar</label>
+                                    <input type="text" id="posChangeOutput" class="form-control form-control-sm cash-change-display" value="$0.00" readonly>
+                                </div>
+                            </div>
+
+                            <!-- 2. Detalle para Tarjeta -->
+                            <div id="posBoxTarjeta" class="p-2 rounded border mb-2 bg-light d-none">
                                 <div class="row">
-                                    <div class="col-4 pr-1">
-                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Efectivo ($)</label>
-                                        <input type="number" step="0.01" min="0" id="mixCashInput" class="form-control form-control-sm font-weight-bold" value="0">
+                                    <div class="col-6 pr-1">
+                                        <label class="font-size-11 font-weight-bold text-primary mb-0 text-uppercase">Monto Tarjeta ($)</label>
+                                        <input type="number" step="0.01" min="0" id="posCardAmountInput" class="form-control form-control-sm font-weight-bold text-primary font-size-14" placeholder="0.00">
                                     </div>
-                                    <div class="col-4 px-1">
-                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Tarjeta ($)</label>
-                                        <input type="number" step="0.01" min="0" id="mixCardInput" class="form-control form-control-sm font-weight-bold" value="0">
-                                    </div>
-                                    <div class="col-4 pl-1">
-                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Transf. ($)</label>
-                                        <input type="number" step="0.01" min="0" id="mixTransferInput" class="form-control form-control-sm font-weight-bold" value="0">
+                                    <div class="col-6 pl-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">No. Autoriz. / Voucher</label>
+                                        <input type="text" id="posCardRefInput" class="form-control form-control-sm font-size-13" placeholder="Opcional">
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Efectivo Recibido y Cambio -->
-                            <div class="row mb-3">
-                                <div class="col-6 pr-1">
-                                    <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Efectivo Recibido ($)</label>
-                                    <div class="input-group input-group-sm">
-                                        <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                        <input type="number" step="0.01" min="0" id="posCashReceivedInput" class="form-control form-control-sm font-weight-bold font-size-14" placeholder="0.00">
+                            <!-- 3. Detalle para Transferencia -->
+                            <div id="posBoxTransferencia" class="p-2 rounded border mb-2 bg-light d-none">
+                                <div class="row">
+                                    <div class="col-6 pr-1">
+                                        <label class="font-size-11 font-weight-bold text-transfer mb-0 text-uppercase">Monto Transf. ($)</label>
+                                        <input type="number" step="0.01" min="0" id="posTransferAmountInput" class="form-control form-control-sm font-weight-bold text-transfer font-size-14" placeholder="0.00">
+                                    </div>
+                                    <div class="col-6 pl-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Folio SPEI / Rastreo</label>
+                                        <input type="text" id="posTransferRefInput" class="form-control form-control-sm font-size-13" placeholder="Opcional">
                                     </div>
                                 </div>
-                                <div class="col-6 pl-1">
-                                    <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Cambio a Entregar</label>
-                                    <input type="text" id="posChangeOutput" class="form-control form-control-sm cash-change-display" value="$0.00" readonly>
+                            </div>
+
+                            <!-- 4. Detalle para Pago Mixto con Notificación de Cantidad Faltante -->
+                            <div id="posBoxMixto" class="p-2 rounded border mb-2 bg-light d-none">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="font-weight-bold text-warning text-uppercase">
+                                        <i class="fa-solid fa-sliders mr-1"></i>Captura de Pago Mixto:
+                                    </small>
+                                    <small class="text-muted font-size-11">Total: <strong id="lblMixTargetAmount" class="text-dark">$0.00</strong></small>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 pr-1">
+                                        <label class="font-size-11 font-weight-bold text-success mb-0">Efectivo ($)</label>
+                                        <input type="number" step="0.01" min="0" id="mixCashInput" class="form-control form-control-sm font-weight-bold text-success" value="0">
+                                    </div>
+                                    <div class="col-4 px-1">
+                                        <label class="font-size-11 font-weight-bold text-primary mb-0">Tarjeta ($)</label>
+                                        <input type="number" step="0.01" min="0" id="mixCardInput" class="form-control form-control-sm font-weight-bold text-primary" value="0">
+                                    </div>
+                                    <div class="col-4 pl-1">
+                                        <label class="font-size-11 font-weight-bold text-transfer mb-0">Transf. ($)</label>
+                                        <input type="number" step="0.01" min="0" id="mixTransferInput" class="form-control form-control-sm font-weight-bold text-transfer" value="0">
+                                    </div>
+                                </div>
+
+                                <!-- Notificación en Tiempo Real de Cantidad Faltante en Pago Mixto -->
+                                <div id="posMixFaltanteAlertContainer" class="mb-2">
+                                    <!-- Render dinámico por JS -->
+                                </div>
+
+                                <!-- Efectivo Recibido y Cambio para la porción en efectivo de Pago Mixto -->
+                                <div id="posMixCashDrawerRow" class="row mb-1">
+                                    <div class="col-6 pr-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Efectivo Recibido ($)</label>
+                                        <input type="number" step="0.01" min="0" id="posMixCashReceivedInput" class="form-control form-control-sm font-weight-bold" placeholder="0.00">
+                                    </div>
+                                    <div class="col-6 pl-1">
+                                        <label class="font-size-11 font-weight-bold text-muted mb-0">Cambio Efectivo</label>
+                                        <input type="text" id="posMixChangeOutput" class="form-control form-control-sm cash-change-display" value="$0.00" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-6 pr-1">
+                                        <label class="font-size-11 text-muted mb-0">Ref. Tarjeta</label>
+                                        <input type="text" id="mixCardRefInput" class="form-control form-control-sm" placeholder="Voucher/Auth">
+                                    </div>
+                                    <div class="col-6 pl-1">
+                                        <label class="font-size-11 text-muted mb-0">Ref. SPEI</label>
+                                        <input type="text" id="mixTransferRefInput" class="form-control form-control-sm" placeholder="Folio rastreo">
+                                    </div>
                                 </div>
                             </div>
 
@@ -1091,6 +1198,26 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('tabCommissionText').textContent = '$' + totals.commission.toFixed(2);
         document.getElementById('tabGrandTotalText').textContent = '$' + totals.total.toFixed(2);
 
+        // Control de pago parcial / saldo pendiente
+        const partialCheck = document.getElementById('posPartialPayCheck');
+        const partialDetails = document.getElementById('posPartialPayDetails');
+        const paidTodayInput = document.getElementById('posPaidTodayInput');
+        const dueText = document.getElementById('posDueBalanceText');
+
+        if (tab.isPartial) {
+            partialCheck.checked = true;
+            partialDetails.classList.remove('d-none');
+            const paid = (tab.paidToday !== undefined && tab.paidToday !== '') ? parseFloat(tab.paidToday) : 0;
+            paidTodayInput.value = (tab.paidToday !== undefined && tab.paidToday !== '') ? tab.paidToday : '';
+            const due = Math.max(0, totals.total - paid);
+            dueText.value = '$' + due.toFixed(2);
+        } else {
+            partialCheck.checked = false;
+            partialDetails.classList.add('d-none');
+            paidTodayInput.value = totals.total.toFixed(2);
+            dueText.value = '$0.00';
+        }
+
         // Actualizar método de pago activo en la cuadrícula
         document.querySelectorAll('#paymentMethodBtnGroup [data-method]').forEach(lbl => {
             if (lbl.dataset.method === tab.paymentMethod) {
@@ -1100,17 +1227,36 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        const mixBox = document.getElementById('posMixedPaymentBox');
-        if (tab.paymentMethod === 'mixto') {
-            mixBox.classList.remove('d-none');
-        } else {
-            mixBox.classList.add('d-none');
-        }
+        // Mostrar u ocultar cajas según el método de pago activo
+        $('#posBoxEfectivo, #posBoxTarjeta, #posBoxTransferencia, #posBoxMixto').addClass('d-none');
+        const targetTotal = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
 
-        document.getElementById('mixCashInput').value = tab.mixCash || 0;
-        document.getElementById('mixCardInput').value = tab.mixCard || 0;
-        document.getElementById('mixTransferInput').value = tab.mixTransfer || 0;
-        document.getElementById('posCashReceivedInput').value = tab.cashReceived || '';
+        if (tab.paymentMethod === 'efectivo') {
+            $('#posBoxEfectivo').removeClass('d-none');
+            const cashVal = (tab.cashAmount !== undefined && tab.cashAmount !== '') ? tab.cashAmount : targetTotal.toFixed(2);
+            document.getElementById('posCashAmountInput').value = cashVal;
+            document.getElementById('posCashReceivedInput').value = tab.cashReceived || '';
+        } else if (tab.paymentMethod === 'tarjeta') {
+            $('#posBoxTarjeta').removeClass('d-none');
+            const cardVal = (tab.cardAmount !== undefined && tab.cardAmount !== '') ? tab.cardAmount : targetTotal.toFixed(2);
+            document.getElementById('posCardAmountInput').value = cardVal;
+            document.getElementById('posCardRefInput').value = tab.cardRef || '';
+        } else if (tab.paymentMethod === 'transferencia') {
+            $('#posBoxTransferencia').removeClass('d-none');
+            const transVal = (tab.transferAmount !== undefined && tab.transferAmount !== '') ? tab.transferAmount : targetTotal.toFixed(2);
+            document.getElementById('posTransferAmountInput').value = transVal;
+            document.getElementById('posTransferRefInput').value = tab.transferRef || '';
+        } else if (tab.paymentMethod === 'mixto') {
+            $('#posBoxMixto').removeClass('d-none');
+            document.getElementById('lblMixTargetAmount').textContent = '$' + targetTotal.toFixed(2);
+            document.getElementById('mixCashInput').value = tab.mixCash !== undefined ? tab.mixCash : 0;
+            document.getElementById('mixCardInput').value = tab.mixCard !== undefined ? tab.mixCard : 0;
+            document.getElementById('mixTransferInput').value = tab.mixTransfer !== undefined ? tab.mixTransfer : 0;
+            document.getElementById('posMixCashReceivedInput').value = tab.mixCashReceived || '';
+            document.getElementById('mixCardRefInput').value = tab.cardRef || '';
+            document.getElementById('mixTransferRefInput').value = tab.transferRef || '';
+            renderMixFaltanteAlert(targetTotal);
+        }
 
         updateChangeCalculation();
         if (typeof renderOpenLoansList === 'function') {
@@ -1118,15 +1264,65 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function renderMixFaltanteAlert(targetTotal) {
+        const tab = getActiveTab();
+        const container = document.getElementById('posMixFaltanteAlertContainer');
+        if (!container) return;
+
+        const cash = parseFloat(tab.mixCash) || 0;
+        const card = parseFloat(tab.mixCard) || 0;
+        const transfer = parseFloat(tab.mixTransfer) || 0;
+        const sum = Math.round((cash + card + transfer) * 100) / 100;
+        const diff = Math.round((targetTotal - sum) * 100) / 100;
+
+        if (diff > 0.005) {
+            container.innerHTML = `
+                <div class="alert alert-danger py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-circle-exclamation mr-1"></i>Cantidad Faltante:</span>
+                    <span class="badge badge-danger font-size-14 px-2 py-1">$${diff.toFixed(2)}</span>
+                </div>
+                <small class="text-danger d-block font-size-11 font-weight-bold">
+                    Asignado: $${sum.toFixed(2)} / Total: $${targetTotal.toFixed(2)}. Falta cubrir <strong>$${diff.toFixed(2)}</strong>.
+                </small>
+            `;
+        } else if (Math.abs(diff) <= 0.005) {
+            container.innerHTML = `
+                <div class="alert alert-success py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-circle-check mr-1"></i>¡Monto Cubierto al 100%!</span>
+                    <span class="badge badge-success font-size-13">$${sum.toFixed(2)}</span>
+                </div>
+            `;
+        } else {
+            const extra = Math.abs(diff);
+            container.innerHTML = `
+                <div class="alert alert-warning py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-triangle-exclamation mr-1"></i>Excedente sobre el Total:</span>
+                    <span class="badge badge-warning font-size-13 text-dark">+$${extra.toFixed(2)}</span>
+                </div>
+                <small class="text-warning d-block font-size-11 font-weight-bold">
+                    La suma asignada ($${sum.toFixed(2)}) supera el total por $${extra.toFixed(2)}.
+                </small>
+            `;
+        }
+    }
+
     function updateChangeCalculation() {
         const tab = getActiveTab();
         const totals = calculateTabTotals(tab);
-        const cashToPay = tab.paymentMethod === 'mixto'
-            ? (parseFloat(tab.mixCash) || 0)
-            : (tab.paymentMethod === 'efectivo' ? totals.total : 0);
-        const received = parseFloat(document.getElementById('posCashReceivedInput').value) || 0;
-        const change = Math.max(0, received - cashToPay);
-        document.getElementById('posChangeOutput').value = '$' + change.toFixed(2);
+        const targetTotal = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
+
+        if (tab.paymentMethod === 'efectivo') {
+            const cashToPay = parseFloat(document.getElementById('posCashAmountInput').value) || targetTotal;
+            const received = parseFloat(document.getElementById('posCashReceivedInput').value) || 0;
+            const change = Math.max(0, received - cashToPay);
+            document.getElementById('posChangeOutput').value = '$' + change.toFixed(2);
+        } else if (tab.paymentMethod === 'mixto') {
+            const cashPortion = parseFloat(tab.mixCash) || 0;
+            const received = parseFloat(document.getElementById('posMixCashReceivedInput').value) || 0;
+            const change = Math.max(0, received - cashPortion);
+            document.getElementById('posMixChangeOutput').value = '$' + change.toFixed(2);
+            renderMixFaltanteAlert(targetTotal);
+        }
     }
 
     function renderAll() {
@@ -1257,13 +1453,152 @@ document.addEventListener('DOMContentLoaded', function () {
             tab.paymentMethod = this.dataset.method;
             if (tab.paymentMethod === 'mixto') {
                 const totals = calculateTabTotals(tab);
-                tab.mixCash = totals.total;
+                const base = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
+                tab.mixCash = base;
                 tab.mixCard = 0;
                 tab.mixTransfer = 0;
             }
             saveState();
             renderActiveCart();
         });
+    });
+
+    document.getElementById('posPartialPayCheck').addEventListener('change', function () {
+        const tab = getActiveTab();
+        const totals = calculateTabTotals(tab);
+        tab.isPartial = this.checked;
+        if (tab.isPartial) {
+            if (tab.paidToday === undefined || tab.paidToday === '') {
+                tab.paidToday = 0;
+            }
+        }
+        saveState();
+        renderActiveCart();
+    });
+
+    document.getElementById('posPaidTodayInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        const totals = calculateTabTotals(tab);
+        let val = parseFloat(this.value);
+        if (isNaN(val) || val < 0) val = 0;
+        tab.paidToday = this.value;
+        const due = Math.max(0, totals.total - val);
+        document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
+        if (tab.paymentMethod === 'efectivo') {
+            tab.cashAmount = val;
+            document.getElementById('posCashAmountInput').value = val;
+        } else if (tab.paymentMethod === 'tarjeta') {
+            tab.cardAmount = val;
+            document.getElementById('posCardAmountInput').value = val;
+        } else if (tab.paymentMethod === 'transferencia') {
+            tab.transferAmount = val;
+            document.getElementById('posTransferAmountInput').value = val;
+        } else if (tab.paymentMethod === 'mixto') {
+            tab.mixCash = val;
+            tab.mixCard = 0;
+            tab.mixTransfer = 0;
+            document.getElementById('mixCashInput').value = val;
+            document.getElementById('mixCardInput').value = 0;
+            document.getElementById('mixTransferInput').value = 0;
+            document.getElementById('lblMixTargetAmount').textContent = '$' + val.toFixed(2);
+            renderMixFaltanteAlert(val);
+        }
+        saveState();
+        updateChangeCalculation();
+    });
+
+    document.getElementById('posCashAmountInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        const totals = calculateTabTotals(tab);
+        const val = parseFloat(this.value);
+        tab.cashAmount = this.value;
+        if (!isNaN(val) && val < totals.total && val >= 0) {
+            tab.isPartial = true;
+            tab.paidToday = val;
+            document.getElementById('posPartialPayCheck').checked = true;
+            $('#posPartialPayDetails').removeClass('d-none');
+            document.getElementById('posPaidTodayInput').value = val;
+            const due = totals.total - val;
+            document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
+        } else if (!isNaN(val) && val >= totals.total) {
+            tab.isPartial = false;
+            tab.paidToday = totals.total;
+            document.getElementById('posPartialPayCheck').checked = false;
+            $('#posPartialPayDetails').addClass('d-none');
+            document.getElementById('posDueBalanceText').value = '$0.00';
+        }
+        saveState();
+        updateChangeCalculation();
+    });
+
+    document.getElementById('posCardAmountInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        const totals = calculateTabTotals(tab);
+        const val = parseFloat(this.value);
+        tab.cardAmount = this.value;
+        if (!isNaN(val) && val < totals.total && val >= 0) {
+            tab.isPartial = true;
+            tab.paidToday = val;
+            document.getElementById('posPartialPayCheck').checked = true;
+            $('#posPartialPayDetails').removeClass('d-none');
+            document.getElementById('posPaidTodayInput').value = val;
+            const due = totals.total - val;
+            document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
+        } else if (!isNaN(val) && val >= totals.total) {
+            tab.isPartial = false;
+            tab.paidToday = totals.total;
+            document.getElementById('posPartialPayCheck').checked = false;
+            $('#posPartialPayDetails').addClass('d-none');
+            document.getElementById('posDueBalanceText').value = '$0.00';
+        }
+        saveState();
+    });
+
+    document.getElementById('posTransferAmountInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        const totals = calculateTabTotals(tab);
+        const val = parseFloat(this.value);
+        tab.transferAmount = this.value;
+        if (!isNaN(val) && val < totals.total && val >= 0) {
+            tab.isPartial = true;
+            tab.paidToday = val;
+            document.getElementById('posPartialPayCheck').checked = true;
+            $('#posPartialPayDetails').removeClass('d-none');
+            document.getElementById('posPaidTodayInput').value = val;
+            const due = totals.total - val;
+            document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
+        } else if (!isNaN(val) && val >= totals.total) {
+            tab.isPartial = false;
+            tab.paidToday = totals.total;
+            document.getElementById('posPartialPayCheck').checked = false;
+            $('#posPartialPayDetails').addClass('d-none');
+            document.getElementById('posDueBalanceText').value = '$0.00';
+        }
+        saveState();
+    });
+
+    document.getElementById('posCardRefInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.cardRef = this.value;
+        saveState();
+    });
+
+    document.getElementById('posTransferRefInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.transferRef = this.value;
+        saveState();
+    });
+
+    document.getElementById('mixCardRefInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.cardRef = this.value;
+        saveState();
+    });
+
+    document.getElementById('mixTransferRefInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.transferRef = this.value;
+        saveState();
     });
 
     ['mixCashInput', 'mixCardInput', 'mixTransferInput'].forEach(id => {
@@ -1275,6 +1610,13 @@ document.addEventListener('DOMContentLoaded', function () {
             saveState();
             updateChangeCalculation();
         });
+    });
+
+    document.getElementById('posMixCashReceivedInput').addEventListener('input', function () {
+        const tab = getActiveTab();
+        tab.mixCashReceived = this.value;
+        saveState();
+        updateChangeCalculation();
     });
 
     document.getElementById('posCashReceivedInput').addEventListener('input', function () {
@@ -1701,9 +2043,54 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('btnCompleteUnifiedSale').addEventListener('click', function () {
         const tab = getActiveTab();
+        const totals = calculateTabTotals(tab);
         if (tab.items.length === 0) {
             alert('Esta pestaña no tiene conceptos agregados.');
             return;
+        }
+
+        const effectivePaidAmount = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
+        const effectiveDueAmount = Math.max(0, totals.total - effectivePaidAmount);
+
+        if (effectiveDueAmount > 0) {
+            const cName = (tab.customerName || '').trim();
+            if (!cName || cName.toLowerCase() === 'cliente mostrador') {
+                alert('⚠️ Para registrar una Nota con Saldo Pendiente (el cliente queda debiendo $' + effectiveDueAmount.toFixed(2) + '), es obligatorio escribir o seleccionar el Nombre del Cliente.');
+                document.getElementById('tabCustomerName').focus();
+                return;
+            }
+        }
+
+        let cashAmt = 0;
+        let cardAmt = 0;
+        let transAmt = 0;
+        let refs = {};
+
+        if (tab.paymentMethod === 'efectivo') {
+            cashAmt = effectivePaidAmount;
+        } else if (tab.paymentMethod === 'tarjeta') {
+            cardAmt = effectivePaidAmount;
+            refs.card_ref = tab.cardRef || '';
+        } else if (tab.paymentMethod === 'transferencia') {
+            transAmt = effectivePaidAmount;
+            refs.transfer_ref = tab.transferRef || '';
+        } else if (tab.paymentMethod === 'mixto') {
+            cashAmt = parseFloat(tab.mixCash) || 0;
+            cardAmt = parseFloat(tab.mixCard) || 0;
+            transAmt = parseFloat(tab.mixTransfer) || 0;
+            refs.card_ref = tab.cardRef || '';
+            refs.transfer_ref = tab.transferRef || '';
+
+            const sumMix = Math.round((cashAmt + cardAmt + transAmt) * 100) / 100;
+            const diffMix = Math.round((effectivePaidAmount - sumMix) * 100) / 100;
+
+            if (diffMix > 0.05) {
+                alert(`⚠️ En Pago Mixto, falta cubrir $${diffMix.toFixed(2)}.\n\nTotal a cobrar: $${effectivePaidAmount.toFixed(2)}\nSuma asignada: $${sumMix.toFixed(2)}\nCantidad Faltante: $${diffMix.toFixed(2)}`);
+                return;
+            } else if (diffMix < -0.05) {
+                alert(`⚠️ En Pago Mixto, la suma asignada ($${sumMix.toFixed(2)}) excede el total a cobrar ($${effectivePaidAmount.toFixed(2)}) por $${Math.abs(diffMix).toFixed(2)}.`);
+                return;
+            }
         }
 
         const btn = this;
@@ -1722,10 +2109,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 customer_name: tab.customerName || 'Cliente Mostrador',
                 customer_phone: tab.customerPhone || null,
                 payment_method: tab.paymentMethod,
-                cash_amount: tab.mixCash,
-                card_amount: tab.mixCard,
-                transfer_amount: tab.mixTransfer,
-                cash_received: parseFloat(tab.cashReceived) || 0,
+                cash_amount: cashAmt,
+                card_amount: cardAmt,
+                transfer_amount: transAmt,
+                payment_references: refs,
+                cash_received: parseFloat(tab.paymentMethod === 'mixto' ? (tab.mixCashReceived || tab.cashReceived) : tab.cashReceived) || 0,
+                paid_amount: tab.isPartial ? effectivePaidAmount : null,
                 open_drawer: document.getElementById('posOpenDrawerCheck').checked ? 1 : 0,
                 items: tab.items
             })
@@ -1743,6 +2132,17 @@ document.addEventListener('DOMContentLoaded', function () {
             tab.customerPhone = '';
             tab.customerId = '';
             tab.cashReceived = '';
+            tab.isPartial = false;
+            tab.paidToday = '';
+            tab.cashAmount = '';
+            tab.cardAmount = '';
+            tab.transferAmount = '';
+            tab.cardRef = '';
+            tab.transferRef = '';
+            tab.mixCash = 0;
+            tab.mixCard = 0;
+            tab.mixTransfer = 0;
+            tab.mixCashReceived = '';
             saveState();
             renderAll();
 

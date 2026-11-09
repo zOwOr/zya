@@ -268,6 +268,7 @@ class UnifiedPosController extends Controller
             'card_amount' => 'nullable|numeric|min:0',
             'transfer_amount' => 'nullable|numeric|min:0',
             'cash_received' => 'nullable|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0',
             'payment_references' => 'nullable|array',
             'open_drawer' => 'nullable|boolean',
             'notes' => 'nullable|string|max:1000',
@@ -334,15 +335,61 @@ class UnifiedPosController extends Controller
         $totalAmount = round($subtotal + $commissionTotal, 2);
         $method = $validated['payment_method'];
 
-        $cashAmount = $method === 'mixto' ? round((float) ($validated['cash_amount'] ?? 0), 2) : ($method === 'efectivo' ? $totalAmount : 0);
-        $cardAmount = $method === 'mixto' ? round((float) ($validated['card_amount'] ?? 0), 2) : ($method === 'tarjeta' ? $totalAmount : 0);
-        $transferAmount = $method === 'mixto' ? round((float) ($validated['transfer_amount'] ?? 0), 2) : ($method === 'transferencia' ? $totalAmount : 0);
+        $hasCustomPaidAmount = isset($validated['paid_amount']) && $validated['paid_amount'] !== null && $validated['paid_amount'] !== '';
 
-        if ($method === 'mixto' && abs(($cashAmount + $cardAmount + $transferAmount) - $totalAmount) > 0.05) {
-            return response()->json([
-                'success' => false,
-                'message' => 'En Pago Mixto, la suma de Efectivo + Tarjeta + Transferencia debe ser igual al total a cobrar ($' . number_format($totalAmount, 2) . ').'
-            ], 422);
+        if ($method === 'efectivo') {
+            $cashAmount = isset($validated['cash_amount']) && $validated['cash_amount'] !== null && $validated['cash_amount'] !== '' 
+                ? round((float) $validated['cash_amount'], 2) 
+                : ($hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : $totalAmount);
+            $cardAmount = 0;
+            $transferAmount = 0;
+            $paidToday = min($totalAmount, $cashAmount);
+        } elseif ($method === 'tarjeta') {
+            $cardAmount = isset($validated['card_amount']) && $validated['card_amount'] !== null && $validated['card_amount'] !== '' 
+                ? round((float) $validated['card_amount'], 2) 
+                : ($hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : $totalAmount);
+            $cashAmount = 0;
+            $transferAmount = 0;
+            $paidToday = min($totalAmount, $cardAmount);
+        } elseif ($method === 'transferencia') {
+            $transferAmount = isset($validated['transfer_amount']) && $validated['transfer_amount'] !== null && $validated['transfer_amount'] !== '' 
+                ? round((float) $validated['transfer_amount'], 2) 
+                : ($hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : $totalAmount);
+            $cashAmount = 0;
+            $cardAmount = 0;
+            $paidToday = min($totalAmount, $transferAmount);
+        } else { // mixto
+            $cashAmount = round((float) ($validated['cash_amount'] ?? 0), 2);
+            $cardAmount = round((float) ($validated['card_amount'] ?? 0), 2);
+            $transferAmount = round((float) ($validated['transfer_amount'] ?? 0), 2);
+            $sumMix = round($cashAmount + $cardAmount + $transferAmount, 2);
+            $paidToday = $hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : min($totalAmount, $sumMix);
+
+            if (abs($sumMix - $paidToday) > 0.05) {
+                $faltante = round($paidToday - $sumMix, 2);
+                if ($faltante > 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'En Pago Mixto, falta asignar $' . number_format($faltante, 2) . ' para cubrir el monto a cobrar ($' . number_format($paidToday, 2) . ').'
+                    ], 422);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'En Pago Mixto, la suma asignada excede el monto a cobrar por $' . number_format(abs($faltante), 2) . '.'
+                    ], 422);
+                }
+            }
+        }
+
+        $dueAmount = max(0, round($totalAmount - $paidToday, 2));
+
+        if ($dueAmount > 0) {
+            if ($resolvedCustomerName === '' || $resolvedCustomerName === 'Cliente Mostrador') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Para dejar una Nota con Saldo Pendiente (el cliente queda debiendo $' . number_format($dueAmount, 2) . '), es obligatorio ingresar o seleccionar al Cliente.',
+                ], 422);
+            }
         }
 
         $cashReceived = (float) ($validated['cash_received'] ?? $cashAmount);
@@ -356,6 +403,8 @@ class UnifiedPosController extends Controller
                 $subtotal,
                 $commissionTotal,
                 $totalAmount,
+                $paidToday,
+                $dueAmount,
                 $method,
                 $cashAmount,
                 $cardAmount,
@@ -387,6 +436,9 @@ class UnifiedPosController extends Controller
                 }
 
                 $txCode = 'MOV-' . date('Ymd') . '-' . strtoupper(Str::random(5));
+                $txNotes = $dueAmount > 0
+                    ? ("Nota con saldo pendiente. Total: $" . number_format($totalAmount, 2) . " | Abonó: $" . number_format($paidToday, 2) . " | Resta: $" . number_format($dueAmount, 2) . (!empty($validated['notes']) ? " - " . $validated['notes'] : ""))
+                    : ($validated['notes'] ?? null);
 
                 $posTx = PosTransaction::create([
                     'transaction_code' => $txCode,
@@ -398,7 +450,7 @@ class UnifiedPosController extends Controller
                     'subtotal' => $subtotal,
                     'commission_total' => $commissionTotal,
                     'total_amount' => $totalAmount,
-                    'paid_amount' => $totalAmount + $changeAmount,
+                    'paid_amount' => $paidToday + $changeAmount,
                     'change_amount' => $changeAmount,
                     'payment_method' => $method,
                     'cash_amount' => $cashAmount,
@@ -408,7 +460,7 @@ class UnifiedPosController extends Controller
                     'items_payload' => $items,
                     'drawer_opened' => (bool) ($validated['open_drawer'] ?? true),
                     'status' => 'completado',
-                    'notes' => $validated['notes'] ?? null,
+                    'notes' => $txNotes,
                 ]);
 
                 // 2. Si hay productos (de inventario o dinámicos), crear registro en Order y OrderDetails
@@ -436,22 +488,34 @@ class UnifiedPosController extends Controller
                     ]);
 
                     $orderCustomerId = $resolvedCustomerId ?: (Customer::value('id') ?? 1);
+                    $orderPay = ($totalAmount > 0) ? round(($productSubtotal / $totalAmount) * $paidToday, 2) : $productSubtotal;
+                    $orderDue = max(0, round($productSubtotal - $orderPay, 2));
+                    $orderStatus = ($orderDue <= 0) ? 'complete' : 'pending';
+                    $paymentStatusText = ($orderDue <= 0) ? $method : ($orderPay > 0 ? 'Parcial (' . strtoupper($method) . ')' : 'Pendiente');
 
-                    $orderId = Order::insertGetId([
+                    $orderData = [
                         'customer_id' => $orderCustomerId,
                         'order_date' => Carbon::now()->format('Y-m-d'),
-                        'order_status' => 'complete',
+                        'order_status' => $orderStatus,
                         'total_products' => $totalQty,
                         'sub_total' => $productSubtotal,
                         'vat' => 0,
                         'invoice_no' => $invoiceNo,
                         'total' => $productSubtotal,
-                        'payment_status' => $method,
-                        'pay' => $productSubtotal,
-                        'due' => 0,
+                        'payment_status' => $paymentStatusText,
+                        'pay' => $orderPay,
+                        'due' => $orderDue,
                         'created_at' => Carbon::now(),
                         'updated_at' => Carbon::now(),
-                    ]);
+                    ];
+                    if (Schema::hasColumn('orders', 'branch_id')) {
+                        $orderData['branch_id'] = $branchId;
+                    }
+                    if (Schema::hasColumn('orders', 'user_id')) {
+                        $orderData['user_id'] = auth()->id();
+                    }
+
+                    $orderId = Order::insertGetId($orderData);
 
                     $posTx->update(['order_id' => $orderId]);
 
@@ -505,46 +569,52 @@ class UnifiedPosController extends Controller
                         'transferencia' => 'Cheque',
                         'tarjeta' => 'Due',
                     ];
+                    $hasNoteCol = Schema::hasColumn('payment_histories', 'note');
+
                     if ($method === 'mixto') {
                         if ($cashAmount > 0) {
-                            PaymentHistory::create([
+                            $hData = [
                                 'order_id' => $orderId,
                                 'amount' => $cashAmount,
                                 'method' => 'HandCash',
-                                'note' => "Pago mixto (Efectivo) - {$resolvedCustomerName}",
                                 'user_id' => auth()->id(),
                                 'branch_id' => $branchId,
-                            ]);
+                            ];
+                            if ($hasNoteCol) $hData['note'] = "Pago mixto (Efectivo) - {$resolvedCustomerName}";
+                            PaymentHistory::create($hData);
                         }
                         if ($cardAmount > 0) {
-                            PaymentHistory::create([
+                            $hData = [
                                 'order_id' => $orderId,
                                 'amount' => $cardAmount,
                                 'method' => 'Due',
-                                'note' => "Pago mixto (Tarjeta) - {$resolvedCustomerName}",
                                 'user_id' => auth()->id(),
                                 'branch_id' => $branchId,
-                            ]);
+                            ];
+                            if ($hasNoteCol) $hData['note'] = "Pago mixto (Tarjeta) - {$resolvedCustomerName}";
+                            PaymentHistory::create($hData);
                         }
                         if ($transferAmount > 0) {
-                            PaymentHistory::create([
+                            $hData = [
                                 'order_id' => $orderId,
                                 'amount' => $transferAmount,
                                 'method' => 'Cheque',
-                                'note' => "Pago mixto (Transferencia) - {$resolvedCustomerName}",
                                 'user_id' => auth()->id(),
                                 'branch_id' => $branchId,
-                            ]);
+                            ];
+                            if ($hasNoteCol) $hData['note'] = "Pago mixto (Transferencia) - {$resolvedCustomerName}";
+                            PaymentHistory::create($hData);
                         }
                     } else {
-                        PaymentHistory::create([
+                        $hData = [
                             'order_id' => $orderId,
                             'amount' => $productSubtotal,
                             'method' => $methodMap[$method] ?? 'HandCash',
-                            'note' => "Venta POS Centralizado - {$resolvedCustomerName}",
                             'user_id' => auth()->id(),
                             'branch_id' => $branchId,
-                        ]);
+                        ];
+                        if ($hasNoteCol) $hData['note'] = "Venta POS Centralizado - {$resolvedCustomerName}";
+                        PaymentHistory::create($hData);
                     }
                 }
 
@@ -831,13 +901,14 @@ class UnifiedPosController extends Controller
                     }
                 }
 
-                // 4. Registrar impacto en Caja (CashFlow) para corte diario con desglose por cliente y método
-                if ($totalAmount > 0) {
+                // 4. Registrar impacto en Caja (CashFlow) para corte diario con desglose por cliente y método (únicamente el monto cobrado hoy)
+                if ($paidToday > 0) {
                     $conceptsSummary = collect($items)->map(fn($i) => $i['title'] ?? $i['section'])->implode(' | ');
+                    $cfDesc = "Cobro Centralizado ({$txCode})" . ($dueAmount > 0 ? " [Abono/Saldo Pendiente $" . number_format($dueAmount, 2) . "]" : "") . ": {$conceptsSummary}";
                     CashFlowService::register(
                         'income',
-                        $totalAmount,
-                        Str::limit("Cobro Centralizado ({$txCode}): {$conceptsSummary}", 245),
+                        $paidToday,
+                        Str::limit($cfDesc, 245),
                         $txCode,
                         'Cobro Centralizado',
                         $branchId,
