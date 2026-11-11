@@ -17,12 +17,14 @@
                     <span>Principal</span>
                 </li>
 
-                <li class="{{ Request::is('dashboard*') ? 'active' : '' }}">
-                    <a href="{{ route('dashboard') }}" class="svg-icon">
-                        <i class="fa-solid fa-chart-pie text-primary"></i>
-                        <span class="ml-3">Dashboard</span>
-                    </a>
-                </li>
+                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.menu') || auth()->user()->can('dashboard.read'))
+                    <li class="{{ Request::is('dashboard*') ? 'active' : '' }}">
+                        <a href="{{ route('dashboard') }}" class="svg-icon">
+                            <i class="fa-solid fa-chart-pie text-primary"></i>
+                            <span class="ml-3">Dashboard</span>
+                        </a>
+                    </li>
+                @endif
 
                 @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.menu') || auth()->user()->can('cobros.read') || auth()->user()->can('pos.menu'))
                     <li class="{{ Request::is('central-pos*') ? 'active' : '' }}">

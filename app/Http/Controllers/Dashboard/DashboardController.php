@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
 use App\Models\FinFinanciera;
 use App\Models\FinSalePayment;
@@ -17,9 +18,30 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class DashboardController extends Controller
 {
+    use ModulePermissionTrait;
+
+    protected ?string $permissionResource = 'dashboard';
+
+    protected array $permissionMapping = [
+        'index' => 'read',
+        'exportFinancieraPaymentsPdf' => 'export',
+        'exportFinancieraPaymentsExcel' => 'export',
+        'cancelTransaction' => 'cancel_transaction',
+    ];
+
+    public function __construct()
+    {
+        $this->initializeModulePermission();
+    }
+
     protected function canAccessAllBranches(): bool
     {
-        return auth()->check() && (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.all_branches') || auth()->user()->can('financieras.all_branches'));
+        return auth()->check() && (
+            auth()->user()->isSuperAdmin() ||
+            auth()->user()->can('dashboard.all_branches') ||
+            auth()->user()->can('cobros.all_branches') ||
+            auth()->user()->can('financieras.all_branches')
+        );
     }
 
     protected function resolveBranchFilter(Request $request): ?int
@@ -212,7 +234,7 @@ class DashboardController extends Controller
      */
     public function cancelTransaction(Request $request, PosTransaction $transaction)
     {
-        if (!auth()->user()->isSuperAdmin() && !auth()->user()->can('cobros.cancel_transaction')) {
+        if (!auth()->user()->isSuperAdmin() && !auth()->user()->can('dashboard.cancel_transaction') && !auth()->user()->can('cobros.cancel_transaction')) {
             abort(403, 'No tienes permisos para cancelar movimientos de cobro centralizado.');
         }
 

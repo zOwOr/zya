@@ -43,10 +43,18 @@ Route::get('/', function () {
 
 // DEFAULT DASHBOARD & PROFILE
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/financieras/export-pdf', [DashboardController::class, 'exportFinancieraPaymentsPdf'])->name('dashboard.financieras.pdf');
-    Route::get('/dashboard/financieras/export-excel', [DashboardController::class, 'exportFinancieraPaymentsExcel'])->name('dashboard.financieras.excel');
-    Route::post('/dashboard/transactions/{transaction}/cancel', [DashboardController::class, 'cancelTransaction'])->name('dashboard.transactions.cancel');
+    Route::middleware(['permission:dashboard.menu|dashboard.read'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/financieras/export-pdf', [DashboardController::class, 'exportFinancieraPaymentsPdf'])
+            ->middleware('permission:dashboard.export|financieras.dashboard_payments|financieras.export')
+            ->name('dashboard.financieras.pdf');
+        Route::get('/dashboard/financieras/export-excel', [DashboardController::class, 'exportFinancieraPaymentsExcel'])
+            ->middleware('permission:dashboard.export|financieras.dashboard_payments|financieras.export')
+            ->name('dashboard.financieras.excel');
+        Route::post('/dashboard/transactions/{transaction}/cancel', [DashboardController::class, 'cancelTransaction'])
+            ->middleware('permission:dashboard.cancel_transaction|cobros.cancel_transaction')
+            ->name('dashboard.transactions.cancel');
+    });
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
