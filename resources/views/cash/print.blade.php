@@ -39,8 +39,8 @@
                                 <td class="text-right font-weight-bold text-danger">${{ number_format($dailyCut->total_expense ?? 0, 2) }}</td>
                             </tr>
                             <tr class="table-active font-weight-bold">
-                                <th>Saldo Final en Caja</th>
-                                <td class="text-right">${{ number_format($dailyCut->balance ?? 0, 2) }}</td>
+                                <th>Saldo Final en Caja (Efectivo Esperado)</th>
+                                <td class="text-right">${{ number_format(($dailyCut->opening_balance ?? 0) + ($dailyCut->cash_income ?? 0) - ($dailyCut->total_expense ?? 0), 2) }}</td>
                             </tr>
                         </tbody>
                     </table>

@@ -52,4 +52,42 @@ class DailyCut extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    /**
+     * Obtiene el saldo inicial (fondo de caja en efectivo) para una sucursal y fecha
+     * a partir del último Corte Z anterior.
+     * Prioriza el efectivo físico declarado (declared_cash) y, si no fue capturado,
+     * calcula únicamente el efectivo esperado de ese corte (sin transferencias ni tarjeta).
+     */
+    public static function resolveOpeningBalance(int $branchId, string $date): float
+    {
+        $lastCut = self::where('branch_id', $branchId)
+            ->where('cut_type', 'corte_z')
+            ->whereDate('date', '<', $date)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$lastCut) {
+            return 0.0;
+        }
+
+        if ($lastCut->declared_cash !== null) {
+            return round((float) $lastCut->declared_cash, 2);
+        }
+
+        $hasMethodBreakdown = ((float) $lastCut->cash_income > 0)
+            || ((float) $lastCut->card_income > 0)
+            || ((float) $lastCut->transfer_income > 0)
+            || ((float) $lastCut->total_income == 0.0);
+
+        if ($hasMethodBreakdown) {
+            return round(
+                (float) $lastCut->opening_balance + (float) $lastCut->cash_income - (float) $lastCut->total_expense,
+                2
+            );
+        }
+
+        return round((float) $lastCut->balance, 2);
+    }
 }

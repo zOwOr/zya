@@ -279,7 +279,7 @@ Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financi
         Route::get('/create', [FinSaleController::class, 'create'])->name('create');
         Route::get('/create-contado', [FinSaleController::class, 'createContado'])->name('create-contado');
         Route::post('/', [FinSaleController::class, 'store'])->name('store');
-        Route::post('/store-contado', [FinSaleController::class, 'storeContado'])->name('storeContado');
+        Route::post('/store-contado', [FinSaleController::class, 'storeContado'])->name('store-contado');
         Route::get('/export/excel', [FinSaleController::class, 'exportExcel'])->name('export.excel');
         Route::get('/template/excel', [FinSaleController::class, 'downloadTemplate'])->name('template.excel');
         Route::post('/import/excel', [FinSaleController::class, 'importExcel'])->name('import.excel');
