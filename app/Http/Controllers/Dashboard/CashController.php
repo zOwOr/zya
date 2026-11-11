@@ -8,8 +8,10 @@ use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
 use App\Models\CashFlow;
 use App\Models\DailyCut;
+use App\Models\Order;
 use App\Models\OrderDetails;
 use App\Models\PaymentHistory;
+use App\Models\PosTransaction;
 use App\Services\CashFlowService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -85,9 +87,13 @@ class CashController extends Controller
             ->when($date, fn($q) => $q->whereDate('created_at', $date))
             ->get();
 
-        $totalIncome = $allForPeriod->where('type', 'income')->sum('amount');
-        $totalExpense = $allForPeriod->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount);
-        $balance = $totalIncome - $totalExpense;
+        $totalIncome = (float) $allForPeriod->where('type', 'income')->sum('amount');
+        $totalExpense = (float) $allForPeriod->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount);
+        $cashIncome = (float) $allForPeriod->where('type', 'income')->sum(fn($f) => $f->effective_cash_amount);
+        $cardIncome = (float) $allForPeriod->where('type', 'income')->sum(fn($f) => $f->effective_card_amount);
+        $transferIncome = (float) $allForPeriod->where('type', 'income')->sum(fn($f) => $f->effective_transfer_amount);
+        $cashBalance = round($cashIncome - $totalExpense, 2);
+        $balance = round($totalIncome - $totalExpense, 2);
 
         // Desglose por cliente del día/periodo consultado
         $customerMovements = $allForPeriod->groupBy(fn($f) => $f->customer_display_name)
@@ -113,6 +119,10 @@ class CashController extends Controller
             'date',
             'totalIncome',
             'totalExpense',
+            'cashIncome',
+            'cardIncome',
+            'transferIncome',
+            'cashBalance',
             'balance',
             'perPage',
             'customerMovements',
@@ -158,7 +168,7 @@ class CashController extends Controller
             ->whereNotIn('order_id', $specialProviderOrderIds)
             ->get();
 
-        $cashFlows = CashFlow::with('user')
+        $cashFlows = CashFlow::with(['user', 'posTransaction'])
             ->where('branch_id', $branchId)
             ->whereDate('created_at', $selectedDate)
             ->when($search, function ($q) use ($search) {
@@ -174,7 +184,7 @@ class CashController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $allDailyCashFlows = CashFlow::with('user')
+        $allDailyCashFlows = CashFlow::with(['user', 'posTransaction'])
             ->where('branch_id', $branchId)
             ->whereDate('created_at', $selectedDate)
             ->orderByDesc('created_at')
@@ -264,6 +274,10 @@ class CashController extends Controller
             : Branch::where('id', $branchId)->get();
         $currentBranch = $branches->firstWhere('id', $branchId) ?? Branch::find($branchId);
 
+        $pendingDueTotal = $this->resolvePendingDueTotal($branchId, $selectedDate);
+        $expectedCash = round($openingBalance + $handCash - $totalExpense, 2);
+        $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+
         return view('cash.daily-cut', compact(
             'cashFlows',
             'specialProviderPayments',
@@ -281,7 +295,10 @@ class CashController extends Controller
             'moduleBreakdown',
             'branches',
             'branchId',
-            'currentBranch'
+            'currentBranch',
+            'pendingDueTotal',
+            'expectedCash',
+            'chronologicalOperations'
         ));
     }
 
@@ -395,11 +412,18 @@ class CashController extends Controller
     public function applyCut(Request $request)
     {
         $validated = $request->validate([
-            'declared_cash' => 'required|numeric|min:0',
+            'declared_cash' => 'nullable|numeric|min:0',
             'withdraw_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:500',
+            'denominations' => 'nullable|array',
+            'denominations.b1000' => 'nullable|integer|min:0',
+            'denominations.b500' => 'nullable|integer|min:0',
+            'denominations.b200' => 'nullable|integer|min:0',
+            'denominations.b100' => 'nullable|integer|min:0',
+            'denominations.b50' => 'nullable|integer|min:0',
+            'denominations.b20' => 'nullable|integer|min:0',
+            'denominations.coins' => 'nullable|numeric|min:0',
         ], [
-            'declared_cash.required' => 'Debes capturar el efectivo físico contado en cajón para aplicar el Corte Final (Corte Z).',
             'declared_cash.numeric' => 'El efectivo físico contado debe ser un monto numérico válido.',
             'declared_cash.min' => 'El efectivo físico contado no puede ser negativo.',
         ]);
@@ -444,9 +468,48 @@ class CashController extends Controller
             $totalExpense = round($totalExpense + $withdrawAmount, 2);
         }
 
+        // Conteo físico por denominación
+        $denominations = $request->input('denominations', []);
+        $b1000 = max(0, (int) ($denominations['b1000'] ?? ($denominations['1000'] ?? 0)));
+        $b500 = max(0, (int) ($denominations['b500'] ?? ($denominations['500'] ?? 0)));
+        $b200 = max(0, (int) ($denominations['b200'] ?? ($denominations['200'] ?? 0)));
+        $b100 = max(0, (int) ($denominations['b100'] ?? ($denominations['100'] ?? 0)));
+        $b50 = max(0, (int) ($denominations['b50'] ?? ($denominations['50'] ?? 0)));
+        $b20 = max(0, (int) ($denominations['b20'] ?? ($denominations['20'] ?? 0)));
+        $coins = max(0, round((float) ($denominations['coins'] ?? 0), 2));
+
+        $calcFromDenoms = round(
+            ($b1000 * 1000) +
+            ($b500 * 500) +
+            ($b200 * 200) +
+            ($b100 * 100) +
+            ($b50 * 50) +
+            ($b20 * 20) +
+            $coins,
+            2
+        );
+
+        $hasDenomInput = !empty($denominations) && ($calcFromDenoms > 0 || $coins > 0);
+        $declaredCash = $hasDenomInput
+            ? $calcFromDenoms
+            : round((float) ($validated['declared_cash'] ?? 0), 2);
+
+        $denominationBreakdown = [
+            'b1000' => $b1000,
+            'b500' => $b500,
+            'b200' => $b200,
+            'b100' => $b100,
+            'b50' => $b50,
+            'b20' => $b20,
+            'coins' => $coins,
+            'total' => $declaredCash,
+        ];
+
+        // Efectivo esperado en caja (saldo inicial + ingresos en efectivo - egresos en efectivo)
         $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
-        $finalBalance = $expectedCash;
-        $declaredCash = round((float) $validated['declared_cash'], 2);
+        // Saldo final contable global (saldo inicial + total ingresos - egresos)
+        $finalBalance = round($openingBalance + $totalIncome - $totalExpense, 2);
+        // Diferencia contra efectivo esperado
         $difference = round($declaredCash - $expectedCash, 2);
 
         $customerBreakdown = $flows->groupBy(fn($f) => $f->customer_display_name)
@@ -475,6 +538,7 @@ class CashController extends Controller
             'balance' => $finalBalance,
             'declared_cash' => $declaredCash,
             'difference_amount' => $difference,
+            'denomination_breakdown' => $denominationBreakdown,
             'customer_breakdown' => $customerBreakdown,
             'notes' => $request->input('notes', 'Corte Final (Corte Z) manual.'),
             'closed_at' => now(),
@@ -544,11 +608,13 @@ class CashController extends Controller
                 ->first();
         }
 
-        $cashFlows = CashFlow::with('user')
+        $cashFlows = CashFlow::with(['user', 'posTransaction'])
             ->where('branch_id', $branchId)
             ->whereDate('created_at', $date)
             ->orderBy('created_at')
             ->get();
+
+        $openingBalance = $dailyCut ? (float) $dailyCut->opening_balance : DailyCut::resolveOpeningBalance($branchId, $date);
 
         if (!$dailyCut) {
             $incomes = $cashFlows->where('type', 'income');
@@ -558,7 +624,8 @@ class CashController extends Controller
             $cardIncome = round((float) $incomes->sum(fn($f) => $f->effective_card_amount), 2);
             $transferIncome = round((float) $incomes->sum(fn($f) => $f->effective_transfer_amount), 2);
             $totalExpense = round((float) $expenses->sum(fn($f) => $f->effective_cash_amount), 2);
-            $openingBalance = DailyCut::resolveOpeningBalance($branchId, $date);
+            $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
+
             $dailyCut = (object) [
                 'date' => $date,
                 'cut_type' => 'pre_corte',
@@ -569,12 +636,99 @@ class CashController extends Controller
                 'card_income' => $cardIncome,
                 'transfer_income' => $transferIncome,
                 'total_expense' => $totalExpense,
-                'balance' => round($openingBalance + $cashIncome - $totalExpense, 2),
+                'withdraw_amount' => 0.00,
+                'balance' => round($openingBalance + $totalIncome - $totalExpense, 2),
+                'declared_cash' => null,
+                'difference_amount' => 0.00,
+                'denomination_breakdown' => null,
+                'branch' => Branch::find($branchId),
+                'user' => auth()->user(),
+            ];
+        } else {
+            $cashIncome = (float) $dailyCut->cash_income;
+            $totalExpense = (float) $dailyCut->total_expense;
+            $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
+        }
+
+        $pendingDueTotal = $this->resolvePendingDueTotal($branchId, $date);
+        $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+
+        return view('cash.print', compact('dailyCut', 'cashFlows', 'expectedCash', 'pendingDueTotal', 'chronologicalOperations'));
+    }
+
+    /**
+     * Construir bitácora cronológica de operaciones agrupadas con detalle por concepto (bullets).
+     */
+    protected function buildChronologicalOperations($cashFlows): array
+    {
+        $operations = [];
+
+        foreach ($cashFlows as $flow) {
+            $concepts = [];
+
+            if ($flow->posTransaction && !empty($flow->posTransaction->items_payload)) {
+                foreach ($flow->posTransaction->items_payload as $item) {
+                    $qty = max(1, (int) ($item['quantity'] ?? 1));
+                    $sec = $item['section'] ?? '';
+                    $unitAmt = (float) ($item['amount'] ?? 0);
+                    $comm = (float) ($item['commission'] ?? 0);
+                    $lineAmt = ($sec === 'prestamo_apertura') ? $comm : ($unitAmt * $qty);
+
+                    $concepts[] = [
+                        'title' => $item['title'] ?? 'Concepto',
+                        'amount' => $lineAmt,
+                        'commission' => $comm,
+                        'quantity' => $qty,
+                        'section' => $sec,
+                    ];
+                }
+            } else {
+                $concepts[] = [
+                    'title' => $flow->description ?: ($flow->module ?: 'Operación en Caja'),
+                    'amount' => (float) $flow->amount,
+                    'commission' => (float) ($flow->commission_amount ?? 0),
+                    'quantity' => 1,
+                    'section' => 'general',
+                ];
+            }
+
+            $operations[] = [
+                'id' => $flow->id,
+                'created_at' => $flow->created_at,
+                'time' => $flow->created_at ? $flow->created_at->format('H:i') : '--:--',
+                'customer_name' => $flow->customer_display_name,
+                'payment_method' => $flow->payment_method ?? 'efectivo',
+                'total_amount' => (float) $flow->amount,
+                'type' => $flow->type,
+                'module' => $flow->module ?: 'General',
+                'reference' => $flow->reference,
+                'user_name' => $flow->user?->name ?? 'Cajero',
+                'concepts' => $concepts,
             ];
         }
 
-        $customerBreakdown = $cashFlows->groupBy(fn($f) => $f->customer_display_name);
+        return $operations;
+    }
 
-        return view('cash.print', compact('dailyCut', 'cashFlows', 'customerBreakdown'));
+    /**
+     * Obtener el total de notas pendientes de pago (saldo pendiente / due) dejadas en la fecha.
+     */
+    protected function resolvePendingDueTotal(int $branchId, string $date): float
+    {
+        $orderDue = (float) Order::where('branch_id', $branchId)
+            ->whereDate('order_date', $date)
+            ->where('due', '>', 0)
+            ->sum('due');
+
+        $posDue = (float) PosTransaction::where('branch_id', $branchId)
+            ->whereDate('created_at', $date)
+            ->where('status', '!=', 'cancelada')
+            ->get()
+            ->sum(function ($tx) {
+                $netPaid = max(0, (float) $tx->paid_amount - (float) $tx->change_amount);
+                return max(0, round((float) $tx->total_amount - $netPaid, 2));
+            });
+
+        return round(max($orderDue, $posDue), 2);
     }
 }

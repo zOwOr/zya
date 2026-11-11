@@ -120,8 +120,9 @@
             <div class="card border-left-success shadow-sm h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Ingresos</div>
-                        <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($totalIncome ?? 0, 2) }}</div>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Ingresos en Efectivo (Caja)</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($cashIncome ?? $totalIncome, 2) }}</div>
+                        <small class="text-muted d-block mt-1">Trf: ${{ number_format($transferIncome ?? 0, 2) }} | Tarj: ${{ number_format($cardIncome ?? 0, 2) }}</small>
                     </div>
                     <i class="las la-arrow-circle-down fa-2x text-success" style="font-size: 2.2rem;"></i>
                 </div>
@@ -131,8 +132,9 @@
             <div class="card border-left-danger shadow-sm h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Total Egresos</div>
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Total Egresos en Efectivo</div>
                         <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($totalExpense ?? 0, 2) }}</div>
+                        <small class="text-muted d-block mt-1">Gastos y salidas físicas de cajón</small>
                     </div>
                     <i class="las la-arrow-circle-up fa-2x text-danger" style="font-size: 2.2rem;"></i>
                 </div>
@@ -142,8 +144,9 @@
             <div class="card border-left-primary shadow-sm h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Flujo Neto del Filtro</div>
-                        <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($balance ?? 0, 2) }}</div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Flujo Neto en Efectivo</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($cashBalance ?? $balance, 2) }}</div>
+                        <small class="text-muted d-block mt-1">Global Contable: ${{ number_format($balance ?? 0, 2) }}</small>
                     </div>
                     <i class="las la-wallet fa-2x text-primary" style="font-size: 2.2rem;"></i>
                 </div>

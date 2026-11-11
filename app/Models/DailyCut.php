@@ -22,6 +22,7 @@ class DailyCut extends Model
         'balance',
         'declared_cash',
         'difference_amount',
+        'denomination_breakdown',
         'customer_breakdown',
         'notes',
         'closed_at',
@@ -39,6 +40,7 @@ class DailyCut extends Model
         'balance' => 'decimal:2',
         'declared_cash' => 'decimal:2',
         'difference_amount' => 'decimal:2',
+        'denomination_breakdown' => 'array',
         'customer_breakdown' => 'array',
         'closed_at' => 'datetime',
     ];
