@@ -103,7 +103,7 @@
                                             <span class="font-weight-bold text-success">${{ number_format($lt->default_opening_fee, 2) }}</span>
                                         </td>
                                         <td>
-                                            <span class="badge badge-light border">{{ ucfirst($lt->default_frequency) }}</span>
+                                            <span class="badge badge-light border">{{ \App\Models\Loan::frequencyLabel($lt->default_frequency) }}</span>
                                             <small class="d-block text-muted">{{ $lt->default_periods }} pagos</small>
                                         </td>
                                         <td>
@@ -209,8 +209,9 @@
                         <div class="col-md-4 form-group">
                             <label class="font-weight-bold">Frecuencia Default <span class="text-danger">*</span></label>
                             <select name="default_frequency" class="form-control" required>
+                                <option value="12_26">12 y 26 (Días 12 y 26 de cada mes)</option>
+                                <option value="quincenal">Quincenal (Días 15 y 30)</option>
                                 <option value="semanal">Semanal</option>
-                                <option value="quincenal">Quincenal</option>
                                 <option value="mensual">Mensual</option>
                             </select>
                         </div>
@@ -289,8 +290,9 @@
                         <div class="col-md-4 form-group">
                             <label class="font-weight-bold">Frecuencia Default <span class="text-danger">*</span></label>
                             <select name="default_frequency" id="editFreqInput" class="form-control" required>
+                                <option value="12_26">12 y 26 (Días 12 y 26 de cada mes)</option>
+                                <option value="quincenal">Quincenal (Días 15 y 30)</option>
                                 <option value="semanal">Semanal</option>
-                                <option value="quincenal">Quincenal</option>
                                 <option value="mensual">Mensual</option>
                             </select>
                         </div>

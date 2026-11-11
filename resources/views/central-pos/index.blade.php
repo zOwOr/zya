@@ -465,38 +465,53 @@
                                             <i class="fa-solid fa-circle-info text-info mr-1"></i>Nota: Solo entra a Caja la Comisión por Apertura. El capital no impacta egreso en esta venta.
                                         </small>
                                         <div class="row">
-                                            <div class="col-md-6 form-group mb-2">
-                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Tipo de Préstamo</label>
-                                                <select id="posNewLoanType" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Seleccionar tipo de préstamo --">
+                                            <div class="col-md-5 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Tipo de Préstamo (Opcional)</label>
+                                                <select id="posNewLoanType" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Sin tipo / Directo --">
+                                                    <option value="">-- Sin tipo / Préstamo Directo --</option>
                                                     @foreach ($loanTypes as $lt)
                                                         <option value="{{ $lt->id }}" data-rate="{{ $lt->default_interest_rate }}" data-fee="{{ $lt->default_opening_fee }}" data-freq="{{ $lt->default_frequency }}" data-periods="{{ $lt->default_periods }}">
-                                                            {{ $lt->name }}
+                                                            {{ $lt->name }} ({{ number_format($lt->default_interest_rate, 0) }}%)
                                                         </option>
                                                     @endforeach
                                                 </select>
                                             </div>
                                             <div class="col-md-3 form-group mb-2">
                                                 <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Capital Prestado ($)</label>
-                                                <input type="number" step="0.01" min="1" id="posNewLoanPrincipal" class="form-control form-control-sm" value="1000">
+                                                <input type="number" step="0.01" min="1" id="posNewLoanPrincipal" class="form-control form-control-sm font-weight-bold" value="5000">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-primary text-uppercase mb-1">Abono por Cuota ($)</label>
+                                                <input type="number" step="0.01" min="0.01" id="posNewLoanInstallment" class="form-control form-control-sm font-weight-bold text-primary border-primary" value="854" placeholder="Ej. 854.00">
+                                            </div>
+
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">No. Pagos</label>
+                                                <input type="number" min="1" id="posNewLoanPeriods" class="form-control form-control-sm font-weight-bold" value="8">
                                             </div>
                                             <div class="col-md-3 form-group mb-2">
-                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Interés (%)</label>
-                                                <input type="number" step="0.01" min="0" id="posNewLoanRate" class="form-control form-control-sm" value="20">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Frecuencia</label>
+                                                <select id="posNewLoanFreq" class="form-control form-control-sm font-weight-bold">
+                                                    <option value="12_26">12 y 26</option>
+                                                    <option value="quincenal">Quincenal (15 y 30)</option>
+                                                    <option value="semanal">Semanal</option>
+                                                    <option value="mensual">Mensual</option>
+                                                </select>
                                             </div>
-                                            <div class="col-md-4 form-group mb-2">
-                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Frecuencia / Pagos</label>
-                                                <div class="input-group input-group-sm">
-                                                    <select id="posNewLoanFreq" class="form-control">
-                                                        <option value="semanal">Semanal</option>
-                                                        <option value="quincenal">Quincenal</option>
-                                                        <option value="mensual">Mensual</option>
-                                                    </select>
-                                                    <input type="number" min="1" id="posNewLoanPeriods" class="form-control" value="8" style="max-width:65px;">
-                                                </div>
+                                            <div class="col-md-3 form-group mb-2">
+                                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Tasa Calculada (%)</label>
+                                                <input type="number" step="0.01" min="0" id="posNewLoanRate" class="form-control form-control-sm font-weight-bold" value="36.64">
                                             </div>
-                                            <div class="col-md-4 form-group mb-2">
+                                            <div class="col-md-3 form-group mb-2">
                                                 <label class="font-size-11 font-weight-bold text-success text-uppercase mb-1">Comisión Apertura ($)</label>
                                                 <input type="number" step="0.01" min="0" id="posNewLoanComm" class="form-control form-control-sm font-weight-bold text-success" value="150">
+                                            </div>
+
+                                            <div class="col-md-8 form-group mb-2 d-flex align-items-center">
+                                                <div class="bg-light px-2 py-1 rounded border w-100">
+                                                    <span class="font-size-12">Total a Pagar: <strong id="posNewLoanTotalPreview" class="text-primary font-size-13">$6,832.00</strong></span>
+                                                    <span class="text-muted font-size-11 ml-2">| Interés: <strong id="posNewLoanInterestPreview">$1,832.00 (36.64%)</strong></span>
+                                                </div>
                                             </div>
                                             <div class="col-md-4 form-group mb-2 d-flex align-items-end">
                                                 <button type="button" id="btnAddNewLoanToTab" class="btn btn-primary btn-sm btn-block font-weight-bold shadow-sm">
@@ -1884,6 +1899,76 @@ document.addEventListener('DOMContentLoaded', function () {
         renderOpenLoansList();
     });
 
+    const posNewLoanType = document.getElementById('posNewLoanType');
+    const posNewLoanPrincipal = document.getElementById('posNewLoanPrincipal');
+    const posNewLoanInstallment = document.getElementById('posNewLoanInstallment');
+    const posNewLoanPeriods = document.getElementById('posNewLoanPeriods');
+    const posNewLoanFreq = document.getElementById('posNewLoanFreq');
+    const posNewLoanRate = document.getElementById('posNewLoanRate');
+    const posNewLoanComm = document.getElementById('posNewLoanComm');
+    const posNewLoanTotalPreview = document.getElementById('posNewLoanTotalPreview');
+    const posNewLoanInterestPreview = document.getElementById('posNewLoanInterestPreview');
+
+    let posLoanLastAction = 'installment';
+
+    function recalcPosNewLoanFromInstallment() {
+        posLoanLastAction = 'installment';
+        const principal = parseFloat(posNewLoanPrincipal.value) || 0;
+        const installment = parseFloat(posNewLoanInstallment.value) || 0;
+        const periods = Math.max(1, parseInt(posNewLoanPeriods.value) || 1);
+
+        const total = installment * periods;
+        const interest = Math.max(0, total - principal);
+        const rate = principal > 0 ? ((interest / principal) * 100) : 0;
+
+        posNewLoanRate.value = rate.toFixed(2);
+        if (posNewLoanTotalPreview) posNewLoanTotalPreview.textContent = '$' + total.toFixed(2);
+        if (posNewLoanInterestPreview) posNewLoanInterestPreview.textContent = '$' + interest.toFixed(2) + ' (' + rate.toFixed(2) + '%)';
+    }
+
+    function recalcPosNewLoanFromRate() {
+        posLoanLastAction = 'rate';
+        const principal = parseFloat(posNewLoanPrincipal.value) || 0;
+        const rate = parseFloat(posNewLoanRate.value) || 0;
+        const periods = Math.max(1, parseInt(posNewLoanPeriods.value) || 1);
+
+        const interest = principal * (rate / 100);
+        const total = principal + interest;
+        const installment = total / periods;
+
+        posNewLoanInstallment.value = installment.toFixed(2);
+        if (posNewLoanTotalPreview) posNewLoanTotalPreview.textContent = '$' + total.toFixed(2);
+        if (posNewLoanInterestPreview) posNewLoanInterestPreview.textContent = '$' + interest.toFixed(2) + ' (' + rate.toFixed(2) + '%)';
+    }
+
+    if (posNewLoanInstallment) {
+        posNewLoanInstallment.addEventListener('input', recalcPosNewLoanFromInstallment);
+        posNewLoanRate.addEventListener('input', recalcPosNewLoanFromRate);
+        posNewLoanPrincipal.addEventListener('input', () => {
+            if (posLoanLastAction === 'rate') recalcPosNewLoanFromRate();
+            else recalcPosNewLoanFromInstallment();
+        });
+        posNewLoanPeriods.addEventListener('input', () => {
+            if (posLoanLastAction === 'rate') recalcPosNewLoanFromRate();
+            else recalcPosNewLoanFromInstallment();
+        });
+
+        $('#posNewLoanType').on('change', function () {
+            const opt = this.options[this.selectedIndex];
+            if (opt && opt.value) {
+                if (opt.dataset.rate) posNewLoanRate.value = opt.dataset.rate;
+                if (opt.dataset.fee) posNewLoanComm.value = opt.dataset.fee;
+                if (opt.dataset.freq) posNewLoanFreq.value = opt.dataset.freq;
+                if (opt.dataset.periods) posNewLoanPeriods.value = opt.dataset.periods;
+                recalcPosNewLoanFromRate();
+            } else {
+                recalcPosNewLoanFromInstallment();
+            }
+        });
+
+        recalcPosNewLoanFromInstallment();
+    }
+
     document.getElementById('btnAddNewLoanToTab').addEventListener('click', function () {
         const customerId = posLoanCustomerSelect.value;
         if (!customerId) {
@@ -1894,22 +1979,33 @@ document.addEventListener('DOMContentLoaded', function () {
         const typeSelect = document.getElementById('posNewLoanType');
         const typeOpt = typeSelect.options[typeSelect.selectedIndex];
         const principal = parseFloat(document.getElementById('posNewLoanPrincipal').value) || 0;
+        const installment = parseFloat(document.getElementById('posNewLoanInstallment').value) || 0;
         const rate = parseFloat(document.getElementById('posNewLoanRate').value) || 0;
         const freq = document.getElementById('posNewLoanFreq').value;
         const periods = parseInt(document.getElementById('posNewLoanPeriods').value) || 4;
         const comm = parseFloat(document.getElementById('posNewLoanComm').value) || 0;
 
+        const freqLabels = {
+            '12_26': '12 y 26',
+            'quincenal': 'Quincenal (15 y 30)',
+            'semanal': 'Semanal',
+            'mensual': 'Mensual'
+        };
+        const freqLabel = freqLabels[freq] || freq;
+        const typeName = typeOpt && typeOpt.value ? typeOpt.text.trim() : 'Directo';
+
         addItemToCurrentTab({
             section: 'prestamo_apertura',
             customer_id: customerId,
             customer_name: opt ? opt.dataset.name : '',
-            loan_type_id: typeSelect.value,
+            loan_type_id: typeSelect.value || null,
             principal_amount: principal,
+            installment_amount: installment,
             interest_rate: rate,
             payment_frequency: freq,
             term_periods: periods,
-            title: `Apertura Préstamo (${typeOpt.text.trim()})`,
-            subtitle: `Capital $${principal.toFixed(2)} (Sin impacto en caja) | Solo cobra Comisión por Apertura`,
+            title: `Apertura Préstamo (${typeName})`,
+            subtitle: `Capital $${principal.toFixed(2)} | ${periods} pagos de $${installment.toFixed(2)} (${freqLabel}) | Solo cobra Comisión en caja`,
             quantity: 1,
             amount: 0,
             commission: comm

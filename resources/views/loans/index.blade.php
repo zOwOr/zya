@@ -298,7 +298,7 @@
                                                 {{ $loan->loanType?->name ?? 'General' }}
                                             </span>
                                             <small class="d-block text-muted font-size-11 mt-1">
-                                                <i class="fa-solid fa-repeat font-size-10 mr-1"></i>{{ ucfirst($loan->payment_frequency) }} ({{ $loan->term_periods }} pagos)
+                                                <i class="fa-solid fa-repeat font-size-10 mr-1"></i>{{ $loan->payment_frequency_label }} ({{ $loan->term_periods }} pagos)
                                             </small>
                                         </td>
                                         <td>

@@ -199,14 +199,18 @@ class LoanController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
-            'loan_type_id' => 'required|exists:loan_types,id',
+            'loan_type_id' => 'nullable|exists:loan_types,id',
             'branch_id' => 'nullable|exists:branches,id',
             'principal_amount' => 'required|numeric|min:1',
-            'interest_rate' => 'required|numeric|min:0',
+            'installment_amount' => 'nullable|numeric|min:0.01',
+            'interest_rate' => 'nullable|numeric|min:0',
             'opening_commission' => 'nullable|numeric|min:0',
-            'payment_frequency' => 'required|in:semanal,quincenal,mensual',
+            'payment_frequency' => 'required|in:12_26,quincenal,semanal,mensual',
             'term_periods' => 'required|integer|min:1|max:240',
             'start_date' => 'required|date',
+            'first_payment_date' => 'nullable|date',
+            'payment_day_of_week' => 'nullable|integer|between:1,7',
+            'payment_day_of_month' => 'nullable|integer|between:1,31',
             'commission_payment_method' => 'nullable|in:efectivo,tarjeta,transferencia,mixto',
             'commission_cash' => 'nullable|numeric|min:0',
             'commission_card' => 'nullable|numeric|min:0',
@@ -218,12 +222,22 @@ class LoanController extends Controller
         ]);
 
         $branchId = $this->resolveBranchId($request->input('branch_id'));
-        $principal = (float) $validated['principal_amount'];
-        $rate = (float) $validated['interest_rate'];
-        $interestAmount = round($principal * ($rate / 100), 2);
-        $totalAmount = round($principal + $interestAmount, 2);
+        $principal = round((float) $validated['principal_amount'], 2);
         $periods = (int) $validated['term_periods'];
-        $installmentAmount = round($totalAmount / $periods, 2);
+
+        // Si se captura el abono por cuota directamente, se calculan total, interés y tasa
+        if (!empty($validated['installment_amount']) && (float) $validated['installment_amount'] > 0) {
+            $installmentAmount = round((float) $validated['installment_amount'], 2);
+            $totalAmount = round($installmentAmount * $periods, 2);
+            $interestAmount = max(0, round($totalAmount - $principal, 2));
+            $rate = $principal > 0 ? round(($interestAmount / $principal) * 100, 2) : 0;
+        } else {
+            $rate = round((float) ($validated['interest_rate'] ?? 0), 2);
+            $interestAmount = round($principal * ($rate / 100), 2);
+            $totalAmount = round($principal + $interestAmount, 2);
+            $installmentAmount = round($totalAmount / $periods, 2);
+        }
+
         $openingCommission = round((float) ($validated['opening_commission'] ?? 0), 2);
 
         $videoPath = null;
@@ -252,19 +266,27 @@ class LoanController extends Controller
         ) {
             $loanCode = 'PREST-' . date('Ymd') . '-' . strtoupper(Str::random(4));
             $startDate = Carbon::parse($validated['start_date']);
+            $firstPaymentDate = !empty($validated['first_payment_date']) ? Carbon::parse($validated['first_payment_date']) : null;
+            $dayOfWeek = !empty($validated['payment_day_of_week']) ? (int) $validated['payment_day_of_week'] : null;
+            $dayOfMonth = !empty($validated['payment_day_of_month']) ? (int) $validated['payment_day_of_month'] : null;
 
-            $dueDate = match ($validated['payment_frequency']) {
-                'semanal' => $startDate->copy()->addWeeks($periods),
-                'quincenal' => $startDate->copy()->addDays($periods * 15),
-                'mensual' => $startDate->copy()->addMonths($periods),
-            };
+            $installmentDates = Loan::calculateInstallmentDates(
+                $startDate,
+                $validated['payment_frequency'],
+                $periods,
+                $firstPaymentDate,
+                $dayOfWeek,
+                $dayOfMonth
+            );
+
+            $dueDate = Carbon::parse(end($installmentDates));
 
             $loan = Loan::create([
                 'loan_code' => $loanCode,
                 'branch_id' => $branchId,
                 'customer_id' => $validated['customer_id'],
                 'user_id' => auth()->id(),
-                'loan_type_id' => $validated['loan_type_id'],
+                'loan_type_id' => $validated['loan_type_id'] ?? null,
                 'principal_amount' => $principal,
                 'interest_rate' => $rate,
                 'interest_amount' => $interestAmount,
@@ -287,12 +309,7 @@ class LoanController extends Controller
             // Generar tabla de pagos pendientes programados
             $accumulated = 0;
             for ($i = 1; $i <= $periods; $i++) {
-                $schedDate = match ($validated['payment_frequency']) {
-                    'semanal' => $startDate->copy()->addWeeks($i),
-                    'quincenal' => $startDate->copy()->addDays($i * 15),
-                    'mensual' => $startDate->copy()->addMonths($i),
-                };
-
+                $schedDate = $installmentDates[$i - 1];
                 $quota = ($i === $periods)
                     ? round($totalAmount - $accumulated, 2)
                     : $installmentAmount;
@@ -301,7 +318,7 @@ class LoanController extends Controller
                 LoanInstallment::create([
                     'loan_id' => $loan->id,
                     'installment_number' => $i,
-                    'scheduled_date' => $schedDate->toDateString(),
+                    'scheduled_date' => $schedDate,
                     'scheduled_amount' => $quota,
                     'paid_amount' => 0,
                     'status' => 'pendiente',
@@ -812,7 +829,7 @@ class LoanController extends Controller
             'default_interest_rate' => 'required|numeric|min:0',
             'default_opening_fee' => 'required|numeric|min:0',
             'requires_collateral' => 'nullable|boolean',
-            'default_frequency' => 'required|in:semanal,quincenal,mensual',
+            'default_frequency' => 'required|in:12_26,quincenal,semanal,mensual',
             'default_periods' => 'required|integer|min:1',
             'is_active' => 'nullable|boolean',
         ]);
@@ -852,7 +869,7 @@ class LoanController extends Controller
             'default_interest_rate' => 'required|numeric|min:0',
             'default_opening_fee' => 'required|numeric|min:0',
             'requires_collateral' => 'nullable|boolean',
-            'default_frequency' => 'required|in:semanal,quincenal,mensual',
+            'default_frequency' => 'required|in:12_26,quincenal,semanal,mensual',
             'default_periods' => 'required|integer|min:1',
             'is_active' => 'nullable|boolean',
         ]);

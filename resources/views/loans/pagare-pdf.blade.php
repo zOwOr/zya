@@ -103,7 +103,7 @@
             <strong>ZYA ({{ $loan->branch?->name ?? 'Matriz' }})</strong> en esta ciudad o en cualquier otro lugar que se me(nos) requiera de pago,
             la cantidad total de <strong>${{ number_format($loan->total_amount, 2) }} MXN</strong>
             ({{ \App\Models\FinSale::numberToWords($loan->total_amount) }}),
-            mediante <strong>{{ $loan->term_periods }}</strong> pagos periódicos en modalidad <strong>{{ strtoupper($loan->payment_frequency) }}</strong>
+            mediante <strong>{{ $loan->term_periods }}</strong> pagos periódicos en modalidad <strong>{{ strtoupper($loan->payment_frequency_label) }}</strong>
             de <strong>${{ number_format($loan->installment_amount, 2) }} MXN</strong> cada uno, iniciando conforme al calendario de vencimientos anexo.
         </p>
         <p>
