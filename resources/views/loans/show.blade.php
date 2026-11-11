@@ -237,6 +237,10 @@
                         </div>
                         <div class="card-body">
                             <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Modalidad de Pago:</span>
+                                <strong>{{ $loan->payment_frequency_label }} ({{ $loan->term_periods }} pagos de ${{ number_format($loan->installment_amount, 2) }})</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
                                 <span class="text-muted">Capital Prestado:</span>
                                 <strong>${{ number_format($loan->principal_amount, 2) }}</strong>
                             </div>
@@ -264,7 +268,7 @@
 
                             @if (!empty($loan->type_specific_data))
                                 <hr>
-                                <h6 class="font-weight-bold font-size-13 text-dark mb-2">Información Específica ({{ $loan->loanType?->name }})</h6>
+                                <h6 class="font-weight-bold font-size-13 text-dark mb-2">Información Específica ({{ $loan->loanType?->name ?? 'Préstamo' }})</h6>
                                 @foreach ($loan->type_specific_data as $key => $val)
                                     @if (!empty($val))
                                         <div class="d-flex justify-content-between font-size-13 mb-1">

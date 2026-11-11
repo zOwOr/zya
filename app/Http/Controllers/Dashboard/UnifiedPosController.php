@@ -761,22 +761,27 @@ class UnifiedPosController extends Controller
                     // (Sin impacto de desembolso en caja; solo entra la comisión por apertura)
                     elseif ($section === 'prestamo_apertura') {
                         $loanCustomerId = (int) ($item['customer_id'] ?? $resolvedCustomerId);
-                        $loanTypeId = (int) ($item['loan_type_id'] ?? LoanType::value('id'));
+                        $loanTypeId = !empty($item['loan_type_id']) ? (int) $item['loan_type_id'] : null;
                         $principal = round((float) ($item['principal_amount'] ?? 0), 2);
-                        $rate = round((float) ($item['interest_rate'] ?? 15), 2);
-                        $interestAmt = round($principal * ($rate / 100), 2);
-                        $totalLoan = round($principal + $interestAmt, 2);
                         $periods = max(1, (int) ($item['term_periods'] ?? 4));
                         $freq = $item['payment_frequency'] ?? 'semanal';
-                        $quota = round($totalLoan / $periods, 2);
+
+                        if (!empty($item['installment_amount']) && (float) $item['installment_amount'] > 0) {
+                            $quota = round((float) $item['installment_amount'], 2);
+                            $totalLoan = round($quota * $periods, 2);
+                            $interestAmt = max(0, round($totalLoan - $principal, 2));
+                            $rate = $principal > 0 ? round(($interestAmt / $principal) * 100, 2) : 0;
+                        } else {
+                            $rate = round((float) ($item['interest_rate'] ?? 15), 2);
+                            $interestAmt = round($principal * ($rate / 100), 2);
+                            $totalLoan = round($principal + $interestAmt, 2);
+                            $quota = round($totalLoan / $periods, 2);
+                        }
+
                         $openingComm = round((float) ($item['commission'] ?? 0), 2);
                         $startDate = Carbon::today();
-                        $dueDate = match ($freq) {
-                            'semanal' => $startDate->copy()->addWeeks($periods),
-                            'quincenal' => $startDate->copy()->addDays($periods * 15),
-                            'mensual' => $startDate->copy()->addMonths($periods),
-                            default => $startDate->copy()->addWeeks($periods),
-                        };
+                        $installmentDates = Loan::calculateInstallmentDates($startDate, $freq, $periods);
+                        $dueDate = Carbon::parse(end($installmentDates));
 
                         $newLoan = Loan::create([
                             'loan_code' => 'PREST-' . date('Ymd') . '-' . strtoupper(Str::random(4)),
@@ -803,19 +808,14 @@ class UnifiedPosController extends Controller
 
                         $acc = 0;
                         for ($i = 1; $i <= $periods; $i++) {
-                            $sDate = match ($freq) {
-                                'semanal' => $startDate->copy()->addWeeks($i),
-                                'quincenal' => $startDate->copy()->addDays($i * 15),
-                                'mensual' => $startDate->copy()->addMonths($i),
-                                default => $startDate->copy()->addWeeks($i),
-                            };
+                            $sDate = $installmentDates[$i - 1];
                             $instQuota = ($i === $periods) ? round($totalLoan - $acc, 2) : $quota;
                             $acc += $instQuota;
 
                             LoanInstallment::create([
                                 'loan_id' => $newLoan->id,
                                 'installment_number' => $i,
-                                'scheduled_date' => $sDate->toDateString(),
+                                'scheduled_date' => $sDate,
                                 'scheduled_amount' => $instQuota,
                                 'paid_amount' => 0,
                                 'status' => 'pendiente',

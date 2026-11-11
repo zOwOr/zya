@@ -356,7 +356,7 @@
                                 <strong class="font-size-13 text-dark font-weight-bold d-block">
                                     {{ $loan->loan_code }}
                                 </strong>
-                                <small class="text-muted">Cuotas: {{ $loan->term_periods }} ({{ ucfirst($loan->payment_frequency) }})</small>
+                                <small class="text-muted">Cuotas: {{ $loan->term_periods }} ({{ $loan->payment_frequency_label }})</small>
                             </td>
                             <td>
                                 <span class="badge badge-light font-size-11 border text-dark font-weight-bold">

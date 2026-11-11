@@ -58,6 +58,113 @@ class Loan extends Model
         'type_specific_data' => 'array',
     ];
 
+    public function getPaymentFrequencyLabelAttribute(): string
+    {
+        return self::frequencyLabel($this->payment_frequency);
+    }
+
+    public static function frequencyLabel(?string $frequency): string
+    {
+        return match ($frequency) {
+            '12_26' => '12 y 26',
+            'quincenal' => 'Quincenal (15 y 30)',
+            'semanal' => 'Semanal',
+            'mensual' => 'Mensual',
+            default => ucfirst((string) $frequency),
+        };
+    }
+
+    /**
+     * Calcula el arreglo de fechas de vencimiento para cada cuota del préstamo.
+     *
+     * @param Carbon $startDate Fecha de inicio o suscripción del préstamo
+     * @param string $frequency Frecuencia ('12_26', 'quincenal', 'semanal', 'mensual')
+     * @param int $periods Número de cuotas / pagos
+     * @param Carbon|null $firstPaymentDate Fecha del primer pago (opcional)
+     * @param int|null $dayOfWeek Día de cobro semanal (1 = Lunes, ..., 7 = Domingo)
+     * @param int|null $dayOfMonth Día de cobro mensual (1 a 31)
+     * @return array<string> Arreglo de fechas en formato 'Y-m-d'
+     */
+    public static function calculateInstallmentDates(
+        Carbon $startDate,
+        string $frequency,
+        int $periods,
+        ?Carbon $firstPaymentDate = null,
+        ?int $dayOfWeek = null,
+        ?int $dayOfMonth = null
+    ): array {
+        $dates = [];
+        $periods = max(1, $periods);
+        $current = $firstPaymentDate ? $firstPaymentDate->copy() : null;
+
+        if (!$current) {
+            if ($frequency === '12_26') {
+                if ($startDate->day <= 12) {
+                    $current = $startDate->copy()->day(12);
+                } elseif ($startDate->day <= 26) {
+                    $current = $startDate->copy()->day(26);
+                } else {
+                    $current = $startDate->copy()->startOfMonth()->addMonthNoOverflow()->day(12);
+                }
+            } elseif ($frequency === 'quincenal') {
+                if ($startDate->day <= 15) {
+                    $current = $startDate->copy()->day(15);
+                } elseif ($startDate->day <= 30) {
+                    $current = $startDate->copy()->day(min(30, $startDate->daysInMonth));
+                } else {
+                    $current = $startDate->copy()->startOfMonth()->addMonthNoOverflow()->day(15);
+                }
+            } elseif ($frequency === 'semanal') {
+                $dow = $dayOfWeek ?: $startDate->dayOfWeekIso;
+                if ($startDate->dayOfWeekIso == $dow) {
+                    $current = $startDate->copy()->addWeek();
+                } else {
+                    $current = $startDate->copy()->next($dow);
+                }
+            } elseif ($frequency === 'mensual') {
+                $dom = $dayOfMonth ?: $startDate->day;
+                if ($startDate->day < $dom) {
+                    $current = $startDate->copy()->day(min($dom, $startDate->daysInMonth));
+                } else {
+                    $nextMonth = $startDate->copy()->startOfMonth()->addMonthNoOverflow();
+                    $current = $nextMonth->day(min($dom, $nextMonth->daysInMonth));
+                }
+            } else {
+                $current = $startDate->copy()->addWeek();
+            }
+        }
+
+        $domMensual = $dayOfMonth ?: ($firstPaymentDate ? $firstPaymentDate->day : $startDate->day);
+
+        for ($i = 1; $i <= $periods; $i++) {
+            $dates[] = $current->toDateString();
+            if ($i < $periods) {
+                if ($frequency === '12_26') {
+                    if ($current->day < 26) {
+                        $current = $current->copy()->day(26);
+                    } else {
+                        $current = $current->copy()->startOfMonth()->addMonthNoOverflow()->day(12);
+                    }
+                } elseif ($frequency === 'quincenal') {
+                    if ($current->day <= 15) {
+                        $current = $current->copy()->day(min(30, $current->daysInMonth));
+                    } else {
+                        $current = $current->copy()->startOfMonth()->addMonthNoOverflow()->day(15);
+                    }
+                } elseif ($frequency === 'semanal') {
+                    $current = $current->copy()->addDays(7);
+                } elseif ($frequency === 'mensual') {
+                    $nextMonth = $current->copy()->startOfMonth()->addMonthNoOverflow();
+                    $current = $nextMonth->day(min($domMensual, $nextMonth->daysInMonth));
+                } else {
+                    $current = $current->copy()->addWeeks(1);
+                }
+            }
+        }
+
+        return $dates;
+    }
+
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'customer_id');

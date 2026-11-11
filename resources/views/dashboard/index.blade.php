@@ -130,7 +130,7 @@
                         @endforeach
                     </select>
                 </div>
-                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.all_branches') || auth()->user()->can('cobros.all_branches'))
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.all_branches') || auth()->user()->can('financieras.all_branches') || auth()->user()->can('cobros.all_branches'))
                     <div class="col-md-2 mb-2">
                         <label class="small font-weight-bold mb-1">Sucursal:</label>
                         <select name="branch_id" class="form-control form-control-sm">
