@@ -132,7 +132,7 @@
         @endphp
         <div style="margin-bottom: 4px;">
             <div class="bold">{{ $qty }}x {{ $item['title'] ?? 'Concepto' }}</div>
-            @if ($amt > 0)
+            @if (($item['section'] ?? '') !== 'prestamo_apertura')
                 <div class="row-flex">
                     <span>Importe:</span>
                     <span>${{ number_format($amt, 2) }}</span>

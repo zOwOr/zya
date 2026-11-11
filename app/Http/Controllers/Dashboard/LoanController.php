@@ -215,6 +215,7 @@ class LoanController extends Controller
             'commission_cash' => 'nullable|numeric|min:0',
             'commission_card' => 'nullable|numeric|min:0',
             'commission_transfer' => 'nullable|numeric|min:0',
+            'aval_name' => 'nullable|string|max:150',
             'type_specific_data' => 'nullable|array',
             'video_evidence' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-msvideo|max:102400',
             'promissory_note_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:15360',
@@ -281,6 +282,16 @@ class LoanController extends Controller
 
             $dueDate = Carbon::parse(end($installmentDates));
 
+            $typeSpecificData = $validated['type_specific_data'] ?? [];
+            if ($request->filled('aval_name')) {
+                $avalName = trim($request->input('aval_name'));
+                $typeSpecificData['aval_nombre'] = $avalName;
+                $cust = Customer::find($validated['customer_id']);
+                if ($cust && (empty($cust->aval_name) || $cust->aval_name !== $avalName)) {
+                    $cust->update(['aval_name' => $avalName]);
+                }
+            }
+
             $loan = Loan::create([
                 'loan_code' => $loanCode,
                 'branch_id' => $branchId,
@@ -299,7 +310,7 @@ class LoanController extends Controller
                 'installment_amount' => $installmentAmount,
                 'start_date' => $startDate->toDateString(),
                 'due_date' => $dueDate->toDateString(),
-                'type_specific_data' => $validated['type_specific_data'] ?? [],
+                'type_specific_data' => $typeSpecificData,
                 'video_path' => $videoPath,
                 'promissory_note_path' => $promissoryPath,
                 'status' => 'activo',

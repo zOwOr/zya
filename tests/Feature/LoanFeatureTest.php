@@ -340,4 +340,78 @@ class LoanFeatureTest extends TestCase
         $expectedCashInDrawer = round($openingBalance + $cashIncome - $totalExpenses, 2);
         $this->assertEquals(1350.00, $expectedCashInDrawer);
     }
+
+    /**
+     * Verificación de correcciones en el Pagaré (Defectos 1 a 5 y Criterios 1 a 6).
+     * Caso de prueba:
+     * Préstamo de $3,000 en 8 pagos de $601.01,
+     * deudor Jesús Alberto Telles Izaguirre, aval Fernando Gabriel Telles Izaguirre.
+     */
+    public function test_promissory_note_defects_corrected(): void
+    {
+        $debtor = Customer::create([
+            'tit_name' => 'Jesús Alberto Telles Izaguirre',
+            'tit_email' => 'jesus.telles.' . uniqid() . '@example.com',
+            'tit_phone' => '826' . rand(1000000, 9999999),
+            'tit_address' => 'Allende Centro, N.L.',
+            'tit_city' => 'Allende',
+            'tit_status' => 'active',
+            'aval_name' => 'Fernando Gabriel Telles Izaguirre',
+            'aval_phone' => '8261002031',
+            'aval_address' => 'Allende Centro, N.L.',
+        ]);
+
+        $payload = [
+            'customer_id' => $debtor->id,
+            'branch_id' => $this->branch->id,
+            'loan_type_id' => null,
+            'principal_amount' => 3000.00,
+            'installment_amount' => 601.01,
+            'term_periods' => 8,
+            'payment_frequency' => '12_26',
+            'start_date' => '2026-11-10',
+            'aval_name' => 'Fernando Gabriel Telles Izaguirre',
+            'opening_commission' => 150.00,
+            'commission_payment_method' => 'efectivo',
+        ];
+
+        $response = $this->actingAs($this->user)->post(route('loans.store'), $payload);
+        $loan = Loan::where('customer_id', $debtor->id)->latest()->first();
+        $this->assertNotNull($loan);
+        $response->assertRedirect(route('loans.show', $loan->id));
+
+        // Criterio 1: 8 cuotas, todas en días 12 y 26
+        $this->assertEquals(8, $loan->installments()->count());
+        foreach ($loan->installments as $inst) {
+            $day = $inst->scheduled_date->day;
+            $this->assertTrue(in_array($day, [12, 26]), "La fecha {$inst->scheduled_date->toDateString()} debe caer en día 12 o 26");
+            $this->assertEquals(601.01, (float) $inst->scheduled_amount);
+        }
+
+        // Consultar la vista del pagaré
+        $pdfResponse = $this->actingAs($this->user)->get(route('loans.pagare.print', $loan->id));
+        $pdfResponse->assertStatus(200);
+        $content = $pdfResponse->getContent();
+
+        // Criterio 2: No debe aparecer fecha de vencimiento final
+        $this->assertStringNotContainsString('Vencimiento Final', $content);
+
+        // Criterio 3: Fecha de suscripción es la fecha del préstamo (10/11/2026)
+        $this->assertStringContainsString('Fecha de Suscripción:</strong> 10/11/2026', $content);
+
+        // Criterio 4: Dice "a la orden de Nancy Esmeralda Zapata Medina"
+        $this->assertStringContainsString('a la orden de <strong>Nancy Esmeralda Zapata Medina</strong>', $content);
+
+        // Criterio 5: Solo aparece la firma del aval (sin "testigo ni autorización")
+        $this->assertStringContainsString('FIRMA DEL AVAL', $content);
+        $this->assertStringNotContainsString('TESTIGO O AUTORIZACIÓN', $content);
+        $this->assertStringNotContainsString('TESTIGO', $content);
+        $this->assertStringNotContainsString('AUTORIZACIÓN', $content);
+        $this->assertStringContainsString('Fernando Gabriel Telles Izaguirre', $content);
+
+        // Criterio 6: Resto del pagaré (Bueno por, deudor, valor recibido, calendario)
+        $this->assertStringContainsString('BUENO POR: $4,808.08 M.N.', $content);
+        $this->assertStringContainsString('Jesús Alberto Telles Izaguirre', $content);
+        $this->assertStringContainsString('CUATRO MIL OCHOCIENTOS OCHO PESOS 08/100 M.N.', $content);
+    }
 }

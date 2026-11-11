@@ -544,7 +544,7 @@
                     <td style="font-weight:bold;">{{ $sale->device?->imei ?? 'N/D' }}</td>
                     <td>{{ $sale->tag_contrato ?: 'N/D' }}</td>
                     <td>${{ number_format($sale->down_payment, 2) }}</td>
-                    <td>{{ $sale->enganche_descuento ? '$'.number_format($sale->enganche_descuento, 2) : '-' }}</td>
+                    <td>{{ !is_null($sale->enganche_descuento) && $sale->enganche_descuento !== '' ? '$'.number_format($sale->enganche_descuento, 2) : '-' }}</td>
                     <td>{{ $sale->abono_semanal ? '$'.number_format($sale->abono_semanal, 2) : '-' }}</td>
                     <td>{{ $sale->term_weeks ? $sale->term_weeks . ' sem.' : ($sale->term_months ? $sale->term_months . ' mes.' : '-') }}</td>
                 </tr>

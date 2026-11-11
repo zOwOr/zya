@@ -321,8 +321,9 @@
                                 <label class="font-weight-bold">Enganche con Descuento ($) <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control @error('enganche_descuento') is-invalid @enderror" value="{{ old('enganche_descuento', 0) }}" placeholder="0.00" required autocomplete="off">
+                                    <input type="number" step="0.01" min="0" name="enganche_descuento" id="engancheDescuentoInput" class="form-control @error('enganche_descuento') is-invalid @enderror" value="{{ old('enganche_descuento', 0) }}" placeholder="0.00" required autocomplete="off">
                                 </div>
+                                <div id="engancheDiscountBadge" class="mt-1 font-size-11 font-weight-bold"></div>
                                 @error('enganche_descuento')
                                     <div class="text-danger font-size-12 mt-1">{{ $message }}</div>
                                 @enderror
@@ -520,13 +521,38 @@ $(document).ready(function() {
         $('#btnVerifyImei').trigger('click');
     }
 
-    // Auto-calculate credit amount
-    $('#priceInput, #downPaymentInput').on('input', function() {
+    // Auto-calculate credit amount and update enganche discount feedback
+    function updateEngancheDiscountDisplay() {
         let p = parseFloat($('#priceInput').val()) || 0;
         let d = parseFloat($('#downPaymentInput').val()) || 0;
+        let rawDesc = $('#engancheDescuentoInput').val();
+        let desc = rawDesc !== '' ? parseFloat(rawDesc) : 0;
+        if (isNaN(desc)) desc = 0;
+
         let credit = Math.max(0, p - d);
-        $('#creditAmountInput').val(credit.toFixed(2));
+        if (!$('#creditAmountInput').data('manually-edited')) {
+            $('#creditAmountInput').val(credit.toFixed(2));
+        }
+
+        if (d > desc && desc >= 0) {
+            let ahorro = d - desc;
+            $('#engancheDiscountBadge').html(
+                '<span class="badge badge-success py-1 px-2"><i class="fa-solid fa-tag mr-1"></i>Descuento en enganche: $' + ahorro.toFixed(2) + ' | Cobro real: $' + desc.toFixed(2) + '</span>'
+            );
+        } else if (d === 0 && desc === 0) {
+            $('#engancheDiscountBadge').html(
+                '<span class="badge badge-secondary py-1 px-2"><i class="fa-solid fa-check mr-1"></i>Sin enganche ($0.00)</span>'
+            );
+        } else {
+            $('#engancheDiscountBadge').html('');
+        }
+    }
+
+    $('#priceInput, #downPaymentInput, #engancheDescuentoInput').on('input change', updateEngancheDiscountDisplay);
+    $('#creditAmountInput').on('input', function() {
+        $(this).data('manually-edited', true);
     });
+    updateEngancheDiscountDisplay();
 
     // Brand Autocomplete
     let timeout = null;

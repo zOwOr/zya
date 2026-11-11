@@ -99,17 +99,17 @@ class Loan extends Model
 
         if (!$current) {
             if ($frequency === '12_26') {
-                if ($startDate->day <= 12) {
+                if ($startDate->day < 12) {
                     $current = $startDate->copy()->day(12);
-                } elseif ($startDate->day <= 26) {
+                } elseif ($startDate->day < 26) {
                     $current = $startDate->copy()->day(26);
                 } else {
                     $current = $startDate->copy()->startOfMonth()->addMonthNoOverflow()->day(12);
                 }
             } elseif ($frequency === 'quincenal') {
-                if ($startDate->day <= 15) {
+                if ($startDate->day < 15) {
                     $current = $startDate->copy()->day(15);
-                } elseif ($startDate->day <= 30) {
+                } elseif ($startDate->day < 30) {
                     $current = $startDate->copy()->day(min(30, $startDate->daysInMonth));
                 } else {
                     $current = $startDate->copy()->startOfMonth()->addMonthNoOverflow()->day(15);

@@ -59,7 +59,9 @@
                                         <select name="customer_id" id="customerSelect" class="form-control select2-autocomplete" required>
                                             <option value="">-- Escribe para buscar cliente por nombre o teléfono --</option>
                                             @foreach ($customers as $customer)
-                                                <option value="{{ $customer->id }}" {{ (string)old('customer_id', $selectedCustomerId) === (string)$customer->id ? 'selected' : '' }}>
+                                                <option value="{{ $customer->id }}"
+                                                    data-aval="{{ $customer->aval_name }}"
+                                                    {{ (string)old('customer_id', $selectedCustomerId) === (string)$customer->id ? 'selected' : '' }}>
                                                     {{ $customer->tit_name }} ({{ $customer->tit_phone ?? 'Sin tel' }})
                                                 </option>
                                             @endforeach
@@ -78,6 +80,11 @@
                                             </select>
                                         </div>
                                     @endif
+
+                                    <div class="col-md-12 form-group">
+                                        <label class="font-weight-bold font-size-12">Nombre del Aval <small class="text-muted">(Se sincroniza automáticamente con el cliente)</small></label>
+                                        <input type="text" name="aval_name" id="avalNameInput" class="form-control form-control-sm" value="{{ old('aval_name') }}" placeholder="Nombre completo del aval...">
+                                    </div>
 
                                     <div class="col-md-12 form-group">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
@@ -388,18 +395,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!current) {
             if (frequency === '12_26') {
                 const day = start.getDate();
-                if (day <= 12) {
+                if (day < 12) {
                     current = new Date(start.getFullYear(), start.getMonth(), 12);
-                } else if (day <= 26) {
+                } else if (day < 26) {
                     current = new Date(start.getFullYear(), start.getMonth(), 26);
                 } else {
                     current = new Date(start.getFullYear(), start.getMonth() + 1, 12);
                 }
             } else if (frequency === 'quincenal') {
                 const day = start.getDate();
-                if (day <= 15) {
+                if (day < 15) {
                     current = new Date(start.getFullYear(), start.getMonth(), 15);
-                } else if (day <= 30) {
+                } else if (day < 30) {
                     const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
                     current = new Date(start.getFullYear(), start.getMonth(), Math.min(30, lastDay));
                 } else {
@@ -707,6 +714,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     $('#customerSelect').on('change', function () {
         checkCustomerOpenLoans(this.value);
+        const selOpt = this.options[this.selectedIndex];
+        if (selOpt && selOpt.dataset && selOpt.dataset.aval) {
+            const avalInput = document.getElementById('avalNameInput');
+            if (avalInput) avalInput.value = selOpt.dataset.aval;
+        }
     });
 
     $('#loanTypeSelect').select2({
@@ -776,6 +788,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (customerSelect.value) {
         checkCustomerOpenLoans(customerSelect.value);
+        const selOpt = customerSelect.options[customerSelect.selectedIndex];
+        if (selOpt && selOpt.dataset && selOpt.dataset.aval) {
+            const avalInput = document.getElementById('avalNameInput');
+            if (avalInput && !avalInput.value) avalInput.value = selOpt.dataset.aval;
+        }
     }
 });
 </script>

@@ -137,6 +137,9 @@ class UnifiedPosController extends Controller
             ->get();
 
         $results = $sales->map(function (FinSale $sale) {
+            $effectiveDownPayment = (!is_null($sale->enganche_descuento) && $sale->enganche_descuento !== '')
+                ? (float) $sale->enganche_descuento
+                : (float) $sale->down_payment;
             $creditAmount = (float) ($sale->credit_amount ?: max(0, (float) $sale->price - (float) $sale->down_payment));
             $totalAbonos = (float) $sale->total_abonos_paid;
             $remaining = max(0, round($creditAmount - $totalAbonos, 2));
@@ -154,6 +157,8 @@ class UnifiedPosController extends Controller
                 'customer_phone' => $sale->customer_phone,
                 'price' => (float) $sale->price,
                 'down_payment' => (float) $sale->down_payment,
+                'enganche_descuento' => (!is_null($sale->enganche_descuento) && $sale->enganche_descuento !== '') ? (float) $sale->enganche_descuento : null,
+                'effective_down_payment' => $effectiveDownPayment,
                 'credit_amount' => $creditAmount,
                 'abono_semanal' => (float) ($sale->abono_semanal ?: 0),
                 'total_abonos_paid' => $totalAbonos,
@@ -968,7 +973,7 @@ class UnifiedPosController extends Controller
     public function registerDirectFinancieraAbono(Request $request, FinSale $sale)
     {
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.01',
+            'amount' => 'required|numeric|min:0',
             'commission_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|in:efectivo,tarjeta,transferencia,mixto',
             'cash_amount' => 'nullable|numeric|min:0',

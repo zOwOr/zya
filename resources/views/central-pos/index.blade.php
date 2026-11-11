@@ -399,7 +399,7 @@
                                         <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Monto Abono ($) *</label>
                                         <div class="input-group input-group-sm">
                                             <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                            <input type="number" step="0.01" min="0.01" id="finAbonoAmount" class="form-control form-control-sm font-weight-bold">
+                                            <input type="number" step="0.01" min="0" id="finAbonoAmount" class="form-control form-control-sm font-weight-bold" placeholder="0.00">
                                         </div>
                                     </div>
                                     <div class="col-md-4 form-group mb-2">
@@ -714,7 +714,7 @@
                                             </div>
                                             <div class="col-md-3 form-group mb-2">
                                                 <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Precio ($) *</label>
-                                                <input type="number" step="0.01" min="0.01" id="dynProdPrice" class="form-control form-control-sm font-weight-bold" placeholder="0.00">
+                                                <input type="number" step="0.01" min="0" id="dynProdPrice" class="form-control form-control-sm font-weight-bold" placeholder="0.00" value="0.00">
                                             </div>
                                             <div class="col-md-2 form-group mb-2">
                                                 <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Cantidad *</label>
@@ -806,8 +806,8 @@
                                     <thead class="bg-light">
                                         <tr>
                                             <th>Concepto</th>
-                                            <th class="text-center" style="width: 45px;">Cant.</th>
-                                            <th class="text-right" style="width: 75px;">Importe</th>
+                                            <th class="text-center" style="width: 52px;">Cant.</th>
+                                            <th class="text-right" style="width: 110px;">Importe</th>
                                             <th class="text-right" style="width: 70px;">Comisión</th>
                                             <th style="width: 35px;"></th>
                                         </tr>
@@ -1186,8 +1186,39 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
                 const tr = document.createElement('tr');
                 const qty = Math.max(1, parseInt(item.quantity) || 1);
-                const lineAmt = item.section === 'prestamo_apertura' ? 0 : ((parseFloat(item.amount) || 0) * qty);
+                const unitAmt = parseFloat(item.amount) || 0;
+                const lineAmt = item.section === 'prestamo_apertura' ? 0 : (unitAmt * qty);
                 const commAmt = parseFloat(item.commission) || 0;
+                const isProduct = (item.section === 'producto_inventario' || item.section === 'producto_dinamico');
+                const isFinanciera = (item.section === 'financiera_abono');
+                const isEditable = isProduct || isFinanciera;
+
+                const originalAmt = item.original_amount !== undefined ? parseFloat(item.original_amount) : unitAmt;
+                const hasDiscount = isProduct && (originalAmt > unitAmt);
+                const isFree = isProduct && (unitAmt === 0);
+
+                let amountCellHtml = '';
+                if (isEditable) {
+                    amountCellHtml = `
+                        <div class="input-group input-group-sm ml-auto" style="max-width: 105px;">
+                            <div class="input-group-prepend"><span class="input-group-text p-1 font-size-11">$</span></div>
+                            <input type="number" step="0.01" min="0" class="form-control form-control-sm text-right font-weight-bold cart-item-price-input" data-idx="${idx}" value="${unitAmt.toFixed(2)}" title="Precio / Monto editable (0.00 o mayor)">
+                        </div>
+                        ${isFree ? '<span class="badge badge-success font-size-10 mt-1 d-block text-right">Gratis ($0)</span>' : ''}
+                        ${hasDiscount && !isFree ? `<small class="text-success font-size-11 d-block text-right font-weight-bold">Desc: -$${(originalAmt - unitAmt).toFixed(2)}</small>` : ''}
+                    `;
+                } else {
+                    amountCellHtml = `<span class="font-weight-bold text-dark">$${lineAmt.toFixed(2)}</span>`;
+                }
+
+                let qtyCellHtml = '';
+                if (isProduct) {
+                    qtyCellHtml = `
+                        <input type="number" min="1" class="form-control form-control-sm text-center cart-item-qty-input font-weight-bold p-1" data-idx="${idx}" value="${qty}" style="max-width: 48px; margin: 0 auto;">
+                    `;
+                } else {
+                    qtyCellHtml = `${qty}`;
+                }
 
                 tr.innerHTML = `
                     <td>
@@ -1195,10 +1226,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="font-weight-bold text-dark">${item.title}</div>
                         ${item.subtitle ? `<small class="text-muted d-block font-size-11">${item.subtitle}</small>` : ''}
                     </td>
-                    <td class="text-center font-weight-bold">${qty}</td>
-                    <td class="text-right font-weight-bold text-dark">$${lineAmt.toFixed(2)}</td>
-                    <td class="text-right text-info font-weight-bold">${commAmt > 0 ? '$' + commAmt.toFixed(2) : '-'}</td>
-                    <td class="text-right">
+                    <td class="text-center font-weight-bold align-middle">${qtyCellHtml}</td>
+                    <td class="text-right align-middle">${amountCellHtml}</td>
+                    <td class="text-right text-info font-weight-bold align-middle">${commAmt > 0 ? '$' + commAmt.toFixed(2) : '-'}</td>
+                    <td class="text-right align-middle">
                         <button type="button" class="btn btn-xs btn-outline-danger btn-remove-item" data-idx="${idx}" title="Quitar concepto">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
@@ -1370,6 +1401,45 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    document.getElementById('tabCartItemsBody').addEventListener('change', function (e) {
+        const priceInput = e.target.closest('.cart-item-price-input');
+        if (priceInput) {
+            const idx = parseInt(priceInput.dataset.idx);
+            const rawVal = priceInput.value.trim();
+            const val = parseFloat(rawVal);
+            if (rawVal === '' || isNaN(val) || val < 0) {
+                alert('El precio no puede ser negativo ni quedar vacío. Si es gratis, ingresa 0.00.');
+                renderCurrentTabCart();
+                return;
+            }
+            const tab = getActiveTab();
+            if (tab && tab.items[idx]) {
+                tab.items[idx].amount = Math.round(val * 100) / 100;
+                saveState();
+                renderCurrentTabCart();
+            }
+            return;
+        }
+
+        const qtyInput = e.target.closest('.cart-item-qty-input');
+        if (qtyInput) {
+            const idx = parseInt(qtyInput.dataset.idx);
+            const qVal = parseInt(qtyInput.value);
+            if (isNaN(qVal) || qVal < 1) {
+                alert('La cantidad mínima es 1.');
+                renderCurrentTabCart();
+                return;
+            }
+            const tab = getActiveTab();
+            if (tab && tab.items[idx]) {
+                tab.items[idx].quantity = qVal;
+                saveState();
+                renderCurrentTabCart();
+            }
+            return;
+        }
+    });
+
     document.getElementById('btnClearCurrentTab').addEventListener('click', function () {
         const tab = getActiveTab();
         tab.items = [];
@@ -1428,6 +1498,7 @@ document.addEventListener('DOMContentLoaded', function () {
             subtitle: `Impacto real en Inventario | Código: ${opt.dataset.code || '-'}${opt.dataset.imei ? ' | IMEI: ' + opt.dataset.imei : ''}`,
             quantity: 1,
             amount: parseFloat(opt.dataset.price) || 0,
+            original_amount: parseFloat(opt.dataset.price) || 0,
             commission: 0
         });
 
@@ -1715,17 +1786,23 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('finSelCustomerName').value = btn.dataset.customer;
         document.getElementById('finSelDevice').textContent = btn.dataset.device;
         document.getElementById('finSelTitle').value = `Abono Financiera (${btn.dataset.fin}) TAG: ${btn.dataset.tag}`;
-        const abono = parseFloat(btn.dataset.abono) || 0;
-        document.getElementById('finSelSuggested').textContent = '$' + abono.toFixed(2);
-        document.getElementById('finAbonoAmount').value = abono > 0 ? abono.toFixed(2) : '';
+        const abono = parseFloat(btn.dataset.abono);
+        const suggested = isNaN(abono) ? 0 : Math.max(0, abono);
+        document.getElementById('finSelSuggested').textContent = '$' + suggested.toFixed(2);
+        document.getElementById('finAbonoAmount').value = suggested.toFixed(2);
     });
 
     document.getElementById('btnAddFinAbonoToTab').addEventListener('click', function () {
         const saleId = document.getElementById('finSelSaleId').value;
-        const amount = parseFloat(document.getElementById('finAbonoAmount').value) || 0;
+        const amountVal = document.getElementById('finAbonoAmount').value.trim();
+        const amount = parseFloat(amountVal);
         const comm = parseFloat(document.getElementById('finCommissionAmount').value) || 0;
-        if (!saleId || amount <= 0) {
-            alert('Selecciona un contrato y especifica un monto de abono válido.');
+        if (!saleId || amountVal === '' || isNaN(amount) || amount < 0) {
+            alert('Selecciona un contrato y especifica un monto de abono válido (0.00 o mayor).');
+            return;
+        }
+        if (comm < 0) {
+            alert('La comisión no puede ser menor a 0.');
             return;
         }
         addItemToCurrentTab({
@@ -2084,23 +2161,26 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('posCatalogProductsBody').addEventListener('click', function (e) {
         const btn = e.target.closest('.btn-add-stock-product');
         if (!btn) return;
+        const initialPrice = parseFloat(btn.dataset.price) || 0;
         addItemToCurrentTab({
             section: 'producto_inventario',
             product_id: btn.dataset.id,
             title: btn.dataset.name,
             subtitle: 'Impacto real en Inventario',
             quantity: 1,
-            amount: parseFloat(btn.dataset.price) || 0,
+            amount: initialPrice,
+            original_amount: initialPrice,
             commission: 0
         });
     });
 
     document.getElementById('btnAddDynamicProductToTab').addEventListener('click', function () {
         const name = document.getElementById('dynProdName').value.trim();
-        const price = parseFloat(document.getElementById('dynProdPrice').value) || 0;
+        const priceVal = document.getElementById('dynProdPrice').value.trim();
+        const price = parseFloat(priceVal);
         const qty = Math.max(1, parseInt(document.getElementById('dynProdQty').value) || 1);
-        if (!name || price <= 0) {
-            alert('Ingresa nombre y precio del producto manual.');
+        if (!name || priceVal === '' || isNaN(price) || price < 0) {
+            alert('Ingresa un nombre y un precio válido (0.00 o mayor) del producto manual.');
             return;
         }
         const brand = document.getElementById('dynProdBrand').value.trim();
@@ -2123,6 +2203,7 @@ document.addEventListener('DOMContentLoaded', function () {
             subtitle: `Sin impacto en inventario ${imei ? '| IMEI: ' + imei : ''}`,
             quantity: qty,
             amount: price,
+            original_amount: price,
             commission: 0
         });
 

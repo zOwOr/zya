@@ -250,7 +250,8 @@
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label class="font-weight-bold">Enganche con Descuento ($)</label>
-                                    <input type="number" step="0.01" min="0" name="enganche_descuento" class="form-control" value="{{ old('enganche_descuento', $sale->enganche_descuento) }}" placeholder="0.00" autocomplete="off">
+                                    <input type="number" step="0.01" min="0" name="enganche_descuento" id="editEngancheDescuentoInput" class="form-control" value="{{ old('enganche_descuento', $sale->enganche_descuento) }}" placeholder="0.00" autocomplete="off">
+                                    <div id="editEngancheDiscountBadge" class="mt-1 font-size-11 font-weight-bold"></div>
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label class="font-weight-bold">Crédito ($)</label>
@@ -317,6 +318,29 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Visual feedback para descuento en enganche
+    function updateEditEngancheDiscountDisplay() {
+        let d = parseFloat($('input[name="down_payment"]').val()) || 0;
+        let rawDesc = $('#editEngancheDescuentoInput').val();
+        let desc = rawDesc !== '' ? parseFloat(rawDesc) : 0;
+        if (isNaN(desc)) desc = 0;
+
+        if (d > desc && desc >= 0) {
+            let ahorro = d - desc;
+            $('#editEngancheDiscountBadge').html(
+                '<span class="badge badge-success py-1 px-2"><i class="fa-solid fa-tag mr-1"></i>Descuento en enganche: $' + ahorro.toFixed(2) + ' | Cobro real: $' + desc.toFixed(2) + '</span>'
+            );
+        } else if (d === 0 && desc === 0) {
+            $('#editEngancheDiscountBadge').html(
+                '<span class="badge badge-secondary py-1 px-2"><i class="fa-solid fa-check mr-1"></i>Sin enganche ($0.00)</span>'
+            );
+        } else {
+            $('#editEngancheDiscountBadge').html('');
+        }
+    }
+    $('input[name="down_payment"], #editEngancheDescuentoInput').on('input change', updateEditEngancheDiscountDisplay);
+    updateEditEngancheDiscountDisplay();
 
     // Evitar guardar si hay un TAG duplicado
     $('#saleEditForm').on('submit', function(e) {

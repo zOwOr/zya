@@ -194,13 +194,16 @@
                                         <span class="font-weight-bold font-size-18 text-dark">${{ number_format($sale->price, 2) }}</span>
                                     </div>
                                     <div class="col-md-3 col-6 mb-3">
-                                        <span class="text-muted font-size-12 d-block">Enganche</span>
-                                        <span class="font-weight-bold font-size-18 text-success">${{ number_format($sale->down_payment, 2) }}</span>
+                                        <span class="text-muted font-size-12 d-block">Enganche Inicial (Plataforma)</span>
+                                        <span class="font-weight-bold font-size-18 text-muted">${{ number_format($sale->down_payment, 2) }}</span>
                                     </div>
-                                    @if($sale->enganche_descuento)
+                                    @if(!is_null($sale->enganche_descuento) && $sale->enganche_descuento !== '')
                                     <div class="col-md-3 col-6 mb-3">
-                                        <span class="text-muted font-size-12 d-block">Enganche c/ Descuento</span>
-                                        <span class="font-weight-bold font-size-16 text-warning">${{ number_format($sale->enganche_descuento, 2) }}</span>
+                                        <span class="text-muted font-size-12 d-block">Enganche c/ Descuento (Cobrado)</span>
+                                        <span class="font-weight-bold font-size-18 {{ (float)$sale->enganche_descuento == 0 ? 'text-success' : 'text-warning' }}">${{ number_format($sale->enganche_descuento, 2) }}</span>
+                                        @if((float)$sale->down_payment > (float)$sale->enganche_descuento)
+                                            <small class="badge badge-success d-block mt-1 font-size-11">Descuento aplicado: ${{ number_format($sale->down_payment - $sale->enganche_descuento, 2) }}</small>
+                                        @endif
                                     </div>
                                     @endif
                                     <div class="col-md-3 col-6 mb-3">
@@ -324,7 +327,7 @@
                                         <div class="row">
                                             <div class="col-md-6 form-group">
                                                 <label class="font-weight-bold">Monto del Abono ($) *</label>
-                                                <input type="number" step="0.01" min="0.01" name="amount" class="form-control font-weight-bold" value="{{ $sale->abono_semanal ?: '' }}" required>
+                                                <input type="number" step="0.01" min="0" name="amount" class="form-control font-weight-bold" value="{{ !is_null($sale->abono_semanal) ? $sale->abono_semanal : '0.00' }}" required>
                                             </div>
                                             <div class="col-md-6 form-group">
                                                 <label class="font-weight-bold">Comisión (Opcional) ($)</label>
