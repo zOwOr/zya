@@ -10,7 +10,7 @@
             <div class="row mb-3">
                 <div class="col-md-3">
                     <label class="form-label font-weight-bold small">Tipo de Movimiento *</label>
-                    <select name="type" class="form-control" required>
+                    <select name="type" id="manualMovementType" class="form-control" required onchange="toggleMovementType(this.value)">
                         <option value="income">Ingreso (+)</option>
                         <option value="expense">Egreso (-)</option>
                     </select>
@@ -23,9 +23,9 @@
                     <label class="form-label font-weight-bold small">Método de Pago *</label>
                     <select name="payment_method" id="manualPaymentMethod" class="form-control" required onchange="toggleMixedFields(this.value)">
                         <option value="efectivo">Efectivo</option>
-                        <option value="tarjeta">Tarjeta</option>
-                        <option value="transferencia">Transferencia</option>
-                        <option value="mixto">Pago Mixto (Efectivo / Tarjeta / Transf.)</option>
+                        <option value="tarjeta" class="non-cash-opt">Tarjeta</option>
+                        <option value="transferencia" class="non-cash-opt">Transferencia</option>
+                        <option value="mixto" class="non-cash-opt">Pago Mixto (Efectivo / Tarjeta / Transf.)</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -74,6 +74,17 @@
 </div>
 
 <script>
+function toggleMovementType(type) {
+    const methodSel = document.getElementById('manualPaymentMethod');
+    const nonCashOpts = methodSel.querySelectorAll('.non-cash-opt');
+    if (type === 'expense') {
+        methodSel.value = 'efectivo';
+        nonCashOpts.forEach(opt => opt.disabled = true);
+        toggleMixedFields('efectivo');
+    } else {
+        nonCashOpts.forEach(opt => opt.disabled = false);
+    }
+}
 function toggleMixedFields(method) {
     const row = document.getElementById('manualMixedRow');
     if (method === 'mixto') {

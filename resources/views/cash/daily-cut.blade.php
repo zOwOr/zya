@@ -40,6 +40,15 @@
     @if(session('info'))
         <div class="alert alert-info">{{ session('info') }}</div>
     @endif
+    @if($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0 pl-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     {{-- Filtro por Fecha, Sucursal y Búsqueda --}}
     <div class="card shadow-sm mb-4">
@@ -111,7 +120,7 @@
                 </div>
                 <div class="card-body text-center">
                     <h3 class="font-weight-bold mb-0">${{ number_format($dailyCut->opening_balance, 2) }}</h3>
-                    <small class="text-muted">Arrastre del Corte Z anterior</small>
+                    <small class="text-muted">Efectivo físico del Corte Z anterior</small>
                 </div>
             </div>
         </div>
@@ -139,7 +148,7 @@
                 </div>
                 <div class="card-body text-center">
                     <h3 class="font-weight-bold text-danger mb-0">${{ number_format($dailyCut->total_expense, 2) }}</h3>
-                    <small class="text-muted">Gastos y retiros de caja</small>
+                    <small class="text-muted">Gastos y retiros en efectivo</small>
                 </div>
             </div>
         </div>
@@ -147,13 +156,18 @@
         <div class="col-md-3 mb-3">
             <div class="card border-dark h-100 shadow-sm">
                 <div class="card-header bg-dark text-white text-center py-2">
-                    <h6 class="mb-0 font-weight-bold">Saldo Final Total</h6>
+                    <h6 class="mb-0 font-weight-bold">Efectivo Esperado en Caja</h6>
                 </div>
                 <div class="card-body text-center">
-                    <h3 class="font-weight-bold mb-1">${{ number_format($dailyCut->balance, 2) }}</h3>
+                    <h3 class="font-weight-bold mb-1">${{ number_format($dailyCut->opening_balance + $handCash - $dailyCut->total_expense, 2) }}</h3>
                     <small class="text-success font-weight-bold">
                         Efectivo esperado en cajón: ${{ number_format($dailyCut->opening_balance + $handCash - $dailyCut->total_expense, 2) }}
                     </small>
+                    @if($finalDailyCut && $finalDailyCut->declared_cash !== null)
+                        <div class="small text-muted mt-1">
+                            Efectivo físico declarado: <strong>${{ number_format($finalDailyCut->declared_cash, 2) }}</strong>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -253,8 +267,8 @@
                                     <input type="number" name="withdraw_amount" id="withdraw_amount" step="0.01" min="0" class="form-control form-control-sm" value="0">
                                 </div>
                                 <div class="col-md-4 mb-2">
-                                    <label class="small font-weight-bold">Efectivo físico contado ($):</label>
-                                    <input type="number" name="declared_cash" step="0.01" min="0" class="form-control form-control-sm" placeholder="Opcional">
+                                    <label class="small font-weight-bold">Efectivo físico contado ($) <span class="text-danger">*</span>:</label>
+                                    <input type="number" name="declared_cash" id="cut_declared_cash" step="0.01" min="0" class="form-control form-control-sm" placeholder="Ej. {{ number_format($dailyCut->opening_balance + $handCash - $dailyCut->total_expense, 2, '.', '') }}" value="{{ old('declared_cash') }}" required>
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <label class="small font-weight-bold">Notas de Cierre:</label>
@@ -604,9 +618,22 @@ const cutFormEl = document.getElementById('cutForm');
 if (cutFormEl) {
     cutFormEl.addEventListener('submit', function(e) {
         e.preventDefault();
+        const declaredInput = document.getElementById('cut_declared_cash');
+        const declaredVal = declaredInput ? declaredInput.value.trim() : '';
+        if (declaredVal === '' || isNaN(parseFloat(declaredVal)) || parseFloat(declaredVal) < 0) {
+            Swal.fire({
+                title: 'Efectivo físico requerido',
+                text: 'Debes capturar el efectivo físico contado en cajón antes de cerrar el Corte Z.',
+                icon: 'error',
+                confirmButtonText: 'Entendido',
+            });
+            if (declaredInput) declaredInput.focus();
+            return;
+        }
+        const formattedDeclared = parseFloat(declaredVal).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         Swal.fire({
             title: '¿Confirmar Corte Final (Corte Z)?',
-            text: 'Se registrará el cierre oficial del día con el desglose completo por cliente.',
+            text: `Se cerrará el día con $${formattedDeclared} de efectivo físico declarado (este monto será el Saldo Inicial del día siguiente).`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Sí, aplicar Corte Z',

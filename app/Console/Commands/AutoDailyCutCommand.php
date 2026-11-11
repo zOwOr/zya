@@ -80,24 +80,18 @@ class AutoDailyCutCommand extends Command
             return null;
         }
 
-        $lastCut = DailyCut::where('branch_id', $branchId)
-            ->where('cut_type', 'corte_z')
-            ->whereDate('date', '<', $dateStr)
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->first();
-
-        $openingBalance = $lastCut ? (float) $lastCut->balance : 0.0;
+        $openingBalance = DailyCut::resolveOpeningBalance($branchId, $dateStr);
         $incomes = $flows->where('type', 'income');
         $expenses = $flows->where('type', 'expense');
 
         $totalIncome = round((float) $incomes->sum('amount'), 2);
-        $totalExpense = round((float) $expenses->sum('amount'), 2);
-        $cashIncome = round((float) $incomes->sum(fn($f) => (float) $f->cash_amount > 0 ? $f->cash_amount : ($f->payment_method === 'efectivo' || empty($f->payment_method) ? $f->amount : 0)), 2);
-        $cardIncome = round((float) $incomes->sum(fn($f) => (float) $f->card_amount > 0 ? $f->card_amount : ($f->payment_method === 'tarjeta' ? $f->amount : 0)), 2);
-        $transferIncome = round((float) $incomes->sum(fn($f) => (float) $f->transfer_amount > 0 ? $f->transfer_amount : ($f->payment_method === 'transferencia' ? $f->amount : 0)), 2);
+        $totalExpense = round((float) $expenses->sum(fn($f) => $f->effective_cash_amount), 2);
+        $cashIncome = round((float) $incomes->sum(fn($f) => $f->effective_cash_amount), 2);
+        $cardIncome = round((float) $incomes->sum(fn($f) => $f->effective_card_amount), 2);
+        $transferIncome = round((float) $incomes->sum(fn($f) => $f->effective_transfer_amount), 2);
 
-        $finalBalance = round($openingBalance + $totalIncome - $totalExpense, 2);
+        $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
+        $finalBalance = $expectedCash;
 
         // Desglose nominal por cliente
         $customerBreakdown = $flows->groupBy(fn($f) => $f->customer_name ?: 'Público en General / Operación Interna')
@@ -106,7 +100,7 @@ class AutoDailyCutCommand extends Command
                     'customer_name' => $clientName,
                     'movements_count' => $group->count(),
                     'total_income' => round((float) $group->where('type', 'income')->sum('amount'), 2),
-                    'total_expense' => round((float) $group->where('type', 'expense')->sum('amount'), 2),
+                    'total_expense' => round((float) $group->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount), 2),
                     'modules' => $group->pluck('module')->filter()->unique()->values()->toArray(),
                 ];
             })->values()->toArray();
@@ -125,7 +119,7 @@ class AutoDailyCutCommand extends Command
             'total_expense' => $totalExpense,
             'withdraw_amount' => 0,
             'balance' => $finalBalance,
-            'declared_cash' => $cashIncome,
+            'declared_cash' => $expectedCash,
             'difference_amount' => 0,
             'customer_breakdown' => $customerBreakdown,
             'notes' => $mode === 'programado' ? 'Corte final diario aplicado por default programado.' : 'Corte final manual.',

@@ -63,4 +63,34 @@ class CashFlow extends Model
         }
         return 'Público en General / Operación Interna';
     }
+
+    public function getEffectiveCashAmountAttribute(): float
+    {
+        $method = strtolower((string) $this->payment_method);
+        if (in_array($method, ['transferencia', 'cheque', 'tarjeta', 'due'], true)) {
+            return 0.0;
+        }
+
+        return (float) $this->cash_amount > 0
+            ? round((float) $this->cash_amount, 2)
+            : (in_array($method, ['efectivo', 'handcash', ''], true) ? round((float) $this->amount, 2) : 0.0);
+    }
+
+    public function getEffectiveCardAmountAttribute(): float
+    {
+        $method = strtolower((string) $this->payment_method);
+
+        return (float) $this->card_amount > 0
+            ? round((float) $this->card_amount, 2)
+            : (in_array($method, ['tarjeta', 'due'], true) ? round((float) $this->amount, 2) : 0.0);
+    }
+
+    public function getEffectiveTransferAmountAttribute(): float
+    {
+        $method = strtolower((string) $this->payment_method);
+
+        return (float) $this->transfer_amount > 0
+            ? round((float) $this->transfer_amount, 2)
+            : (in_array($method, ['transferencia', 'cheque'], true) ? round((float) $this->amount, 2) : 0.0);
+    }
 }

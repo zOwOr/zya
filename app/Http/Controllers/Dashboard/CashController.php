@@ -86,7 +86,7 @@ class CashController extends Controller
             ->get();
 
         $totalIncome = $allForPeriod->where('type', 'income')->sum('amount');
-        $totalExpense = $allForPeriod->where('type', 'expense')->sum('amount');
+        $totalExpense = $allForPeriod->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount);
         $balance = $totalIncome - $totalExpense;
 
         // Desglose por cliente del día/periodo consultado
@@ -96,10 +96,10 @@ class CashController extends Controller
                     'customer_name' => $customerName,
                     'count' => $items->count(),
                     'income' => $items->where('type', 'income')->sum('amount'),
-                    'expense' => $items->where('type', 'expense')->sum('amount'),
-                    'cash' => $items->where('type', 'income')->sum('cash_amount'),
-                    'card' => $items->where('type', 'income')->sum('card_amount'),
-                    'transfer' => $items->where('type', 'income')->sum('transfer_amount'),
+                    'expense' => $items->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount),
+                    'cash' => $items->where('type', 'income')->sum(fn($f) => $f->effective_cash_amount),
+                    'card' => $items->where('type', 'income')->sum(fn($f) => $f->effective_card_amount),
+                    'transfer' => $items->where('type', 'income')->sum(fn($f) => $f->effective_transfer_amount),
                     'items' => $items,
                 ];
             });
@@ -183,39 +183,21 @@ class CashController extends Controller
         $incomes = $allDailyCashFlows->where('type', 'income');
         $expenses = $allDailyCashFlows->where('type', 'expense');
 
-        $totalIncome = (float) $incomes->sum('amount');
-        $totalExpense = (float) $expenses->sum('amount');
+        $totalIncome = round((float) $incomes->sum('amount'), 2);
+        // Los egresos de caja se calculan únicamente sobre salidas en efectivo (nunca transferencias ni tarjeta)
+        $totalExpense = round((float) $expenses->sum(fn($f) => $f->effective_cash_amount), 2);
 
         // Desglose por método de pago (incluyendo pagos mixtos, abonos de financieras, préstamos, tandas y ventas)
-        $handCash = round((float) $incomes->sum(function ($f) {
-            return (float) $f->cash_amount > 0
-                ? (float) $f->cash_amount
-                : (in_array(strtolower((string) $f->payment_method), ['efectivo', 'handcash', '']) ? (float) $f->amount : 0);
-        }), 2);
-
-        $due = round((float) $incomes->sum(function ($f) {
-            return (float) $f->card_amount > 0
-                ? (float) $f->card_amount
-                : (in_array(strtolower((string) $f->payment_method), ['tarjeta', 'due']) ? (float) $f->amount : 0);
-        }), 2);
-
-        $cheque = round((float) $incomes->sum(function ($f) {
-            return (float) $f->transfer_amount > 0
-                ? (float) $f->transfer_amount
-                : (in_array(strtolower((string) $f->payment_method), ['transferencia', 'cheque']) ? (float) $f->amount : 0);
-        }), 2);
+        $handCash = round((float) $incomes->sum(fn($f) => $f->effective_cash_amount), 2);
+        $due = round((float) $incomes->sum(fn($f) => $f->effective_card_amount), 2);
+        $cheque = round((float) $incomes->sum(fn($f) => $f->effective_transfer_amount), 2);
 
         $totalBanco = round($handCash + $cheque + $due, 2);
 
-        $lastCut = DailyCut::where('branch_id', $branchId)
-            ->where('cut_type', 'corte_z')
-            ->whereDate('date', '<', $selectedDate)
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->first();
-
-        $openingBalance = $lastCut ? (float) $lastCut->balance : 0.0;
-        $balance = round($openingBalance + $totalIncome - $totalExpense, 2);
+        // El saldo inicial del día es el efectivo físico declarado del Corte Z anterior
+        $openingBalance = DailyCut::resolveOpeningBalance($branchId, $selectedDate);
+        // El efectivo esperado en caja se calcula solo como: saldo inicial + ingresos en efectivo - egresos en efectivo
+        $balance = round($openingBalance + $handCash - $totalExpense, 2);
 
         // Corte Z final del día (si ya se aplicó)
         $finalDailyCut = DailyCut::with('user')
@@ -251,14 +233,15 @@ class CashController extends Controller
         $customerBreakdown = $allDailyCashFlows->groupBy(fn($f) => $f->customer_display_name)
             ->map(function ($group, $clientName) {
                 $inc = $group->where('type', 'income');
+                $exp = $group->where('type', 'expense');
                 return [
                     'customer_name' => $clientName,
                     'movements_count' => $group->count(),
                     'total_income' => round((float) $inc->sum('amount'), 2),
-                    'total_expense' => round((float) $group->where('type', 'expense')->sum('amount'), 2),
-                    'cash' => round((float) $inc->sum(fn($f) => (float) $f->cash_amount > 0 ? $f->cash_amount : ($f->payment_method === 'efectivo' || empty($f->payment_method) ? $f->amount : 0)), 2),
-                    'card' => round((float) $inc->sum(fn($f) => (float) $f->card_amount > 0 ? $f->card_amount : ($f->payment_method === 'tarjeta' ? $f->amount : 0)), 2),
-                    'transfer' => round((float) $inc->sum(fn($f) => (float) $f->transfer_amount > 0 ? $f->transfer_amount : ($f->payment_method === 'transferencia' ? $f->amount : 0)), 2),
+                    'total_expense' => round((float) $exp->sum(fn($f) => $f->effective_cash_amount), 2),
+                    'cash' => round((float) $inc->sum(fn($f) => $f->effective_cash_amount), 2),
+                    'card' => round((float) $inc->sum(fn($f) => $f->effective_card_amount), 2),
+                    'transfer' => round((float) $inc->sum(fn($f) => $f->effective_transfer_amount), 2),
                     'commission' => round((float) $inc->sum('commission_amount'), 2),
                     'modules' => $group->pluck('module')->filter()->unique()->implode(', '),
                     'movements' => $group,
@@ -272,7 +255,7 @@ class CashController extends Controller
                     'module' => $modName,
                     'count' => $group->count(),
                     'income' => round((float) $group->where('type', 'income')->sum('amount'), 2),
-                    'expense' => round((float) $group->where('type', 'expense')->sum('amount'), 2),
+                    'expense' => round((float) $group->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount), 2),
                 ];
             });
 
@@ -325,6 +308,12 @@ class CashController extends Controller
         $amount = round((float) $validated['amount'], 2);
         $method = $validated['payment_method'] ?? 'efectivo';
 
+        if ($validated['type'] === 'expense' && $method !== 'efectivo') {
+            return back()
+                ->withInput()
+                ->withErrors(['payment_method' => 'Los egresos de caja solo pueden registrarse en efectivo. Las transferencias y pagos con tarjeta nunca deben registrarse como egresos de caja.']);
+        }
+
         $cashAmount = $method === 'mixto' ? round((float) $request->input('cash_amount', 0), 2) : ($method === 'efectivo' ? $amount : 0);
         $cardAmount = $method === 'mixto' ? round((float) $request->input('card_amount', 0), 2) : ($method === 'tarjeta' ? $amount : 0);
         $transferAmount = $method === 'mixto' ? round((float) $request->input('transfer_amount', 0), 2) : ($method === 'transferencia' ? $amount : 0);
@@ -364,22 +353,15 @@ class CashController extends Controller
         $expenses = $flows->where('type', 'expense');
 
         $totalIncome = round((float) $incomes->sum('amount'), 2);
-        $totalExpense = round((float) $expenses->sum('amount'), 2);
-        $cashIncome = round((float) $incomes->sum(fn($f) => (float) $f->cash_amount > 0 ? $f->cash_amount : ($f->payment_method === 'efectivo' || empty($f->payment_method) ? $f->amount : 0)), 2);
-        $cardIncome = round((float) $incomes->sum(fn($f) => (float) $f->card_amount > 0 ? $f->card_amount : ($f->payment_method === 'tarjeta' ? $f->amount : 0)), 2);
-        $transferIncome = round((float) $incomes->sum(fn($f) => (float) $f->transfer_amount > 0 ? $f->transfer_amount : ($f->payment_method === 'transferencia' ? $f->amount : 0)), 2);
+        $totalExpense = round((float) $expenses->sum(fn($f) => $f->effective_cash_amount), 2);
+        $cashIncome = round((float) $incomes->sum(fn($f) => $f->effective_cash_amount), 2);
+        $cardIncome = round((float) $incomes->sum(fn($f) => $f->effective_card_amount), 2);
+        $transferIncome = round((float) $incomes->sum(fn($f) => $f->effective_transfer_amount), 2);
 
-        $lastCut = DailyCut::where('branch_id', $branchId)
-            ->where('cut_type', 'corte_z')
-            ->whereDate('date', '<', $today)
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->first();
-
-        $openingBalance = $lastCut ? (float) $lastCut->balance : 0.0;
-        $balance = round($openingBalance + $totalIncome - $totalExpense, 2);
-        $declaredCash = $request->filled('declared_cash') ? round((float) $request->input('declared_cash'), 2) : null;
+        $openingBalance = DailyCut::resolveOpeningBalance($branchId, $today);
         $expectedCashInDrawer = round($openingBalance + $cashIncome - $totalExpense, 2);
+        $balance = $expectedCashInDrawer;
+        $declaredCash = $request->filled('declared_cash') ? round((float) $request->input('declared_cash'), 2) : null;
         $difference = $declaredCash !== null ? round($declaredCash - $expectedCashInDrawer, 2) : 0;
 
         $preCut = DailyCut::create([
@@ -412,6 +394,16 @@ class CashController extends Controller
      */
     public function applyCut(Request $request)
     {
+        $validated = $request->validate([
+            'declared_cash' => 'required|numeric|min:0',
+            'withdraw_amount' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string|max:500',
+        ], [
+            'declared_cash.required' => 'Debes capturar el efectivo físico contado en cajón para aplicar el Corte Final (Corte Z).',
+            'declared_cash.numeric' => 'El efectivo físico contado debe ser un monto numérico válido.',
+            'declared_cash.min' => 'El efectivo físico contado no puede ser negativo.',
+        ]);
+
         $today = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
         $branchId = $this->resolveBranchId($request);
 
@@ -427,21 +419,14 @@ class CashController extends Controller
         $expenses = $flows->where('type', 'expense');
 
         $totalIncome = round((float) $incomes->sum('amount'), 2);
-        $totalExpense = round((float) $expenses->sum('amount'), 2);
-        $cashIncome = round((float) $incomes->sum(fn($f) => (float) $f->cash_amount > 0 ? $f->cash_amount : ($f->payment_method === 'efectivo' || empty($f->payment_method) ? $f->amount : 0)), 2);
-        $cardIncome = round((float) $incomes->sum(fn($f) => (float) $f->card_amount > 0 ? $f->card_amount : ($f->payment_method === 'tarjeta' ? $f->amount : 0)), 2);
-        $transferIncome = round((float) $incomes->sum(fn($f) => (float) $f->transfer_amount > 0 ? $f->transfer_amount : ($f->payment_method === 'transferencia' ? $f->amount : 0)), 2);
+        $totalExpense = round((float) $expenses->sum(fn($f) => $f->effective_cash_amount), 2);
+        $cashIncome = round((float) $incomes->sum(fn($f) => $f->effective_cash_amount), 2);
+        $cardIncome = round((float) $incomes->sum(fn($f) => $f->effective_card_amount), 2);
+        $transferIncome = round((float) $incomes->sum(fn($f) => $f->effective_transfer_amount), 2);
 
-        $lastCut = DailyCut::where('branch_id', $branchId)
-            ->where('cut_type', 'corte_z')
-            ->whereDate('date', '<', $today)
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->first();
+        $openingBalance = DailyCut::resolveOpeningBalance($branchId, $today);
 
-        $openingBalance = $lastCut ? (float) $lastCut->balance : 0.0;
-
-        $withdrawAmount = max(0, round((float) $request->input('withdraw_amount', 0), 2));
+        $withdrawAmount = max(0, round((float) ($validated['withdraw_amount'] ?? 0), 2));
         if ($withdrawAmount > 0) {
             CashFlowService::register(
                 'expense',
@@ -459,10 +444,10 @@ class CashController extends Controller
             $totalExpense = round($totalExpense + $withdrawAmount, 2);
         }
 
-        $finalBalance = round($openingBalance + $totalIncome - $totalExpense, 2);
-        $declaredCash = $request->filled('declared_cash') ? round((float) $request->input('declared_cash'), 2) : null;
         $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
-        $difference = $declaredCash !== null ? round($declaredCash - $expectedCash, 2) : 0;
+        $finalBalance = $expectedCash;
+        $declaredCash = round((float) $validated['declared_cash'], 2);
+        $difference = round($declaredCash - $expectedCash, 2);
 
         $customerBreakdown = $flows->groupBy(fn($f) => $f->customer_display_name)
             ->map(function ($group, $clientName) {
@@ -470,7 +455,7 @@ class CashController extends Controller
                     'customer_name' => $clientName,
                     'movements_count' => $group->count(),
                     'total_income' => round((float) $group->where('type', 'income')->sum('amount'), 2),
-                    'total_expense' => round((float) $group->where('type', 'expense')->sum('amount'), 2),
+                    'total_expense' => round((float) $group->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount), 2),
                 ];
             })->values()->toArray();
 
@@ -567,19 +552,24 @@ class CashController extends Controller
 
         if (!$dailyCut) {
             $incomes = $cashFlows->where('type', 'income');
-            $totalIncome = (float) $incomes->sum('amount');
-            $totalExpense = (float) $cashFlows->where('type', 'expense')->sum('amount');
+            $expenses = $cashFlows->where('type', 'expense');
+            $totalIncome = round((float) $incomes->sum('amount'), 2);
+            $cashIncome = round((float) $incomes->sum(fn($f) => $f->effective_cash_amount), 2);
+            $cardIncome = round((float) $incomes->sum(fn($f) => $f->effective_card_amount), 2);
+            $transferIncome = round((float) $incomes->sum(fn($f) => $f->effective_transfer_amount), 2);
+            $totalExpense = round((float) $expenses->sum(fn($f) => $f->effective_cash_amount), 2);
+            $openingBalance = DailyCut::resolveOpeningBalance($branchId, $date);
             $dailyCut = (object) [
                 'date' => $date,
                 'cut_type' => 'pre_corte',
                 'cut_mode' => 'vista_previa',
-                'opening_balance' => 0,
+                'opening_balance' => $openingBalance,
                 'total_income' => $totalIncome,
-                'cash_income' => $incomes->sum('cash_amount'),
-                'card_income' => $incomes->sum('card_amount'),
-                'transfer_income' => $incomes->sum('transfer_amount'),
+                'cash_income' => $cashIncome,
+                'card_income' => $cardIncome,
+                'transfer_income' => $transferIncome,
                 'total_expense' => $totalExpense,
-                'balance' => $totalIncome - $totalExpense,
+                'balance' => round($openingBalance + $cashIncome - $totalExpense, 2),
             ];
         }
 
