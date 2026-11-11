@@ -83,14 +83,11 @@
                     <div class="title">PAGARÉ MERCANTIL</div>
                     <div><strong>Folio de Préstamo:</strong> {{ $loan->loan_code }}</div>
                     <div><strong>Sucursal:</strong> {{ $loan->branch?->name ?? 'ZYA' }}</div>
-                    <div><strong>Fecha de Suscripción:</strong> {{ $loan->start_date ? $loan->start_date->format('d/m/Y') : now()->format('d/m/Y') }}</div>
+                    <div><strong>Fecha de Suscripción:</strong> {{ ($loan->start_date ?: $loan->created_at ?: now())->format('d/m/Y') }}</div>
                 </td>
                 <td align="right">
                     <div class="amount-box">
                         BUENO POR: ${{ number_format($loan->total_amount, 2) }} M.N.
-                    </div>
-                    <div style="margin-top: 6px; font-size: 12px;">
-                        <strong>Vencimiento Final:</strong> {{ $loan->due_date ? $loan->due_date->format('d/m/Y') : '-' }}
                     </div>
                 </td>
             </tr>
@@ -99,8 +96,7 @@
 
     <div class="legal-body">
         <p>
-            Debo(emos) y pagaré(mos) incondicionalmente por este <strong>PAGARÉ</strong> a la orden de
-            <strong>ZYA ({{ $loan->branch?->name ?? 'Matriz' }})</strong> en esta ciudad o en cualquier otro lugar que se me(nos) requiera de pago,
+            Debo(emos) y pagaré(mos) incondicionalmente por este <strong>PAGARÉ</strong> a la orden de <strong>Nancy Esmeralda Zapata Medina</strong> en esta ciudad o en cualquier otro lugar que se me(nos) requiera de pago,
             la cantidad total de <strong>${{ number_format($loan->total_amount, 2) }} MXN</strong>
             ({{ \App\Models\FinSale::numberToWords($loan->total_amount) }}),
             mediante <strong>{{ $loan->term_periods }}</strong> pagos periódicos en modalidad <strong>{{ strtoupper($loan->payment_frequency_label) }}</strong>
@@ -164,8 +160,8 @@
             </td>
             <td width="50%" align="center">
                 <div class="sig-line">
-                    FIRMA DE AVAL / TESTIGO O AUTORIZACIÓN<br>
-                    <span style="font-weight: normal; font-size: 12px;">{{ $loan->customer?->aval_name ?: 'ZYA ' . ($loan->branch?->name ?? '') }}</span>
+                    FIRMA DEL AVAL<br>
+                    <span style="font-weight: normal; font-size: 12px;">{{ $loan->customer?->aval_name ?: ($loan->type_specific_data['aval_nombre'] ?? $loan->type_specific_data['aval_name'] ?? '') }}</span>
                 </div>
             </td>
         </tr>
