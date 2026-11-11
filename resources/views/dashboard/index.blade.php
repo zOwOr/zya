@@ -1,7 +1,7 @@
 @extends('dashboard.body.main')
 
 @section('container')
-@if (auth()->user()->isSuperAdmin() || auth()->user()->canAny(['dashboard.read', 'dashboard.menu', 'cobros.read', 'financieras.read', 'cash.read']))
+@if (auth()->user()->isSuperAdmin() || auth()->user()->canAny(['dashboard.read', 'dashboard.menu']))
 <div class="container-fluid">
     <div class="row">
         <div class="col-lg-12">
@@ -98,12 +98,14 @@
                 <small class="text-light">Filtra por rango de fechas, catálogo de financiera o sucursal y descarga en PDF o Excel</small>
             </div>
             <div class="d-flex gap-2 mt-2 mt-md-0">
-                <a href="{{ route('dashboard.financieras.pdf', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-danger mr-2">
-                    <i class="las la-file-pdf"></i> Exportar PDF
-                </a>
-                <a href="{{ route('dashboard.financieras.excel', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-success">
-                    <i class="las la-file-excel"></i> Exportar Excel
-                </a>
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.export') || auth()->user()->can('financieras.dashboard_payments') || auth()->user()->can('financieras.export'))
+                    <a href="{{ route('dashboard.financieras.pdf', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-danger mr-2">
+                        <i class="las la-file-pdf"></i> Exportar PDF
+                    </a>
+                    <a href="{{ route('dashboard.financieras.excel', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-success">
+                        <i class="las la-file-excel"></i> Exportar Excel
+                    </a>
+                @endif
             </div>
         </div>
         <div class="card-body">
@@ -355,7 +357,7 @@
                                         <a href="{{ route('central-pos.receipt', $tx->id) }}" target="_blank" class="btn btn-xs btn-outline-dark mr-1" title="Reimprimir Ticket">
                                             <i class="las la-print"></i> Ticket
                                         </a>
-                                        @if($tx->status === 'completado' && (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.cancel_transaction')))
+                                        @if($tx->status === 'completado' && (auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.cancel_transaction') || auth()->user()->can('cobros.cancel_transaction')))
                                             <form method="POST" action="{{ route('dashboard.transactions.cancel', $tx->id) }}" onsubmit="return confirm('¿Seguro que deseas cancelar este movimiento?')">
                                                 @csrf
                                                 <button type="submit" class="btn btn-xs btn-outline-danger" title="Cancelar movimiento">

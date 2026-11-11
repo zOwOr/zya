@@ -94,6 +94,7 @@ class Permission extends SpatiePermission
             'cobros' => 'Módulo Centralizado de Cobros (4 en 1)',
             'prestamos' => 'Módulo de Préstamos',
             'gifts' => 'Gifts y Promocionales por Proveedor',
+            'dashboard' => 'Dashboard y Panel Central',
         ];
 
         return $labels[strtolower(trim($group_name))] ?? ucfirst($group_name);
