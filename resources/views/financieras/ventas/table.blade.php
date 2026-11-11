@@ -65,7 +65,11 @@
                         @if ($sale->isContado())
                             <small class="text-muted"><i class="fa-solid fa-circle-check text-success mr-1"></i>Pago total</small>
                         @else
-                            <small class="text-muted">Eng: ${{ number_format($sale->down_payment, 2) }}</small>
+                            @if(!is_null($sale->enganche_descuento) && (float)$sale->enganche_descuento !== (float)$sale->down_payment)
+                                <small class="text-dark">Eng: <del class="text-muted">${{ number_format($sale->down_payment, 2) }}</del> <strong class="text-success">${{ number_format($sale->enganche_descuento, 2) }}</strong></small>
+                            @else
+                                <small class="text-muted">Eng: ${{ number_format($sale->down_payment, 2) }}</small>
+                            @endif
                         @endif
                     </td>
                     <td>
