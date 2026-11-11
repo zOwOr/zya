@@ -87,6 +87,10 @@
                 'slug' => 'branch',
                 'name' => 'Sucursales',
             ],
+            [
+                'slug' => 'dashboard',
+                'name' => 'Dashboard y Panel Central',
+            ],
         ];
     @endphp
 
