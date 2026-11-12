@@ -337,7 +337,10 @@
                 <button type="button" class="btn btn-sm btn-dark font-weight-bold mr-2 shadow-sm" id="posBtnReimprimir">
                     <i class="fa-solid fa-print mr-1"></i> Reimprimir Ticket
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-success font-weight-bold mr-2" onclick="document.getElementById('posSaleSuccessAlert').classList.add('d-none')">
+                <a href="#" target="_blank" class="btn btn-sm btn-outline-dark font-weight-bold mr-2 shadow-sm" id="posBtnVerTicket" title="Ver ticket en pantalla o imprimir">
+                    <i class="fa-solid fa-receipt mr-1"></i> Ver Ticket
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-success font-weight-bold" onclick="document.getElementById('posSaleSuccessAlert').classList.add('d-none')">
                     <i class="fa-solid fa-check mr-1"></i> Listo
                 </button>
             </div>
@@ -1483,14 +1486,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const val = parseFloat(rawVal);
             if (rawVal === '' || isNaN(val) || val < 0) {
                 alert('El precio no puede ser negativo ni quedar vacío. Si es gratis, ingresa 0.00.');
-                renderCurrentTabCart();
+                renderActiveCart();
                 return;
             }
             const tab = getActiveTab();
             if (tab && tab.items[idx]) {
                 tab.items[idx].amount = Math.round(val * 100) / 100;
                 saveState();
-                renderCurrentTabCart();
+                renderActiveCart();
             }
             return;
         }
@@ -1501,14 +1504,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const qVal = parseInt(qtyInput.value);
             if (isNaN(qVal) || qVal < 1) {
                 alert('La cantidad mínima es 1.');
-                renderCurrentTabCart();
+                renderActiveCart();
                 return;
             }
             const tab = getActiveTab();
             if (tab && tab.items[idx]) {
                 tab.items[idx].quantity = qVal;
                 saveState();
-                renderCurrentTabCart();
+                renderActiveCart();
             }
             return;
         }
@@ -1842,55 +1845,75 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    document.getElementById('btnSearchFinanciera').addEventListener('click', searchFinancieras);
-    document.getElementById('finSearchInput').addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchFinancieras();
-        }
-    });
+    const btnSearchFin = document.getElementById('btnSearchFinanciera');
+    if (btnSearchFin) btnSearchFin.addEventListener('click', searchFinancieras);
 
-    document.getElementById('finSearchResults').addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-select-fin');
-        if (!btn) return;
-        document.getElementById('finSelectedContractBox').classList.remove('d-none');
-        document.getElementById('finSelSaleId').value = btn.dataset.saleId;
-        document.getElementById('finSelFinanciera').textContent = btn.dataset.fin;
-        document.getElementById('finSelCustomer').textContent = btn.dataset.customer;
-        document.getElementById('finSelCustomerName').value = btn.dataset.customer;
-        document.getElementById('finSelDevice').textContent = btn.dataset.device;
-        document.getElementById('finSelTitle').value = `Abono Financiera (${btn.dataset.fin}) TAG: ${btn.dataset.tag}`;
-        const abono = parseFloat(btn.dataset.abono);
-        const suggested = isNaN(abono) ? 0 : Math.max(0, abono);
-        document.getElementById('finSelSuggested').textContent = '$' + suggested.toFixed(2);
-        document.getElementById('finAbonoAmount').value = suggested.toFixed(2);
-    });
-
-    document.getElementById('btnAddFinAbonoToTab').addEventListener('click', function () {
-        const saleId = document.getElementById('finSelSaleId').value;
-        const amountVal = document.getElementById('finAbonoAmount').value.trim();
-        const amount = parseFloat(amountVal);
-        const comm = parseFloat(document.getElementById('finCommissionAmount').value) || 0;
-        if (!saleId || amountVal === '' || isNaN(amount) || amount < 0) {
-            alert('Selecciona un contrato y especifica un monto de abono válido (0.00 o mayor).');
-            return;
-        }
-        if (comm < 0) {
-            alert('La comisión no puede ser menor a 0.');
-            return;
-        }
-        addItemToCurrentTab({
-            section: 'financiera_abono',
-            sale_id: saleId,
-            title: document.getElementById('finSelTitle').value,
-            subtitle: document.getElementById('finSelDevice').textContent,
-            financiera_name: document.getElementById('finSelFinanciera').textContent,
-            customer_name: document.getElementById('finSelCustomerName').value,
-            quantity: 1,
-            amount: amount,
-            commission: comm
+    const finSearchInp = document.getElementById('finSearchInput');
+    if (finSearchInp) {
+        finSearchInp.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchFinancieras();
+            }
         });
-    });
+    }
+
+    const finResultsEl = document.getElementById('finSearchResults');
+    if (finResultsEl) {
+        finResultsEl.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-select-fin');
+            if (!btn) return;
+            const selBox = document.getElementById('finSelectedContractBox');
+            if (selBox) selBox.classList.remove('d-none');
+            const saleIdEl = document.getElementById('finSelSaleId');
+            if (saleIdEl) saleIdEl.value = btn.dataset.saleId;
+            const finEl = document.getElementById('finSelFinanciera');
+            if (finEl) finEl.textContent = btn.dataset.fin;
+            const custEl = document.getElementById('finSelCustomer');
+            if (custEl) custEl.textContent = btn.dataset.customer;
+            const custNameEl = document.getElementById('finSelCustomerName');
+            if (custNameEl) custNameEl.value = btn.dataset.customer;
+            const devEl = document.getElementById('finSelDevice');
+            if (devEl) devEl.textContent = btn.dataset.device;
+            const titleEl = document.getElementById('finSelTitle');
+            if (titleEl) titleEl.value = `Abono Financiera (${btn.dataset.fin}) TAG: ${btn.dataset.tag}`;
+            const abono = parseFloat(btn.dataset.abono);
+            const suggested = isNaN(abono) ? 0 : Math.max(0, abono);
+            const sugEl = document.getElementById('finSelSuggested');
+            if (sugEl) sugEl.textContent = '$' + suggested.toFixed(2);
+            const abonoInp = document.getElementById('finAbonoAmount');
+            if (abonoInp) abonoInp.value = suggested.toFixed(2);
+        });
+    }
+
+    const btnAddFin = document.getElementById('btnAddFinAbonoToTab');
+    if (btnAddFin) {
+        btnAddFin.addEventListener('click', function () {
+            const saleId = document.getElementById('finSelSaleId')?.value;
+            const amountVal = document.getElementById('finAbonoAmount')?.value?.trim() ?? '';
+            const amount = parseFloat(amountVal);
+            const comm = parseFloat(document.getElementById('finCommissionAmount')?.value) || 0;
+            if (!saleId || amountVal === '' || isNaN(amount) || amount < 0) {
+                alert('Selecciona un contrato y especifica un monto de abono válido (0.00 o mayor).');
+                return;
+            }
+            if (comm < 0) {
+                alert('La comisión no puede ser menor a 0.');
+                return;
+            }
+            addItemToCurrentTab({
+                section: 'financiera_abono',
+                sale_id: saleId,
+                title: document.getElementById('finSelTitle')?.value || 'Abono Financiera',
+                subtitle: document.getElementById('finSelDevice')?.textContent || '',
+                financiera_name: document.getElementById('finSelFinanciera')?.textContent || '',
+                customer_name: document.getElementById('finSelCustomerName')?.value || '',
+                quantity: 1,
+                amount: amount,
+                commission: comm
+            });
+        });
+    }
 
     // ==================== 2. PRÉSTAMOS EN CONSOLA CENTRAL ====================
     const posLoanCustomerSelect = document.getElementById('posLoanCustomerSelect');
@@ -2009,47 +2032,49 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     });
 
-    posOpenLoansContainer.addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-add-loan-abono');
-        if (!btn) return;
+    if (posOpenLoansContainer) {
+        posOpenLoansContainer.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-add-loan-abono');
+            if (!btn) return;
 
-        const tab = getActiveTab();
-        const instId = btn.dataset.instId;
+            const tab = getActiveTab();
+            const instId = btn.dataset.instId;
 
-        // Validar que no se duplique el mismo período de pago en la misma cuenta
-        const alreadyInTab = tab.items.some(it => it.section === 'prestamo_abono' && String(it.installment_id) === String(instId));
-        if (alreadyInTab) {
-            alert(`El Pago #${btn.dataset.instNum} ya está agregado al proceso actual.`);
-            return;
-        }
+            // Validar que no se duplique el mismo período de pago en la misma cuenta
+            const alreadyInTab = tab.items.some(it => it.section === 'prestamo_abono' && String(it.installment_id) === String(instId));
+            if (alreadyInTab) {
+                alert(`El Pago #${btn.dataset.instNum} ya está agregado al proceso actual.`);
+                return;
+            }
 
-        // Obtener el monto ingresado para este período
-        const inputEl = document.getElementById(`loan_inst_amt_${instId}`);
-        const maxVal = parseFloat(btn.dataset.max) || 0;
-        let amount = inputEl ? parseFloat(inputEl.value) : maxVal;
+            // Obtener el monto ingresado para este período
+            const inputEl = document.getElementById(`loan_inst_amt_${instId}`);
+            const maxVal = parseFloat(btn.dataset.max) || 0;
+            let amount = inputEl ? parseFloat(inputEl.value) : maxVal;
 
-        if (isNaN(amount) || amount <= 0) {
-            alert('Ingresa un monto de abono válido mayor a $0.00.');
-            if (inputEl) inputEl.focus();
-            return;
-        }
+            if (isNaN(amount) || amount <= 0) {
+                alert('Ingresa un monto de abono válido mayor a $0.00.');
+                if (inputEl) inputEl.focus();
+                return;
+            }
 
-        const opt = posLoanCustomerSelect.options[posLoanCustomerSelect.selectedIndex];
-        addItemToCurrentTab({
-            section: 'prestamo_abono',
-            loan_id: btn.dataset.loanId,
-            installment_id: instId,
-            title: `Abono Préstamo ${btn.dataset.loanCode} (Pago #${btn.dataset.instNum})`,
-            subtitle: `Día Programado: ${btn.dataset.scheduled}`,
-            customer_id: posLoanCustomerSelect.value,
-            customer_name: opt ? opt.dataset.name : '',
-            quantity: 1,
-            amount: amount,
-            commission: 0
+            const opt = posLoanCustomerSelect ? posLoanCustomerSelect.options[posLoanCustomerSelect.selectedIndex] : null;
+            addItemToCurrentTab({
+                section: 'prestamo_abono',
+                loan_id: btn.dataset.loanId,
+                installment_id: instId,
+                title: `Abono Préstamo ${btn.dataset.loanCode} (Pago #${btn.dataset.instNum})`,
+                subtitle: `Día Programado: ${btn.dataset.scheduled}`,
+                customer_id: posLoanCustomerSelect ? posLoanCustomerSelect.value : null,
+                customer_name: opt ? opt.dataset.name : '',
+                quantity: 1,
+                amount: amount,
+                commission: 0
+            });
+
+            renderOpenLoansList();
         });
-
-        renderOpenLoansList();
-    });
+    }
 
     const posNewLoanType = document.getElementById('posNewLoanType');
     const posNewLoanPrincipal = document.getElementById('posNewLoanPrincipal');
@@ -2065,53 +2090,57 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function recalcPosNewLoanFromInstallment() {
         posLoanLastAction = 'installment';
-        const principal = parseFloat(posNewLoanPrincipal.value) || 0;
-        const installment = parseFloat(posNewLoanInstallment.value) || 0;
-        const periods = Math.max(1, parseInt(posNewLoanPeriods.value) || 1);
+        const principal = parseFloat(posNewLoanPrincipal?.value) || 0;
+        const installment = parseFloat(posNewLoanInstallment?.value) || 0;
+        const periods = Math.max(1, parseInt(posNewLoanPeriods?.value) || 1);
 
         const total = installment * periods;
         const interest = Math.max(0, total - principal);
         const rate = principal > 0 ? ((interest / principal) * 100) : 0;
 
-        posNewLoanRate.value = rate.toFixed(2);
+        if (posNewLoanRate) posNewLoanRate.value = rate.toFixed(2);
         if (posNewLoanTotalPreview) posNewLoanTotalPreview.textContent = '$' + total.toFixed(2);
         if (posNewLoanInterestPreview) posNewLoanInterestPreview.textContent = '$' + interest.toFixed(2) + ' (' + rate.toFixed(2) + '%)';
     }
 
     function recalcPosNewLoanFromRate() {
         posLoanLastAction = 'rate';
-        const principal = parseFloat(posNewLoanPrincipal.value) || 0;
-        const rate = parseFloat(posNewLoanRate.value) || 0;
-        const periods = Math.max(1, parseInt(posNewLoanPeriods.value) || 1);
+        const principal = parseFloat(posNewLoanPrincipal?.value) || 0;
+        const rate = parseFloat(posNewLoanRate?.value) || 0;
+        const periods = Math.max(1, parseInt(posNewLoanPeriods?.value) || 1);
 
         const interest = principal * (rate / 100);
         const total = principal + interest;
         const installment = total / periods;
 
-        posNewLoanInstallment.value = installment.toFixed(2);
+        if (posNewLoanInstallment) posNewLoanInstallment.value = installment.toFixed(2);
         if (posNewLoanTotalPreview) posNewLoanTotalPreview.textContent = '$' + total.toFixed(2);
         if (posNewLoanInterestPreview) posNewLoanInterestPreview.textContent = '$' + interest.toFixed(2) + ' (' + rate.toFixed(2) + '%)';
     }
 
     if (posNewLoanInstallment) {
         posNewLoanInstallment.addEventListener('input', recalcPosNewLoanFromInstallment);
-        posNewLoanRate.addEventListener('input', recalcPosNewLoanFromRate);
-        posNewLoanPrincipal.addEventListener('input', () => {
-            if (posLoanLastAction === 'rate') recalcPosNewLoanFromRate();
-            else recalcPosNewLoanFromInstallment();
-        });
-        posNewLoanPeriods.addEventListener('input', () => {
-            if (posLoanLastAction === 'rate') recalcPosNewLoanFromRate();
-            else recalcPosNewLoanFromInstallment();
-        });
+        if (posNewLoanRate) posNewLoanRate.addEventListener('input', recalcPosNewLoanFromRate);
+        if (posNewLoanPrincipal) {
+            posNewLoanPrincipal.addEventListener('input', () => {
+                if (posLoanLastAction === 'rate') recalcPosNewLoanFromRate();
+                else recalcPosNewLoanFromInstallment();
+            });
+        }
+        if (posNewLoanPeriods) {
+            posNewLoanPeriods.addEventListener('input', () => {
+                if (posLoanLastAction === 'rate') recalcPosNewLoanFromRate();
+                else recalcPosNewLoanFromInstallment();
+            });
+        }
 
         $('#posNewLoanType').on('change', function () {
             const opt = this.options[this.selectedIndex];
             if (opt && opt.value) {
-                if (opt.dataset.rate) posNewLoanRate.value = opt.dataset.rate;
-                if (opt.dataset.fee) posNewLoanComm.value = opt.dataset.fee;
-                if (opt.dataset.freq) posNewLoanFreq.value = opt.dataset.freq;
-                if (opt.dataset.periods) posNewLoanPeriods.value = opt.dataset.periods;
+                if (opt.dataset.rate && posNewLoanRate) posNewLoanRate.value = opt.dataset.rate;
+                if (opt.dataset.fee && posNewLoanComm) posNewLoanComm.value = opt.dataset.fee;
+                if (opt.dataset.freq && posNewLoanFreq) posNewLoanFreq.value = opt.dataset.freq;
+                if (opt.dataset.periods && posNewLoanPeriods) posNewLoanPeriods.value = opt.dataset.periods;
                 recalcPosNewLoanFromRate();
             } else {
                 recalcPosNewLoanFromInstallment();
@@ -2121,48 +2150,51 @@ document.addEventListener('DOMContentLoaded', function () {
         recalcPosNewLoanFromInstallment();
     }
 
-    document.getElementById('btnAddNewLoanToTab').addEventListener('click', function () {
-        const customerId = posLoanCustomerSelect.value;
-        if (!customerId) {
-            alert('Selecciona primero al cliente del préstamo.');
-            return;
-        }
-        const opt = posLoanCustomerSelect.options[posLoanCustomerSelect.selectedIndex];
-        const typeSelect = document.getElementById('posNewLoanType');
-        const typeOpt = typeSelect.options[typeSelect.selectedIndex];
-        const principal = parseFloat(document.getElementById('posNewLoanPrincipal').value) || 0;
-        const installment = parseFloat(document.getElementById('posNewLoanInstallment').value) || 0;
-        const rate = parseFloat(document.getElementById('posNewLoanRate').value) || 0;
-        const freq = document.getElementById('posNewLoanFreq').value;
-        const periods = parseInt(document.getElementById('posNewLoanPeriods').value) || 4;
-        const comm = parseFloat(document.getElementById('posNewLoanComm').value) || 0;
+    const btnAddLoanEl = document.getElementById('btnAddNewLoanToTab');
+    if (btnAddLoanEl) {
+        btnAddLoanEl.addEventListener('click', function () {
+            const customerId = posLoanCustomerSelect ? posLoanCustomerSelect.value : '';
+            if (!customerId) {
+                alert('Selecciona primero al cliente del préstamo.');
+                return;
+            }
+            const opt = posLoanCustomerSelect.options[posLoanCustomerSelect.selectedIndex];
+            const typeSelect = document.getElementById('posNewLoanType');
+            const typeOpt = typeSelect ? typeSelect.options[typeSelect.selectedIndex] : null;
+            const principal = parseFloat(document.getElementById('posNewLoanPrincipal')?.value) || 0;
+            const installment = parseFloat(document.getElementById('posNewLoanInstallment')?.value) || 0;
+            const rate = parseFloat(document.getElementById('posNewLoanRate')?.value) || 0;
+            const freq = document.getElementById('posNewLoanFreq')?.value || 'semanal';
+            const periods = parseInt(document.getElementById('posNewLoanPeriods')?.value) || 4;
+            const comm = parseFloat(document.getElementById('posNewLoanComm')?.value) || 0;
 
-        const freqLabels = {
-            '12_26': '12 y 26',
-            'quincenal': 'Quincenal (15 y 30)',
-            'semanal': 'Semanal',
-            'mensual': 'Mensual'
-        };
-        const freqLabel = freqLabels[freq] || freq;
-        const typeName = typeOpt && typeOpt.value ? typeOpt.text.trim() : 'Directo';
+            const freqLabels = {
+                '12_26': '12 y 26',
+                'quincenal': 'Quincenal (15 y 30)',
+                'semanal': 'Semanal',
+                'mensual': 'Mensual'
+            };
+            const freqLabel = freqLabels[freq] || freq;
+            const typeName = typeOpt && typeOpt.value ? typeOpt.text.trim() : 'Directo';
 
-        addItemToCurrentTab({
-            section: 'prestamo_apertura',
-            customer_id: customerId,
-            customer_name: opt ? opt.dataset.name : '',
-            loan_type_id: typeSelect.value || null,
-            principal_amount: principal,
-            installment_amount: installment,
-            interest_rate: rate,
-            payment_frequency: freq,
-            term_periods: periods,
-            title: `Apertura Préstamo (${typeName})`,
-            subtitle: `Capital $${principal.toFixed(2)} | ${periods} pagos de $${installment.toFixed(2)} (${freqLabel}) | Solo cobra Comisión en caja`,
-            quantity: 1,
-            amount: 0,
-            commission: comm
+            addItemToCurrentTab({
+                section: 'prestamo_apertura',
+                customer_id: customerId,
+                customer_name: opt ? opt.dataset.name : '',
+                loan_type_id: typeSelect ? typeSelect.value || null : null,
+                principal_amount: principal,
+                installment_amount: installment,
+                interest_rate: rate,
+                payment_frequency: freq,
+                term_periods: periods,
+                title: `Apertura Préstamo (${typeName})`,
+                subtitle: `Capital $${principal.toFixed(2)} | ${periods} pagos de $${installment.toFixed(2)} (${freqLabel}) | Solo cobra Comisión en caja`,
+                quantity: 1,
+                amount: 0,
+                commission: comm
+            });
         });
-    });
+    }
 
     // ==================== 3. TANDAS EN CONSOLA CENTRAL ====================
     const posTandaSelect = document.getElementById('posTandaSelect');
@@ -2171,253 +2203,333 @@ document.addEventListener('DOMContentLoaded', function () {
 
     $('#posTandaSelect').on('change', function () {
         const opt = this.options[this.selectedIndex];
-        posTandaParticipantSelect.innerHTML = '<option value="">-- Selecciona participante existente --</option>';
+        if (posTandaParticipantSelect) {
+            posTandaParticipantSelect.innerHTML = '<option value="">-- Selecciona participante existente --</option>';
+        }
         if (!opt || !opt.value) {
             $('#posTandaParticipantSelect').trigger('change.select2');
             return;
         }
 
-        posTandaAmount.value = parseFloat(opt.dataset.amount || 0).toFixed(2);
+        if (posTandaAmount) {
+            posTandaAmount.value = parseFloat(opt.dataset.amount || 0).toFixed(2);
+        }
         let participants = [];
         try {
             participants = JSON.parse(opt.dataset.participants || '[]');
         } catch (e) {}
 
-        participants.forEach(p => {
-            const o = document.createElement('option');
-            o.value = p.id;
-            o.dataset.name = p.name;
-            o.textContent = `#${p.position} - ${p.name} (${p.phone || '-'})`;
-            posTandaParticipantSelect.appendChild(o);
-        });
+        if (posTandaParticipantSelect) {
+            participants.forEach(p => {
+                const o = document.createElement('option');
+                o.value = p.id;
+                o.dataset.name = p.name;
+                o.textContent = `#${p.position} - ${p.name} (${p.phone || '-'})`;
+                posTandaParticipantSelect.appendChild(o);
+            });
+        }
         $('#posTandaParticipantSelect').trigger('change.select2');
     });
 
-    document.getElementById('btnAddTandaToTab').addEventListener('click', function () {
-        const tandaId = posTandaSelect.value;
-        if (!tandaId) {
-            alert('Selecciona una tanda.');
-            return;
-        }
-        const tandaOpt = posTandaSelect.options[posTandaSelect.selectedIndex];
-        const participantId = posTandaParticipantSelect.value;
-        const newName = document.getElementById('posTandaNewName').value.trim();
-        const newPhone = document.getElementById('posTandaNewPhone').value.trim();
-        const newPos = document.getElementById('posTandaNewPos').value;
-        const periodNo = parseInt(document.getElementById('posTandaPeriodNo').value) || 1;
-        const amount = parseFloat(posTandaAmount.value) || 0;
+    const btnAddTandaEl = document.getElementById('btnAddTandaToTab');
+    if (btnAddTandaEl) {
+        btnAddTandaEl.addEventListener('click', function () {
+            const tandaId = posTandaSelect ? posTandaSelect.value : '';
+            if (!tandaId) {
+                alert('Selecciona una tanda.');
+                return;
+            }
+            const tandaOpt = posTandaSelect.options[posTandaSelect.selectedIndex];
+            const participantId = posTandaParticipantSelect ? posTandaParticipantSelect.value : '';
+            const newName = document.getElementById('posTandaNewName')?.value?.trim() || '';
+            const newPhone = document.getElementById('posTandaNewPhone')?.value?.trim() || '';
+            const newPos = document.getElementById('posTandaNewPos')?.value || '';
+            const periodNo = parseInt(document.getElementById('posTandaPeriodNo')?.value) || 1;
+            const amount = parseFloat(posTandaAmount?.value) || 0;
 
-        if (!participantId && !newName) {
-            alert('Selecciona un participante de la tanda o escribe el nombre del nuevo cliente.');
-            return;
-        }
+            if (!participantId && !newName) {
+                alert('Selecciona un participante de la tanda o escribe el nombre del nuevo cliente.');
+                return;
+            }
 
-        const pName = participantId
-            ? posTandaParticipantSelect.options[posTandaParticipantSelect.selectedIndex].dataset.name
-            : newName;
+            const pName = participantId && posTandaParticipantSelect
+                ? posTandaParticipantSelect.options[posTandaParticipantSelect.selectedIndex].dataset.name
+                : newName;
 
-        addItemToCurrentTab({
-            section: 'tanda_abono',
-            tanda_id: tandaId,
-            participant_id: participantId || null,
-            customer_name: pName,
-            customer_phone: newPhone,
-            position: newPos,
-            period_number: periodNo,
-            title: `Tanda: ${tandaOpt.dataset.name} (Periodo #${periodNo})`,
-            subtitle: `Participante: ${pName}`,
-            quantity: 1,
-            amount: amount,
-            commission: 0
+            addItemToCurrentTab({
+                section: 'tanda_abono',
+                tanda_id: tandaId,
+                participant_id: participantId || null,
+                customer_name: pName,
+                customer_phone: newPhone,
+                position: newPos,
+                period_number: periodNo,
+                title: `Tanda: ${tandaOpt?.dataset?.name || ''} (Periodo #${periodNo})`,
+                subtitle: `Participante: ${pName}`,
+                quantity: 1,
+                amount: amount,
+                commission: 0
+            });
         });
-    });
+    }
 
     // ==================== 4. PRODUCTOS (STOCK REAL + DINÁMICOS SIN STOCK) ====================
-    document.getElementById('posCatalogProductsBody').addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-add-stock-product');
-        if (!btn) return;
-        const initialPrice = parseFloat(btn.dataset.price) || 0;
-        addItemToCurrentTab({
-            section: 'producto_inventario',
-            product_id: btn.dataset.id,
-            title: btn.dataset.name,
-            subtitle: 'Impacto real en Inventario',
-            quantity: 1,
-            amount: initialPrice,
-            original_amount: initialPrice,
-            commission: 0
+    const catalogBodyEl = document.getElementById('posCatalogProductsBody');
+    if (catalogBodyEl) {
+        catalogBodyEl.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-add-stock-product');
+            if (!btn) return;
+            const initialPrice = parseFloat(btn.dataset.price) || 0;
+            addItemToCurrentTab({
+                section: 'producto_inventario',
+                product_id: btn.dataset.id,
+                title: btn.dataset.name,
+                subtitle: 'Impacto real en Inventario',
+                quantity: 1,
+                amount: initialPrice,
+                original_amount: initialPrice,
+                commission: 0
+            });
         });
-    });
+    }
 
-    document.getElementById('btnAddDynamicProductToTab').addEventListener('click', function () {
-        const name = document.getElementById('dynProdName').value.trim();
-        const priceVal = document.getElementById('dynProdPrice').value.trim();
-        const price = parseFloat(priceVal);
-        const qty = Math.max(1, parseInt(document.getElementById('dynProdQty').value) || 1);
-        if (!name || priceVal === '' || isNaN(price) || price < 0) {
-            alert('Ingresa un nombre y un precio válido (0.00 o mayor) del producto manual.');
-            return;
+    const btnAddDynEl = document.getElementById('btnAddDynamicProductToTab');
+    if (btnAddDynEl) {
+        btnAddDynEl.addEventListener('click', function () {
+            const nameEl = document.getElementById('dynProdName');
+            const priceEl = document.getElementById('dynProdPrice');
+            const qtyEl = document.getElementById('dynProdQty');
+            const name = nameEl ? nameEl.value.trim() : '';
+            const priceVal = priceEl ? priceEl.value.trim() : '';
+            const price = parseFloat(priceVal);
+            const qty = Math.max(1, parseInt(qtyEl ? qtyEl.value : 1) || 1);
+            if (!name || priceVal === '' || isNaN(price) || price < 0) {
+                alert('Ingresa un nombre y un precio válido (0.00 o mayor) del producto manual.');
+                return;
+            }
+            const brand = document.getElementById('dynProdBrand')?.value.trim() || '';
+            const model = document.getElementById('dynProdModel')?.value.trim() || '';
+            const imei = document.getElementById('dynProdImei')?.value.trim() || '';
+            const status = document.getElementById('dynProdStatus')?.value || 'Nuevo';
+            const warranty = document.getElementById('dynProdWarranty')?.value.trim() || '';
+            const obs = document.getElementById('dynProdObs')?.value.trim() || '';
+
+            addItemToCurrentTab({
+                section: 'producto_dinamico',
+                name: name,
+                brand: brand,
+                model: model,
+                imei: imei,
+                category_status: status,
+                warranty_time: warranty,
+                observations: obs,
+                title: `${name} (${status})`,
+                subtitle: `Sin impacto en inventario ${imei ? '| IMEI: ' + imei : ''}`,
+                quantity: qty,
+                amount: price,
+                original_amount: price,
+                commission: 0
+            });
+
+            if (nameEl) nameEl.value = '';
+            if (priceEl) priceEl.value = '0.00';
+            if (qtyEl) qtyEl.value = '1';
+            if (document.getElementById('dynProdImei')) document.getElementById('dynProdImei').value = '';
+            if (document.getElementById('dynProdObs')) document.getElementById('dynProdObs').value = '';
+        });
+
+        // Soporte tecla Enter en nombre y precio de producto libre
+        const dynNameInp = document.getElementById('dynProdName');
+        const dynPriceInp = document.getElementById('dynProdPrice');
+        if (dynNameInp) {
+            dynNameInp.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (dynPriceInp) dynPriceInp.focus();
+                }
+            });
         }
-        const brand = document.getElementById('dynProdBrand').value.trim();
-        const model = document.getElementById('dynProdModel').value.trim();
-        const imei = document.getElementById('dynProdImei').value.trim();
-        const status = document.getElementById('dynProdStatus').value;
-        const warranty = document.getElementById('dynProdWarranty').value.trim();
-        const obs = document.getElementById('dynProdObs').value.trim();
-
-        addItemToCurrentTab({
-            section: 'producto_dinamico',
-            name: name,
-            brand: brand,
-            model: model,
-            imei: imei,
-            category_status: status,
-            warranty_time: warranty,
-            observations: obs,
-            title: `${name} (${status})`,
-            subtitle: `Sin impacto en inventario ${imei ? '| IMEI: ' + imei : ''}`,
-            quantity: qty,
-            amount: price,
-            original_amount: price,
-            commission: 0
-        });
-
-        document.getElementById('dynProdName').value = '';
-        document.getElementById('dynProdPrice').value = '';
-        document.getElementById('dynProdImei').value = '';
-        document.getElementById('dynProdObs').value = '';
-    });
+        if (dynPriceInp) {
+            dynPriceInp.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    btnAddDynEl.click();
+                }
+            });
+        }
+    }
 
     // ==================== 5. CHECKOUT UNIFICADO Y APERTURA DE CAJÓN ====================
-    document.getElementById('btnOpenPhysicalDrawer').addEventListener('click', function () {
-        window.triggerPhysicalCashDrawer();
-    });
-
-    document.getElementById('btnCompleteUnifiedSale').addEventListener('click', function () {
-        const tab = getActiveTab();
-        const totals = calculateTabTotals(tab);
-        if (tab.items.length === 0) {
-            alert('Esta pestaña no tiene conceptos agregados.');
-            return;
-        }
-
-        const effectivePaidAmount = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
-        const effectiveDueAmount = Math.max(0, totals.total - effectivePaidAmount);
-
-        if (effectiveDueAmount > 0) {
-            const cName = (tab.customerName || '').trim();
-            if (!cName || cName.toLowerCase() === 'cliente mostrador') {
-                alert('⚠️ Para registrar una Nota con Saldo Pendiente (el cliente queda debiendo $' + effectiveDueAmount.toFixed(2) + '), es obligatorio escribir o seleccionar el Nombre del Cliente.');
-                document.getElementById('tabCustomerName').focus();
-                return;
-            }
-        }
-
-        let cashAmt = 0;
-        let cardAmt = 0;
-        let transAmt = 0;
-        let refs = {};
-
-        if (tab.paymentMethod === 'efectivo') {
-            cashAmt = effectivePaidAmount;
-        } else if (tab.paymentMethod === 'tarjeta') {
-            cardAmt = effectivePaidAmount;
-            refs.card_ref = tab.cardRef || '';
-        } else if (tab.paymentMethod === 'transferencia') {
-            transAmt = effectivePaidAmount;
-            refs.transfer_ref = tab.transferRef || '';
-        } else if (tab.paymentMethod === 'mixto') {
-            cashAmt = parseFloat(tab.mixCash) || 0;
-            cardAmt = parseFloat(tab.mixCard) || 0;
-            transAmt = parseFloat(tab.mixTransfer) || 0;
-            refs.card_ref = tab.cardRef || '';
-            refs.transfer_ref = tab.transferRef || '';
-
-            const sumMix = Math.round((cashAmt + cardAmt + transAmt) * 100) / 100;
-            const diffMix = Math.round((effectivePaidAmount - sumMix) * 100) / 100;
-
-            if (diffMix > 0.05) {
-                alert(`⚠️ En Pago Mixto, falta cubrir $${diffMix.toFixed(2)}.\n\nTotal a cobrar: $${effectivePaidAmount.toFixed(2)}\nSuma asignada: $${sumMix.toFixed(2)}\nCantidad Faltante: $${diffMix.toFixed(2)}`);
-                return;
-            } else if (diffMix < -0.05) {
-                alert(`⚠️ En Pago Mixto, la suma asignada ($${sumMix.toFixed(2)}) excede el total a cobrar ($${effectivePaidAmount.toFixed(2)}) por $${Math.abs(diffMix).toFixed(2)}.`);
-                return;
-            }
-        }
-
-        const btn = this;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Procesando Cobro...';
-
-        fetch("{{ route('central-pos.checkout') }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                branch_id: '{{ $branchId }}',
-                customer_id: tab.customerId || null,
-                customer_name: tab.customerName || 'Cliente Mostrador',
-                customer_phone: tab.customerPhone || null,
-                payment_method: tab.paymentMethod,
-                cash_amount: cashAmt,
-                card_amount: cardAmt,
-                transfer_amount: transAmt,
-                payment_references: refs,
-                cash_received: parseFloat(tab.paymentMethod === 'mixto' ? (tab.mixCashReceived || tab.cashReceived) : tab.cashReceived) || 0,
-                paid_amount: tab.isPartial ? effectivePaidAmount : null,
-                open_drawer: document.getElementById('posOpenDrawerCheck').checked ? 1 : 0,
-                items: tab.items
-            })
-        })
-        .then(r => r.json())
-        .then(res => {
-            if (!res.success) {
-                alert(res.message || 'No se pudo procesar el cobro.');
-                return;
-            }
-
-            // Limpiar el proceso actual tras cerrarlo exitosamente
-            tab.items = [];
-            tab.customerName = '';
-            tab.customerPhone = '';
-            tab.customerId = '';
-            tab.cashReceived = '';
-            tab.isPartial = false;
-            tab.paidToday = '';
-            tab.cashAmount = '';
-            tab.cardAmount = '';
-            tab.transferAmount = '';
-            tab.cardRef = '';
-            tab.transferRef = '';
-            tab.mixCash = 0;
-            tab.mixCard = 0;
-            tab.mixTransfer = 0;
-            tab.mixCashReceived = '';
-            saveState();
-            renderAll();
-
-            // Apertura AUTOMÁTICA del cajón por USB en procesos de venta
-            if (window.ZyaPosHardware) {
-                ZyaPosHardware.autoOpenUsbDrawer();
-            }
-
-            if (res.receipt_url) {
-                printTicketDirectly(res.receipt_url);
-                showSaleSuccessBanner(res.transaction_code, res.receipt_url);
-            }
-        })
-        .catch(() => {
-            alert('Error de red al procesar el movimiento.');
-        })
-        .finally(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket';
+    const btnOpenPhysDrawer = document.getElementById('btnOpenPhysicalDrawer');
+    if (btnOpenPhysDrawer) {
+        btnOpenPhysDrawer.addEventListener('click', function () {
+            window.triggerPhysicalCashDrawer();
         });
-    });
+    }
+
+    const btnCompleteSaleEl = document.getElementById('btnCompleteUnifiedSale');
+    if (btnCompleteSaleEl) {
+        btnCompleteSaleEl.addEventListener('click', function () {
+            const tab = getActiveTab();
+
+            // Si el usuario capturó un Producto Libre pero olvidó dar click en "Añadir", agregarlo automáticamente
+            if (tab.items.length === 0) {
+                const dynNameEl = document.getElementById('dynProdName');
+                const dynPriceEl = document.getElementById('dynProdPrice');
+                const dynName = dynNameEl ? dynNameEl.value.trim() : '';
+                const dynPrice = dynPriceEl ? parseFloat(dynPriceEl.value) : NaN;
+                if (dynName && !isNaN(dynPrice) && dynPrice >= 0) {
+                    const addDynBtn = document.getElementById('btnAddDynamicProductToTab');
+                    if (addDynBtn) {
+                        addDynBtn.click();
+                    }
+                }
+            }
+
+            const totals = calculateTabTotals(tab);
+            if (tab.items.length === 0) {
+                alert('Esta pestaña no tiene conceptos agregados. Agrega productos, préstamos, financieras o tandas antes de cerrar el cobro.');
+                return;
+            }
+
+            const effectivePaidAmount = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
+            const effectiveDueAmount = Math.max(0, totals.total - effectivePaidAmount);
+
+            if (effectiveDueAmount > 0) {
+                const cName = (tab.customerName || '').trim();
+                if (!cName || cName.toLowerCase() === 'cliente mostrador') {
+                    alert('⚠️ Para registrar una Nota con Saldo Pendiente (el cliente queda debiendo $' + effectiveDueAmount.toFixed(2) + '), es obligatorio escribir o seleccionar el Nombre del Cliente.');
+                    document.getElementById('tabCustomerName').focus();
+                    return;
+                }
+            }
+
+            let cashAmt = 0;
+            let cardAmt = 0;
+            let transAmt = 0;
+            let refs = {};
+
+            tab.paymentMethod = tab.paymentMethod || 'efectivo';
+
+            if (tab.paymentMethod === 'efectivo') {
+                cashAmt = effectivePaidAmount;
+            } else if (tab.paymentMethod === 'tarjeta') {
+                cardAmt = effectivePaidAmount;
+                refs.card_ref = tab.cardRef || '';
+            } else if (tab.paymentMethod === 'transferencia') {
+                transAmt = effectivePaidAmount;
+                refs.transfer_ref = tab.transferRef || '';
+            } else if (tab.paymentMethod === 'mixto') {
+                cashAmt = parseFloat(tab.mixCash) || 0;
+                cardAmt = parseFloat(tab.mixCard) || 0;
+                transAmt = parseFloat(tab.mixTransfer) || 0;
+                refs.card_ref = tab.cardRef || '';
+                refs.transfer_ref = tab.transferRef || '';
+
+                const sumMix = Math.round((cashAmt + cardAmt + transAmt) * 100) / 100;
+                const diffMix = Math.round((effectivePaidAmount - sumMix) * 100) / 100;
+
+                if (diffMix > 0.05) {
+                    alert(`⚠️ En Pago Mixto, falta cubrir $${diffMix.toFixed(2)}.\n\nTotal a cobrar: $${effectivePaidAmount.toFixed(2)}\nSuma asignada: $${sumMix.toFixed(2)}\nCantidad Faltante: $${diffMix.toFixed(2)}`);
+                    return;
+                } else if (diffMix < -0.05) {
+                    alert(`⚠️ En Pago Mixto, la suma asignada ($${sumMix.toFixed(2)}) excede el total a cobrar ($${effectivePaidAmount.toFixed(2)}) por $${Math.abs(diffMix).toFixed(2)}.`);
+                    return;
+                }
+            }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Procesando Cobro...';
+
+            fetch("{{ route('central-pos.checkout') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    branch_id: '{{ $branchId }}',
+                    customer_id: tab.customerId || null,
+                    customer_name: tab.customerName || 'Cliente Mostrador',
+                    customer_phone: tab.customerPhone || null,
+                    payment_method: tab.paymentMethod,
+                    cash_amount: cashAmt,
+                    card_amount: cardAmt,
+                    transfer_amount: transAmt,
+                    payment_references: refs,
+                    cash_received: parseFloat(tab.paymentMethod === 'mixto' ? (tab.mixCashReceived || tab.cashReceived) : tab.cashReceived) || 0,
+                    paid_amount: tab.isPartial ? effectivePaidAmount : null,
+                    open_drawer: document.getElementById('posOpenDrawerCheck')?.checked ? 1 : 0,
+                    items: tab.items
+                })
+            })
+            .then(async (r) => {
+                const data = await r.json().catch(() => null);
+                if (!r.ok || !data) {
+                    throw new Error(data?.message || 'Error en el servidor al procesar el cobro (' + r.status + ')');
+                }
+                return data;
+            })
+            .then(res => {
+                if (!res.success) {
+                    alert(res.message || 'No se pudo procesar el cobro.');
+                    return;
+                }
+
+                // Limpiar el proceso actual tras cerrarlo exitosamente
+                tab.items = [];
+                tab.customerName = '';
+                tab.customerPhone = '';
+                tab.customerId = '';
+                tab.cashReceived = '';
+                tab.isPartial = false;
+                tab.paidToday = '';
+                tab.cashAmount = '';
+                tab.cardAmount = '';
+                tab.transferAmount = '';
+                tab.cardRef = '';
+                tab.transferRef = '';
+                tab.mixCash = 0;
+                tab.mixCard = 0;
+                tab.mixTransfer = 0;
+                tab.mixCashReceived = '';
+                saveState();
+                renderAll();
+
+                // Apertura AUTOMÁTICA del cajón por USB en procesos de venta
+                if (window.ZyaPosHardware) {
+                    ZyaPosHardware.autoOpenUsbDrawer();
+                }
+
+                if (res.receipt_url) {
+                    printTicketDirectly(res.receipt_url);
+                    showSaleSuccessBanner(res.transaction_code, res.receipt_url);
+                }
+            })
+            .catch(err => {
+                console.error('Error al procesar el cobro:', err);
+                alert(err.message || 'Error de red o comunicación al procesar el movimiento.');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket';
+            });
+        });
+    }
 
     function printTicketDirectly(url) {
+        if (!url) return;
+        // Normalizar URL a relativa si coincide con host para evitar bloqueos por Cross-Origin
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            try {
+                const parsed = new URL(url);
+                if (parsed.host === window.location.host) {
+                    url = parsed.pathname + parsed.search;
+                }
+            } catch (e) {}
+        }
+
         let oldFrame = document.getElementById('posDirectPrintFrame');
         if (oldFrame) {
             oldFrame.remove();
@@ -2426,21 +2538,24 @@ document.addEventListener('DOMContentLoaded', function () {
         frame.id = 'posDirectPrintFrame';
         frame.name = 'posDirectPrintFrame';
         frame.style.position = 'fixed';
-        frame.style.right = '0';
-        frame.style.bottom = '0';
-        frame.style.width = '1px';
-        frame.style.height = '1px';
+        frame.style.left = '-9999px';
+        frame.style.top = '-9999px';
+        frame.style.width = '300px';
+        frame.style.height = '300px';
         frame.style.border = '0';
-        frame.style.opacity = '0.01';
-        frame.style.pointerEvents = 'none';
+        frame.style.visibility = 'visible';
 
         frame.onload = function() {
             try {
-                if (frame.contentWindow && frame.contentWindow.location.href !== 'about:blank') {
+                if (frame.contentWindow) {
                     setTimeout(function() {
-                        frame.contentWindow.focus();
-                        frame.contentWindow.print();
-                    }, 250);
+                        try {
+                            frame.contentWindow.focus();
+                            frame.contentWindow.print();
+                        } catch (err) {
+                            console.warn('Error al invocar frame.contentWindow.print():', err);
+                        }
+                    }, 300);
                 }
             } catch (e) {
                 console.error('Error al imprimir ticket directo:', e);
@@ -2455,12 +2570,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const alertEl = document.getElementById('posSaleSuccessAlert');
         const codeEl = document.getElementById('posSuccessTxCode');
         const reBtn = document.getElementById('posBtnReimprimir');
+        const viewBtn = document.getElementById('posBtnVerTicket');
         if (alertEl && codeEl) {
             codeEl.textContent = txCode;
             if (reBtn) {
                 reBtn.onclick = function() {
                     printTicketDirectly(receiptUrl);
                 };
+            }
+            if (viewBtn) {
+                viewBtn.href = receiptUrl;
             }
             alertEl.classList.remove('d-none');
             alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

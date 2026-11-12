@@ -340,9 +340,12 @@
                 }
             @endif
 
-            // Disparar diálogo de impresión solo si se carga como ventana independiente
-            if (window.self === window.top) {
+            // Disparar diálogo de impresión tanto en ventana independiente como dentro de iframe de impresión directa
+            try {
+                window.focus();
                 window.print();
+            } catch (e) {
+                console.warn('Auto-print dialog blocked or unavailable:', e);
             }
         });
     </script>
