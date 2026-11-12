@@ -747,6 +747,16 @@
         // Impresión directa de tickets en segundo plano sin abrir nueva pestaña del navegador
         window.printTicketDirectly = function(url) {
             if (!url) return;
+            // Normalizar URL a relativa si coincide con host para evitar bloqueos por Cross-Origin
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                try {
+                    var parsed = new URL(url);
+                    if (parsed.host === window.location.host) {
+                        url = parsed.pathname + parsed.search;
+                    }
+                } catch(e) {}
+            }
+
             var oldFrame = document.getElementById('posDirectPrintFrame');
             if (oldFrame) {
                 oldFrame.remove();
@@ -755,21 +765,24 @@
             frame.id = 'posDirectPrintFrame';
             frame.name = 'posDirectPrintFrame';
             frame.style.position = 'fixed';
-            frame.style.right = '0';
-            frame.style.bottom = '0';
-            frame.style.width = '1px';
-            frame.style.height = '1px';
+            frame.style.left = '-9999px';
+            frame.style.top = '-9999px';
+            frame.style.width = '300px';
+            frame.style.height = '300px';
             frame.style.border = '0';
-            frame.style.opacity = '0.01';
-            frame.style.pointerEvents = 'none';
+            frame.style.visibility = 'visible';
 
             frame.onload = function() {
                 try {
-                    if (frame.contentWindow && frame.contentWindow.location.href !== 'about:blank') {
+                    if (frame.contentWindow) {
                         setTimeout(function() {
-                            frame.contentWindow.focus();
-                            frame.contentWindow.print();
-                        }, 250);
+                            try {
+                                frame.contentWindow.focus();
+                                frame.contentWindow.print();
+                            } catch (err) {
+                                console.warn('Error al invocar frame.contentWindow.print():', err);
+                            }
+                        }, 300);
                     }
                 } catch (e) {
                     console.error('Error al imprimir ticket directo:', e);
