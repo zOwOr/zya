@@ -14,8 +14,35 @@
 
     <!-- Custom Stylesheet -->
     <link type="text/css" rel="stylesheet" href="{{ asset('assets/invoice/css/style.css') }}">
+    <style>
+        @media print {
+            .no-print, .d-print-none {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
 <body>
+    <div class="no-print d-print-none" style="background: #0f172a; padding: 12px 20px; border-bottom: 2px solid #1e293b; margin-bottom: 15px;">
+        <div class="container d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a href="{{ route('central-pos.index') }}" class="btn btn-sm btn-outline-light font-weight-bold" style="margin-right: 8px;">
+                    ⬅️ Volver al Punto de Venta
+                </a>
+                <a href="{{ route('order.pendingOrders') }}" class="btn btn-sm btn-outline-light font-weight-bold" style="margin-right: 8px;">
+                    📋 Notas de Venta
+                </a>
+                <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-light font-weight-bold">
+                    🏠 Menú Principal
+                </a>
+            </div>
+            <div>
+                <button onclick="window.print()" class="btn btn-sm btn-primary font-weight-bold">
+                    🖨️ Imprimir Nota de Venta
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="invoice-16 invoice-content">
         <div class="container">
             <div class="row">
@@ -119,7 +146,13 @@
                         </div> --}}
                     </div>
 
-                    <div class="invoice-btn-section clearfix d-print-none">
+                    <div class="invoice-btn-section clearfix d-print-none no-print">
+                        <a href="{{ route('central-pos.index') }}" class="btn btn-lg btn-outline-secondary" style="border: 1px solid #64748b; margin-right: 8px;">
+                            ⬅️ Punto de Venta
+                        </a>
+                        <a href="{{ route('dashboard') }}" class="btn btn-lg btn-outline-secondary" style="border: 1px solid #64748b; margin-right: 8px;">
+                            🏠 Menú Principal
+                        </a>
                         <a href="javascript:window.print()" class="btn btn-lg btn-print">
                             Imprimir Nota de Venta
                         </a>

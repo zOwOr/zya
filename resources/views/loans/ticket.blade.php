@@ -11,28 +11,33 @@
         }
         * {
             box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         body {
-            font-family: 'Courier New', Courier, 'Lucida Console', Monaco, monospace;
-            width: 76mm;
-            max-width: 76mm;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            width: 70mm;
+            max-width: 70mm;
             margin: 0 auto;
-            padding: 8px 4px;
+            padding: 6px 2px;
             font-size: 12px;
+            font-weight: 600;
             line-height: 1.25;
-            color: #000;
+            color: #000 !important;
             background: #fff;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
         body.paper-58mm {
-            width: 50mm;
-            max-width: 50mm;
+            width: 48mm;
+            max-width: 48mm;
             font-size: 11px;
-            padding: 4px 2px;
+            padding: 4px 1px;
         }
         .center { text-align: center; }
-        .bold { font-weight: 700; }
+        .bold { font-weight: 800 !important; }
         .divider { border-top: 1px dashed #000; margin: 6px 0; }
-        .row-flex { display: flex; justify-content: space-between; margin: 2px 0; }
+        .row-flex { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0; }
         .toolbar {
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
@@ -66,15 +71,15 @@
         @media print {
             .no-print { display: none !important; }
             body {
-                width: 76mm !important;
-                max-width: 76mm !important;
+                width: 70mm !important;
+                max-width: 70mm !important;
                 margin: 0 auto !important;
-                padding: 1mm 2mm !important;
+                padding: 0 !important;
             }
             body.paper-58mm {
                 width: 48mm !important;
                 max-width: 48mm !important;
-                padding: 1mm !important;
+                padding: 0 !important;
             }
         }
     </style>
@@ -83,6 +88,9 @@
     <div class="no-print toolbar">
         <a href="{{ route('loans.index') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
             ⬅️ Volver a Préstamos
+        </a>
+        <a href="{{ route('central-pos.index') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+            🛒 Punto de Venta
         </a>
         <a href="{{ route('dashboard') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
             🏠 Menú Principal
@@ -158,9 +166,9 @@
 
     <div class="divider"></div>
     {{-- REGLA DE NEGOCIO ESTRICTA: En el ticket NO mostrar el saldo pendiente del préstamo por privacidad --}}
-    <div class="row-flex bold" style="font-size: 14px; margin: 4px 0;">
-        <span>IMPORTE PAGADO:</span>
-        <span>${{ number_format($payment->amount, 2) }} MXN</span>
+    <div class="row-flex bold" style="font-size: 15px; margin: 4px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
+        <span class="bold">IMPORTE PAGADO:</span>
+        <span class="bold" style="font-size: 16px;">${{ number_format($payment->amount, 2) }} MXN</span>
     </div>
     <div class="divider"></div>
 
@@ -230,8 +238,10 @@
                 }
             @endif
 
-            // Disparar diálogo de impresión
-            window.print();
+            // Disparar diálogo de impresión solo si la ventana es independiente
+            if (window.self === window.top) {
+                window.print();
+            }
         });
     </script>
 </body>

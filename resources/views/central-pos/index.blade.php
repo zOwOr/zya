@@ -281,8 +281,23 @@
             <h3 class="mb-0 font-weight-bold">
                 <i class="las la-cash-register text-primary"></i> Punto de Venta
             </h3>
-            <small class="text-muted">
-                Sucursal Activa: <strong>{{ $branches->firstWhere('id', $branchId)->name ?? (auth()->user()->branch->name ?? 'Principal') }}</strong> &bull; Operador: <strong>{{ auth()->user()->name }}</strong>
+            <small class="text-muted d-flex align-items-center flex-wrap">
+                <span>Sucursal Activa:</span>
+                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.all_branches'))
+                    <form method="GET" action="{{ route('central-pos.index') }}" class="d-inline-block ml-2">
+                        <select name="branch_id" class="form-control form-control-sm d-inline-block w-auto font-weight-bold border-primary" onchange="this.form.submit()">
+                            @foreach($branches as $b)
+                                <option value="{{ $b->id }}" {{ $b->id == $branchId ? 'selected' : '' }}>
+                                    📍 {{ $b->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+                @else
+                    <strong class="ml-1 text-primary">📍 {{ $branches->firstWhere('id', $branchId)->name ?? (auth()->user()->branch->name ?? 'Principal') }}</strong>
+                @endif
+                <span class="mx-2">&bull;</span>
+                <span>Operador: <strong>{{ auth()->user()->name }}</strong></span>
             </small>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center mt-2 mt-md-0">
@@ -291,15 +306,41 @@
                     <i class="las la-lock-open mr-1"></i> Abrir Cajón Físico
                 </button>
             @endif
-            <a href="{{ route('order.pendingDue') }}" class="btn btn-outline-warning btn-sm mr-2 shadow-sm font-weight-bold">
-                <i class="fa-solid fa-receipt mr-1"></i> Notas Pendientes
-            </a>
-            <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId]) }}" class="btn btn-outline-info btn-sm mr-2 shadow-sm font-weight-bold">
-                <i class="las la-calculator mr-1"></i> Pre-Corte X / Z
-            </a>
-            <a href="{{ route('loans.index') }}" class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold">
-                <i class="las la-hand-holding-usd mr-1"></i> Préstamos
-            </a>
+            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('orders.menu') || auth()->user()->can('orders.read'))
+                <a href="{{ route('order.pendingDue') }}" class="btn btn-outline-warning btn-sm mr-2 shadow-sm font-weight-bold">
+                    <i class="fa-solid fa-receipt mr-1"></i> Notas Pendientes
+                </a>
+            @endif
+            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.menu') || auth()->user()->can('cash.read') || auth()->user()->can('cash.pre_cut'))
+                <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId]) }}" class="btn btn-outline-info btn-sm mr-2 shadow-sm font-weight-bold">
+                    <i class="las la-calculator mr-1"></i> Pre-Corte X / Z
+                </a>
+            @endif
+            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.menu') || auth()->user()->can('prestamos.read') || auth()->user()->can('cobros.prestamos'))
+                <a href="{{ route('loans.index') }}" class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold">
+                    <i class="las la-hand-holding-usd mr-1"></i> Préstamos
+                </a>
+            @endif
+        </div>
+    </div>
+
+    <!-- Alerta de Venta/Cobro Exitoso con Reimpresión Directa -->
+    <div id="posSaleSuccessAlert" class="alert alert-success alert-dismissible fade show d-none shadow-sm mb-3" role="alert" style="border-left: 5px solid #059669;">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <i class="fa-solid fa-circle-check fa-lg mr-2 text-success"></i>
+                <strong class="font-size-14">¡Cobro realizado con éxito!</strong>
+                <span class="ml-2 font-size-13 text-dark">Folio: <strong id="posSuccessTxCode" class="badge badge-dark font-size-13"></strong></span>
+                <span class="text-muted ml-2 font-size-12 d-none d-md-inline">Ticket enviado directo a la impresora sin abrir nueva pestaña.</span>
+            </div>
+            <div class="d-flex align-items-center">
+                <button type="button" class="btn btn-sm btn-dark font-weight-bold mr-2 shadow-sm" id="posBtnReimprimir">
+                    <i class="fa-solid fa-print mr-1"></i> Reimprimir Ticket
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success font-weight-bold mr-2" onclick="document.getElementById('posSaleSuccessAlert').classList.add('d-none')">
+                    <i class="fa-solid fa-check mr-1"></i> Listo
+                </button>
+            </div>
         </div>
     </div>
 
@@ -308,6 +349,15 @@
         <!-- Render dinámico por JS -->
     </div>
 
+    @php
+        $canFinancieras = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.financieras') || auth()->user()->can('financieras.ventas.abonar');
+        $canPrestamos = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.prestamos') || auth()->user()->can('prestamos.abonar') || auth()->user()->can('prestamos.create');
+        $canTandas = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.tandas') || auth()->user()->can('tandas.abonar');
+        $canProductos = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.productos') || auth()->user()->can('pos.create') || auth()->user()->can('orders.create');
+
+        $activeTab = $canFinancieras ? 'sec-financieras' : ($canPrestamos ? 'sec-prestamos' : ($canTandas ? 'sec-tandas' : ($canProductos ? 'sec-productos' : 'none')));
+    @endphp
+
     <!-- Cuerpo Principal del Punto de Venta Centralizado -->
     <div class="card border-0 shadow-sm rounded-0 rounded-bottom mb-4">
         <div class="card-body p-3">
@@ -315,35 +365,44 @@
                 <!-- COLUMNA IZQUIERDA: Las 4 Secciones Interactivas -->
                 <div class="col-lg-7">
                     <ul class="nav section-pill-nav" id="centralSectionTabs" role="tablist">
+                        @if ($canFinancieras)
                         <li class="nav-item">
-                            <a class="nav-link pill-fin active" data-toggle="pill" href="#sec-financieras" role="tab">
+                            <a class="nav-link pill-fin {{ $activeTab === 'sec-financieras' ? 'active' : '' }}" data-toggle="pill" href="#sec-financieras" role="tab">
                                 <i class="fa-solid fa-mobile-screen-button text-primary"></i>
                                 <span>1. Financieras (TAG / Device ID)</span>
                             </a>
                         </li>
+                        @endif
+                        @if ($canPrestamos)
                         <li class="nav-item">
-                            <a class="nav-link pill-loan" data-toggle="pill" href="#sec-prestamos" role="tab">
+                            <a class="nav-link pill-loan {{ $activeTab === 'sec-prestamos' ? 'active' : '' }}" data-toggle="pill" href="#sec-prestamos" role="tab">
                                 <i class="fa-solid fa-hand-holding-dollar text-success"></i>
                                 <span>2. Préstamos</span>
                             </a>
                         </li>
+                        @endif
+                        @if ($canTandas)
                         <li class="nav-item">
-                            <a class="nav-link pill-tanda" data-toggle="pill" href="#sec-tandas" role="tab">
+                            <a class="nav-link pill-tanda {{ $activeTab === 'sec-tandas' ? 'active' : '' }}" data-toggle="pill" href="#sec-tandas" role="tab">
                                 <i class="fa-solid fa-piggy-bank" style="color: #8b5cf6;"></i>
                                 <span>3. Tandas</span>
                             </a>
                         </li>
+                        @endif
+                        @if ($canProductos)
                         <li class="nav-item">
-                            <a class="nav-link pill-prod" data-toggle="pill" href="#sec-productos" role="tab">
+                            <a class="nav-link pill-prod {{ $activeTab === 'sec-productos' ? 'active' : '' }}" data-toggle="pill" href="#sec-productos" role="tab">
                                 <i class="fa-solid fa-boxes-stacked text-warning"></i>
                                 <span>4. Productos (Stock y Libre)</span>
                             </a>
                         </li>
+                        @endif
                     </ul>
 
                     <div class="tab-content border rounded p-3 bg-white shadow-sm">
+                        @if ($canFinancieras)
                         <!-- ==================== SECCIÓN 1: FINANCIERAS ==================== -->
-                        <div class="tab-pane fade show active" id="sec-financieras" role="tabpanel">
+                        <div class="tab-pane fade {{ $activeTab === 'sec-financieras' ? 'show active' : '' }}" id="sec-financieras" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h6 class="font-weight-bold text-primary mb-0">
                                     <i class="fa-solid fa-landmark mr-1"></i>Cobro de Abono por Equipo de Financiera
@@ -417,9 +476,11 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
 
+                        @if ($canPrestamos)
                         <!-- ==================== SECCIÓN 2: PRÉSTAMOS ==================== -->
-                        <div class="tab-pane fade" id="sec-prestamos" role="tabpanel">
+                        <div class="tab-pane fade {{ $activeTab === 'sec-prestamos' ? 'show active' : '' }}" id="sec-prestamos" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h6 class="font-weight-bold text-primary mb-0">
                                     <i class="fa-solid fa-hand-holding-dollar mr-1"></i>Préstamos: Abonar Cuotas o Crear Préstamo
@@ -523,9 +584,11 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
 
+                        @if ($canTandas)
                         <!-- ==================== SECCIÓN 3: TANDAS ==================== -->
-                        <div class="tab-pane fade" id="sec-tandas" role="tabpanel">
+                        <div class="tab-pane fade {{ $activeTab === 'sec-tandas' ? 'show active' : '' }}" id="sec-tandas" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h6 class="font-weight-bold text-primary mb-0">
                                     <i class="fa-solid fa-piggy-bank mr-1"></i>Cobro de Tandas (Clientes Básicos Directos)
@@ -605,9 +668,11 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
 
+                        @if ($canProductos)
                         <!-- ==================== SECCIÓN 4: VENTA DE PRODUCTOS (INVENTARIO + DINÁMICOS) ==================== -->
-                        <div class="tab-pane fade" id="sec-productos" role="tabpanel">
+                        <div class="tab-pane fade {{ $activeTab === 'sec-productos' ? 'show active' : '' }}" id="sec-productos" role="tabpanel">
                             <!-- Sub-pestañas para Catálogo vs Producto Libre -->
                             <ul class="nav nav-pills mb-3 bg-light p-1 rounded" id="pills-prod-subtabs" role="tablist">
                                 <li class="nav-item">
@@ -757,6 +822,15 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
+
+                        @if ($activeTab === 'none')
+                        <div class="alert alert-warning text-center font-weight-bold py-4 mb-0" role="alert">
+                            <i class="fa-solid fa-lock fa-2x d-block mb-2 text-warning"></i>
+                            No tienes permisos asignados para operar en ninguna de las 4 secciones del Punto de Venta.
+                            <br><small class="text-muted">Contacta a tu administrador para habilitar las secciones correspondientes (Financieras, Préstamos, Tandas o Productos).</small>
+                        </div>
+                        @endif
                     </div>
                 </div>
 
@@ -1810,6 +1884,7 @@ document.addEventListener('DOMContentLoaded', function () {
             sale_id: saleId,
             title: document.getElementById('finSelTitle').value,
             subtitle: document.getElementById('finSelDevice').textContent,
+            financiera_name: document.getElementById('finSelFinanciera').textContent,
             customer_name: document.getElementById('finSelCustomerName').value,
             quantity: 1,
             amount: amount,
@@ -2329,7 +2404,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (res.receipt_url) {
-                window.open(res.receipt_url, '_blank');
+                printTicketDirectly(res.receipt_url);
+                showSaleSuccessBanner(res.transaction_code, res.receipt_url);
             }
         })
         .catch(() => {
@@ -2340,6 +2416,49 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket';
         });
     });
+
+    function printTicketDirectly(url) {
+        let frame = document.getElementById('posDirectPrintFrame');
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.id = 'posDirectPrintFrame';
+            frame.name = 'posDirectPrintFrame';
+            frame.style.position = 'fixed';
+            frame.style.right = '0';
+            frame.style.bottom = '0';
+            frame.style.width = '0';
+            frame.style.height = '0';
+            frame.style.border = '0';
+            frame.style.opacity = '0';
+            frame.style.pointerEvents = 'none';
+            document.body.appendChild(frame);
+        }
+        frame.onload = function() {
+            try {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            } catch (e) {
+                console.error('Error al imprimir ticket directo:', e);
+            }
+        };
+        frame.src = url;
+    }
+
+    function showSaleSuccessBanner(txCode, receiptUrl) {
+        const alertEl = document.getElementById('posSaleSuccessAlert');
+        const codeEl = document.getElementById('posSuccessTxCode');
+        const reBtn = document.getElementById('posBtnReimprimir');
+        if (alertEl && codeEl) {
+            codeEl.textContent = txCode;
+            if (reBtn) {
+                reBtn.onclick = function() {
+                    printTicketDirectly(receiptUrl);
+                };
+            }
+            alertEl.classList.remove('d-none');
+            alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
 
     renderAll();
 });

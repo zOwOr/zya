@@ -26,7 +26,23 @@
     @if (session('print_ticket_url'))
         <script>
             window.addEventListener('DOMContentLoaded', function () {
-                window.open("{{ session('print_ticket_url') }}", "_blank");
+                let frame = document.createElement('iframe');
+                frame.style.position = 'fixed';
+                frame.style.right = '0';
+                frame.style.bottom = '0';
+                frame.style.width = '0';
+                frame.style.height = '0';
+                frame.style.border = '0';
+                frame.style.opacity = '0';
+                frame.style.pointerEvents = 'none';
+                document.body.appendChild(frame);
+                frame.onload = function() {
+                    try {
+                        frame.contentWindow.focus();
+                        frame.contentWindow.print();
+                    } catch (e) {}
+                };
+                frame.src = "{{ session('print_ticket_url') }}";
             });
         </script>
     @endif

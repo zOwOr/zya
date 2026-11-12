@@ -13,9 +13,37 @@
     <link href="https://cdn.jsdelivr.net/gh/hung1001/font-awesome-pro@4cac1a6/css/all.css" rel="stylesheet"
         type="text/css" />
     <link rel="stylesheet" href="{{ asset('assets/vendor/remixicon/fonts/remixicon.css') }}">
+    <style>
+        @media print {
+            .no-print, .d-print-none {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
 
 <body>
+
+    <div class="no-print d-print-none" style="background: #0f172a; padding: 12px 20px; border-bottom: 2px solid #1e293b;">
+        <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a href="{{ route('central-pos.index') }}" class="btn btn-sm btn-outline-light font-weight-bold" style="margin-right: 8px;">
+                    ⬅️ Volver al Punto de Venta
+                </a>
+                <a href="{{ route('order.pendingOrders') }}" class="btn btn-sm btn-outline-light font-weight-bold" style="margin-right: 8px;">
+                    📋 Notas de Venta
+                </a>
+                <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-light font-weight-bold">
+                    🏠 Menú Principal
+                </a>
+            </div>
+            <div>
+                <button onclick="window.print()" class="btn btn-sm btn-primary font-weight-bold">
+                    🖨️ Imprimir Factura
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Wrapper Start -->
     <div class="wrapper">
@@ -149,7 +177,9 @@
 
     <script>
         window.addEventListener("load", (event) => {
-            window.print();
+            if (window.self === window.top) {
+                window.print();
+            }
         });
     </script>
 </body>

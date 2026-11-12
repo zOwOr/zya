@@ -11,28 +11,33 @@
         }
         * {
             box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         body {
-            font-family: 'Courier New', Courier, 'Lucida Console', Monaco, monospace;
-            width: 76mm;
-            max-width: 76mm;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            width: 70mm;
+            max-width: 70mm;
             margin: 0 auto;
-            padding: 8px 4px;
+            padding: 6px 2px;
             font-size: 12px;
+            font-weight: 600;
             line-height: 1.25;
-            color: #000;
+            color: #000 !important;
             background: #fff;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
         body.paper-58mm {
-            width: 50mm;
-            max-width: 50mm;
+            width: 48mm;
+            max-width: 48mm;
             font-size: 11px;
-            padding: 4px 2px;
+            padding: 4px 1px;
         }
         .center { text-align: center; }
-        .bold { font-weight: 700; }
+        .bold { font-weight: 800 !important; }
         .divider { border-top: 1px dashed #000; margin: 6px 0; }
-        .row-flex { display: flex; justify-content: space-between; margin: 2px 0; }
+        .row-flex { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0; }
         .toolbar {
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
@@ -45,36 +50,40 @@
             justify-content: center;
         }
         .btn-tool {
-            padding: 5px 10px;
+            padding: 6px 12px;
             font-size: 11px;
             font-weight: bold;
             border: 1px solid #94a3b8;
             border-radius: 4px;
             background: #fff;
             cursor: pointer;
+            text-decoration: none;
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
         }
         .btn-primary-tool {
             background: #2563eb;
-            color: #fff;
+            color: #fff !important;
             border-color: #1d4ed8;
         }
         .btn-success-tool {
             background: #16a34a;
-            color: #fff;
+            color: #fff !important;
             border-color: #15803d;
         }
         @media print {
             .no-print { display: none !important; }
             body {
-                width: 76mm !important;
-                max-width: 76mm !important;
+                width: 70mm !important;
+                max-width: 70mm !important;
                 margin: 0 auto !important;
-                padding: 1mm 2mm !important;
+                padding: 0 !important;
             }
             body.paper-58mm {
                 width: 48mm !important;
                 max-width: 48mm !important;
-                padding: 1mm !important;
+                padding: 0 !important;
             }
         }
     </style>
@@ -105,18 +114,49 @@
     <div class="center" style="font-size: 11px;">TICKET UNIFICADO DE PAGO / VENTA</div>
     <div class="divider"></div>
 
+    @php
+        $financieraList = [];
+        if ($transaction->relationLoaded('financieraPayments') && $transaction->financieraPayments->isNotEmpty()) {
+            foreach ($transaction->financieraPayments as $fp) {
+                if (!empty($fp->financiera?->name)) {
+                    $financieraList[] = $fp->financiera->name;
+                }
+            }
+        }
+        if (is_array($transaction->items_payload)) {
+            foreach ($transaction->items_payload as $item) {
+                if (!empty($item['financiera_name'])) {
+                    $financieraList[] = $item['financiera_name'];
+                } elseif (!empty($item['title'])) {
+                    foreach (['PayJoy', 'Credimás', 'Credimas', 'Creditienda', 'Contado'] as $known) {
+                        if (stripos($item['title'], $known) !== false) {
+                            $financieraList[] = $known;
+                        }
+                    }
+                }
+            }
+        }
+        $financieraList = array_values(array_unique(array_filter($financieraList)));
+    @endphp
+
     <div class="row-flex">
         <span>Folio:</span>
         <span class="bold">{{ $transaction->transaction_code }}</span>
     </div>
     <div class="row-flex">
         <span>Fecha:</span>
-        <span>{{ $transaction->created_at ? $transaction->created_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i') }}</span>
+        <span class="bold">{{ $transaction->created_at ? $transaction->created_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i') }}</span>
     </div>
     <div class="row-flex">
-        <span>Cliente:</span>
-        <span class="bold">{{ $transaction->customer_name ?: 'Cliente Mostrador' }}</span>
+        <span class="bold">Cliente:</span>
+        <span class="bold" style="font-size: 13px;">{{ strtoupper($transaction->customer_name ?: 'Cliente Mostrador') }}</span>
     </div>
+    @if (!empty($financieraList))
+        <div class="row-flex">
+            <span class="bold">Financiera:</span>
+            <span class="bold" style="font-size: 13px;">{{ strtoupper(implode(', ', $financieraList)) }}</span>
+        </div>
+    @endif
     <div class="row-flex">
         <span>Cajero:</span>
         <span>{{ $transaction->user?->name ?? 'Sistema' }}</span>
@@ -130,18 +170,21 @@
             $amt = ($item['section'] ?? '') === 'prestamo_apertura' ? 0 : ((float) ($item['amount'] ?? 0) * $qty);
             $comm = (float) ($item['commission'] ?? 0);
         @endphp
-        <div style="margin-bottom: 4px;">
+        <div style="margin-bottom: 5px;">
             <div class="bold">{{ $qty }}x {{ $item['title'] ?? 'Concepto' }}</div>
+            @if (!empty($item['subtitle']))
+                <div style="font-size: 10px; color: #222;">{{ $item['subtitle'] }}</div>
+            @endif
             @if (($item['section'] ?? '') !== 'prestamo_apertura')
                 <div class="row-flex">
-                    <span>Importe:</span>
-                    <span>${{ number_format($amt, 2) }}</span>
+                    <span class="bold">Importe:</span>
+                    <span class="bold" style="font-size: 13px;">${{ number_format($amt, 2) }}</span>
                 </div>
             @endif
             @if ($comm > 0)
                 <div class="row-flex">
-                    <span>Comisión:</span>
-                    <span>${{ number_format($comm, 2) }}</span>
+                    <span class="bold">Comisión:</span>
+                    <span class="bold">${{ number_format($comm, 2) }}</span>
                 </div>
             @endif
             {{-- Privacidad garantizada: NO se imprime el saldo pendiente en abonos de préstamos --}}
@@ -150,13 +193,13 @@
 
     <div class="divider"></div>
     <div class="row-flex">
-        <span>Subtotal:</span>
-        <span>${{ number_format($transaction->subtotal, 2) }}</span>
+        <span class="bold">Subtotal:</span>
+        <span class="bold">${{ number_format($transaction->subtotal, 2) }}</span>
     </div>
     @if ($transaction->commission_total > 0)
         <div class="row-flex">
-            <span>Comisión:</span>
-            <span>${{ number_format($transaction->commission_total, 2) }}</span>
+            <span class="bold">Comisión:</span>
+            <span class="bold">${{ number_format($transaction->commission_total, 2) }}</span>
         </div>
     @endif
     @php
@@ -164,27 +207,27 @@
         $dueAmount = max(0, round((float) $transaction->total_amount - $paidToday, 2));
     @endphp
 
-    <div class="row-flex bold" style="font-size: 14px; margin: 4px 0;">
-        <span>TOTAL DE LA NOTA:</span>
-        <span>${{ number_format($transaction->total_amount, 2) }} MXN</span>
+    <div class="row-flex bold" style="font-size: 15px; margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
+        <span class="bold">TOTAL DE LA NOTA:</span>
+        <span class="bold" style="font-size: 16px;">${{ number_format($transaction->total_amount, 2) }} MXN</span>
     </div>
 
     @if ($dueAmount > 0)
         <div class="row-flex bold" style="font-size: 13px; color: #16a34a; margin: 2px 0;">
-            <span>ABONADO HOY:</span>
-            <span>${{ number_format($paidToday, 2) }} MXN</span>
+            <span class="bold">ABONADO HOY:</span>
+            <span class="bold">${{ number_format($paidToday, 2) }} MXN</span>
         </div>
         <div class="row-flex bold" style="font-size: 13px; color: #dc2626; border: 1px dashed #dc2626; padding: 3px 5px; margin: 4px 0; background: #fff5f5;">
-            <span>SALDO PENDIENTE:</span>
-            <span>${{ number_format($dueAmount, 2) }} MXN</span>
+            <span class="bold">SALDO PENDIENTE:</span>
+            <span class="bold">${{ number_format($dueAmount, 2) }} MXN</span>
         </div>
         <div class="center bold" style="font-size: 10px; color: #dc2626; margin-bottom: 4px;">
             *** NOTA CON SALDO PENDIENTE POR LIQUIDAR ***
         </div>
     @else
         <div class="row-flex bold" style="font-size: 12px; color: #16a34a;">
-            <span>ESTADO:</span>
-            <span>TOTALMENTE PAGADO</span>
+            <span class="bold">ESTADO:</span>
+            <span class="bold">TOTALMENTE PAGADO</span>
         </div>
     @endif
     <div class="divider"></div>
@@ -195,19 +238,26 @@
     </div>
     @if ($transaction->payment_method === 'mixto')
         @if ($transaction->cash_amount > 0)
-            <div class="row-flex"><span>• Efectivo:</span><span>${{ number_format($transaction->cash_amount, 2) }}</span></div>
+            <div class="row-flex"><span>• Efectivo:</span><span class="bold">${{ number_format($transaction->cash_amount, 2) }}</span></div>
         @endif
         @if ($transaction->card_amount > 0)
-            <div class="row-flex"><span>• Tarjeta:</span><span>${{ number_format($transaction->card_amount, 2) }}</span></div>
+            <div class="row-flex"><span>• Tarjeta:</span><span class="bold">${{ number_format($transaction->card_amount, 2) }}</span></div>
         @endif
         @if ($transaction->transfer_amount > 0)
-            <div class="row-flex"><span>• Transferencia:</span><span>${{ number_format($transaction->transfer_amount, 2) }}</span></div>
+            <div class="row-flex"><span>• Transferencia:</span><span class="bold">${{ number_format($transaction->transfer_amount, 2) }}</span></div>
+        @endif
+    @else
+        @if ($transaction->payment_method === 'efectivo' && $transaction->paid_amount > 0)
+            <div class="row-flex">
+                <span>Efectivo Recibido:</span>
+                <span class="bold">${{ number_format($transaction->paid_amount, 2) }}</span>
+            </div>
         @endif
     @endif
 
     @if ($transaction->change_amount > 0)
         <div class="row-flex">
-            <span>Cambio Entregado:</span>
+            <span class="bold">Cambio Entregado:</span>
             <span class="bold">${{ number_format($transaction->change_amount, 2) }}</span>
         </div>
     @endif
@@ -278,8 +328,10 @@
                 }
             @endif
 
-            // Disparar diálogo de impresión
-            window.print();
+            // Disparar diálogo de impresión solo si se carga como ventana independiente
+            if (window.self === window.top) {
+                window.print();
+            }
         });
     </script>
 </body>
