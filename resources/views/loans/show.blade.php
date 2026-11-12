@@ -38,11 +38,17 @@
                 </div>
             @endif
 
-            <!-- Cabecera del Préstamo -->
+@php
+    $isArticle = $loan->isArticleCredit();
+    $avalInfo = $loan->resolveAvalInfo();
+@endphp
+            <!-- Cabecera del Préstamo o Venta a Crédito -->
             <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
                 <div>
                     <div class="d-flex align-items-center">
-                        <h4 class="mb-0 font-weight-bold mr-3">Préstamo {{ $loan->loan_code }}</h4>
+                        <h4 class="mb-0 font-weight-bold mr-3">
+                            {{ $isArticle ? 'Venta a Crédito' : 'Préstamo' }} {{ $loan->loan_code }}
+                        </h4>
                         @if ($loan->status === 'activo')
                             <span class="badge badge-primary px-3 py-1">ACTIVO</span>
                         @elseif ($loan->status === 'mora')
@@ -51,20 +57,29 @@
                             <span class="badge badge-success px-3 py-1">LIQUIDADO</span>
                         @elseif ($loan->status === 'cerrado_manual')
                             <span class="badge badge-info px-3 py-1">CERRADO MANUALMENTE</span>
+                        @elseif ($loan->status === 'cancelado')
+                            <span class="badge badge-dark px-3 py-1"><i class="fa-solid fa-ban mr-1"></i>CANCELADO</span>
                         @endif
                     </div>
                     <p class="mb-0 text-muted font-size-13 mt-1">
                         Cliente: <strong>{{ $loan->customer?->tit_name }}</strong> ({{ $loan->customer?->tit_phone ?? 'Sin teléfono' }}) |
-                        Tipo: <strong>{{ $loan->loanType?->name ?? 'General' }}</strong> |
+                        @if ($isArticle)
+                            Artículo: <strong>{{ $loan->article_summary_label }}</strong> |
+                        @else
+                            Tipo: <strong>{{ $loan->loanType?->name ?? 'General' }}</strong> |
+                        @endif
                         Sucursal: <strong>{{ $loan->branch?->name ?? 'General' }}</strong>
                     </p>
                 </div>
                 <div class="d-flex flex-wrap mt-2 mt-md-0">
-                    <a href="{{ route('loans.index') }}" class="btn btn-outline-secondary btn-sm mr-2 mb-1">
+                    <a href="{{ $isArticle ? route('article-credits.index') : route('loans.index') }}" class="btn btn-outline-secondary btn-sm mr-2 mb-1">
                         <i class="fa-solid fa-arrow-left mr-1"></i>Volver
                     </a>
                     <a href="{{ route('loans.pagare.print', $loan->id) }}" target="_blank" class="btn btn-dark btn-sm mr-2 mb-1">
-                        <i class="fa-solid fa-print mr-1"></i>Imprimir Pagaré para Firma
+                        <i class="fa-solid fa-file-signature mr-1"></i>Imprimir Pagaré
+                    </a>
+                    <a href="{{ route('loans.delivery-receipt.print', $loan->id) }}" target="_blank" class="btn btn-info btn-sm mr-2 mb-1">
+                        <i class="fa-solid fa-receipt mr-1"></i>{{ $isArticle ? 'Recibo de Entrega de Mercancía' : 'Recibo de Entrega de Préstamo' }}
                     </a>
                     @if ($loan->isOpen() && auth()->user()->can('prestamos.abonar'))
                         <button type="button" class="btn btn-success btn-sm mr-2 mb-1" data-toggle="modal" data-target="#registerPaymentModal">
@@ -72,12 +87,29 @@
                         </button>
                     @endif
                     @if ($loan->isOpen() && (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.close_manual')))
-                        <button type="button" class="btn btn-warning btn-sm mb-1" data-toggle="modal" data-target="#manualCloseModal">
-                            <i class="fa-solid fa-lock mr-1"></i>Cerrar Préstamo Manualmente
+                        <button type="button" class="btn btn-warning btn-sm mr-2 mb-1" data-toggle="modal" data-target="#manualCloseModal">
+                            <i class="fa-solid fa-lock mr-1"></i>{{ $isArticle ? 'Cerrar Crédito Manualmente' : 'Cerrar Préstamo Manualmente' }}
+                        </button>
+                    @endif
+                    @if ($loan->status !== 'cancelado' && (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.delete')))
+                        <button type="button" class="btn btn-outline-danger btn-sm mb-1" data-toggle="modal" data-target="#cancelLoanModal">
+                            <i class="fa-solid fa-ban mr-1"></i>{{ $isArticle ? 'Cancelar Crédito' : 'Cancelar Préstamo' }}
                         </button>
                     @endif
                 </div>
             </div>
+
+            @if ($loan->status === 'cancelado')
+                <div class="alert alert-danger border-danger shadow-sm mb-4">
+                    <h6 class="font-weight-bold mb-1"><i class="fa-solid fa-ban mr-1"></i>Préstamo Cancelado</h6>
+                    <p class="mb-0 font-size-13">
+                        Cancelado el {{ $loan->cancelled_at ? $loan->cancelled_at->format('d/m/Y H:i') : '-' }}
+                        por <strong>{{ $loan->canceller?->name ?? 'Administrador' }}</strong> |
+                        Sin afectación a movimientos de caja ni a cortes de días anteriores.
+                        <br><strong>Motivo de cancelación:</strong> {{ $loan->cancellation_reason ?: 'No especificado' }}
+                    </p>
+                </div>
+            @endif
 
             @if ($loan->status === 'cerrado_manual')
                 <div class="alert alert-info border-info shadow-sm mb-4">
@@ -120,7 +152,7 @@
                                     </thead>
                                     <tbody>
                                         @foreach ($loan->installments as $inst)
-                                            <tr class="{{ $inst->is_overdue ? 'table-danger' : ($inst->status === 'pagado' ? 'table-success' : '') }}">
+                                            <tr class="{{ $inst->status === 'cancelado' ? 'text-muted' : ($inst->is_overdue ? 'table-danger' : ($inst->status === 'pagado' ? 'table-success' : '')) }}">
                                                 <td class="font-weight-bold">Pago #{{ $inst->installment_number }}</td>
                                                 <td>
                                                     <i class="fa-regular fa-calendar mr-1 text-muted"></i>
@@ -145,6 +177,8 @@
                                                         <span class="badge badge-info">PARCIAL</span>
                                                     @elseif ($inst->status === 'cerrado_manual')
                                                         <span class="badge badge-secondary">CERRADO MANUAL</span>
+                                                    @elseif ($inst->status === 'cancelado')
+                                                        <span class="badge badge-dark">CANCELADO</span>
                                                     @elseif ($inst->is_overdue)
                                                         <span class="badge badge-danger">VENCIDO</span>
                                                     @else
@@ -200,6 +234,8 @@
                                                 <td>
                                                     @if ($pmt->payment_type === 'comision_apertura')
                                                         <span class="badge badge-info">Comisión Apertura</span>
+                                                    @elseif ($pmt->payment_type === 'enganche')
+                                                        <span class="badge badge-primary">Enganche</span>
                                                     @elseif ($pmt->payment_type === 'cierre_manual')
                                                         <span class="badge badge-warning">Cierre Manual</span>
                                                     @else
@@ -233,32 +269,57 @@
                 <div class="col-lg-4">
                     <div class="card border-0 shadow-sm mb-4">
                         <div class="card-header bg-white border-bottom py-3">
-                            <h6 class="font-weight-bold mb-0 text-primary">Resumen del Préstamo</h6>
+                            <h6 class="font-weight-bold mb-0 text-primary">
+                                {{ $isArticle ? 'Resumen de Venta a Crédito' : 'Resumen del Préstamo' }}
+                            </h6>
                         </div>
                         <div class="card-body">
                             <div class="d-flex justify-content-between mb-2">
                                 <span class="text-muted">Modalidad de Pago:</span>
                                 <strong>{{ $loan->payment_frequency_label }} ({{ $loan->term_periods }} pagos de ${{ number_format($loan->installment_amount, 2) }})</strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">Capital Prestado:</span>
-                                <strong>${{ number_format($loan->principal_amount, 2) }}</strong>
-                            </div>
+                            @if ($isArticle)
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Precio del Artículo:</span>
+                                    <strong>${{ number_format($loan->article_price, 2) }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Enganche (Caja):</span>
+                                    <strong class="text-success">${{ number_format($loan->down_payment, 2) }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Monto Financiado:</span>
+                                    <strong>${{ number_format($loan->principal_amount, 2) }}</strong>
+                                </div>
+                            @else
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Capital Prestado:</span>
+                                    <strong>${{ number_format($loan->principal_amount, 2) }}</strong>
+                                </div>
+                                @if ($loan->delivery_method)
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Medio de Entrega:</span>
+                                        <strong>{{ ucfirst($loan->delivery_method) }}</strong>
+                                    </div>
+                                @endif
+                            @endif
                             <div class="d-flex justify-content-between mb-2">
                                 <span class="text-muted">Interés ({{ $loan->interest_rate }}%):</span>
                                 <strong>${{ number_format($loan->interest_amount, 2) }}</strong>
                             </div>
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">Monto Total del Préstamo:</span>
+                                <span class="text-muted">{{ $isArticle ? 'Total del Financiamiento:' : 'Monto Total del Préstamo:' }}</span>
                                 <strong class="text-primary">${{ number_format($loan->total_amount, 2) }}</strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">Comisión por Apertura (Caja):</span>
-                                <strong class="text-info">${{ number_format($loan->opening_commission, 2) }}</strong>
-                            </div>
+                            @if (!$isArticle || (float) $loan->opening_commission > 0)
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Comisión por Apertura (Caja):</span>
+                                    <strong class="text-info">${{ number_format($loan->opening_commission, 2) }}</strong>
+                                </div>
+                            @endif
                             <hr>
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">Total Abonado:</span>
+                                <span class="text-muted">Total Abonado (Cuotas):</span>
                                 <strong class="text-success font-size-16">${{ number_format($loan->paid_amount, 2) }}</strong>
                             </div>
                             <div class="d-flex justify-content-between">
@@ -266,17 +327,58 @@
                                 <strong class="text-danger font-size-16">${{ number_format($loan->balance_amount, 2) }}</strong>
                             </div>
 
-                            @if (!empty($loan->type_specific_data))
+                            @if ($isArticle && !empty($loan->article_specs))
                                 <hr>
-                                <h6 class="font-weight-bold font-size-13 text-dark mb-2">Información Específica ({{ $loan->loanType?->name ?? 'Préstamo' }})</h6>
-                                @foreach ($loan->type_specific_data as $key => $val)
-                                    @if (!empty($val))
+                                <h6 class="font-weight-bold font-size-13 text-dark mb-2">
+                                    <i class="fa-solid fa-box-open text-info mr-1"></i>Ficha del Artículo / Mercancía
+                                </h6>
+                                @foreach ($loan->article_specs as $specLabel => $specVal)
+                                    <div class="d-flex justify-content-between font-size-13 mb-1">
+                                        <span class="text-muted">{{ $specLabel }}:</span>
+                                        <strong class="text-right ml-2">{{ $specVal }}</strong>
+                                    </div>
+                                @endforeach
+                            @endif
+
+                            @if ($avalInfo['has_aval'])
+                                <hr>
+                                <h6 class="font-weight-bold font-size-13 text-dark mb-2">
+                                    <i class="fa-solid fa-user-shield text-secondary mr-1"></i>Datos del Aval
+                                </h6>
+                                @if ($avalInfo['name'])
+                                    <div class="d-flex justify-content-between font-size-13 mb-1">
+                                        <span class="text-muted">Nombre:</span>
+                                        <strong>{{ $avalInfo['name'] }}</strong>
+                                    </div>
+                                @endif
+                                @if ($avalInfo['phone'])
+                                    <div class="d-flex justify-content-between font-size-13 mb-1">
+                                        <span class="text-muted">Teléfono:</span>
+                                        <strong>{{ $avalInfo['phone'] }}</strong>
+                                    </div>
+                                @endif
+                                @if ($avalInfo['address'])
+                                    <div class="font-size-12 text-muted mt-1">
+                                        <strong>Domicilio:</strong> {{ $avalInfo['address'] }}
+                                    </div>
+                                @endif
+                            @endif
+
+                            @if (!empty($loan->type_specific_data))
+                                @php
+                                    $otherExtras = collect($loan->type_specific_data)
+                                        ->reject(fn($v, $k) => in_array($k, ['aval_nombre', 'aval_name', 'aval_telefono', 'aval_phone', 'aval_domicilio', 'aval_address'], true) || trim((string) $v) === '');
+                                @endphp
+                                @if ($otherExtras->isNotEmpty())
+                                    <hr>
+                                    <h6 class="font-weight-bold font-size-13 text-dark mb-2">Información Específica</h6>
+                                    @foreach ($otherExtras as $key => $val)
                                         <div class="d-flex justify-content-between font-size-13 mb-1">
                                             <span class="text-muted">{{ ucfirst(str_replace('_', ' ', $key)) }}:</span>
                                             <strong>{{ $val }}</strong>
                                         </div>
-                                    @endif
-                                @endforeach
+                                    @endforeach
+                                @endif
                             @endif
 
                             @if ($loan->notes)
@@ -287,20 +389,26 @@
                         </div>
                     </div>
 
-                    <!-- Sección de Pagaré (Imprimir para firma y Subir archivo firmado) -->
+                    <!-- Sección de Pagaré y Recibo de Entrega (Imprimir por separado y Subir archivo firmado) -->
                     <div class="card border-0 shadow-sm mb-4">
                         <div class="card-header bg-white border-bottom py-3">
                             <h6 class="font-weight-bold mb-0 text-primary">
-                                <i class="fa-solid fa-file-signature mr-1"></i>Expediente de Pagaré
+                                <i class="fa-solid fa-file-signature mr-1"></i>Documentos Imprimibles (Pagaré y Recibo)
                             </h6>
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
                                 <a href="{{ route('loans.pagare.print', $loan->id) }}" target="_blank" class="btn btn-outline-dark btn-block btn-sm mb-2">
-                                    <i class="fa-solid fa-print mr-1"></i>Imprimir Pagaré para Firma del Cliente
+                                    <i class="fa-solid fa-print mr-1"></i>Imprimir Pagaré Mercantil
                                 </a>
-                                <a href="{{ route('loans.pagare.print', ['loan' => $loan->id, 'pdf' => 1]) }}" target="_blank" class="btn btn-outline-secondary btn-block btn-sm">
+                                <a href="{{ route('loans.pagare.print', ['loan' => $loan->id, 'pdf' => 1]) }}" target="_blank" class="btn btn-outline-secondary btn-block btn-sm mb-2">
                                     <i class="fa-solid fa-file-pdf mr-1"></i>Descargar Pagaré en PDF
+                                </a>
+                                <a href="{{ route('loans.delivery-receipt.print', $loan->id) }}" target="_blank" class="btn btn-outline-info btn-block btn-sm mb-2">
+                                    <i class="fa-solid fa-receipt mr-1"></i>{{ $isArticle ? 'Imprimir Recibo de Entrega de Mercancía' : 'Imprimir Recibo de Entrega de Préstamo' }}
+                                </a>
+                                <a href="{{ route('loans.delivery-receipt.print', ['loan' => $loan->id, 'pdf' => 1]) }}" target="_blank" class="btn btn-outline-secondary btn-block btn-sm">
+                                    <i class="fa-solid fa-file-pdf mr-1"></i>Descargar Recibo en PDF
                                 </a>
                             </div>
 
@@ -443,6 +551,36 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success"><i class="fa-solid fa-check mr-1"></i>Registrar Abono e Imprimir Ticket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cancelar Préstamo -->
+<div class="modal fade" id="cancelLoanModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title font-weight-bold text-white"><i class="fa-solid fa-ban mr-2"></i>Cancelar Préstamo {{ $loan->loan_code }}</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="{{ route('loans.cancel', $loan->id) }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-warning font-size-13">
+                        <strong>Importante:</strong> Esta acción marcará el préstamo y todas sus cuotas como <strong>Cancelado</strong> sin generar movimientos en caja ni modificar cortes de días anteriores.
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Motivo de cancelación *</label>
+                        <textarea name="cancellation_reason" rows="3" class="form-control" placeholder="Ej. Error de captura / Registro de prueba / El cliente decidió no continuar..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-danger font-weight-bold">Confirmar Cancelación</button>
                 </div>
             </form>
         </div>

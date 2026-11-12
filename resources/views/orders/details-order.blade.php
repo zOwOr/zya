@@ -8,6 +8,11 @@
                     {{ session('success') }}
                 </div>
             @endif
+            @if (session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ session('error') }}
+                </div>
+            @endif
 
             <div class="col-lg-12">
                 <div class="card">
@@ -198,6 +203,9 @@
                         <!-- end: Show Data -->
 
                         @if ($order->order_status == 'pending')
+                            @php
+                                $canDeleteOrder = auth()->user()->isSuperAdmin() || auth()->user()->can('orders.delete');
+                            @endphp
                             <div class="row">
                                 <div class="col-lg-12">
                                     <div class="d-flex align-items-center list-action">
@@ -210,16 +218,24 @@
                                                 data-toggle="tooltip" data-placement="top" title=""
                                                 data-original-title="Complete">Aprobar Orden</button>
 
-                                            <a class="btn btn-danger mr-2" data-toggle="tooltip" data-placement="top"
-                                                title="" data-original-title="Cancel" href="#"
-                                                onclick="event.preventDefault(); document.getElementById('cancel-form').submit();">Cancelar</a>
+                                            @if ($canDeleteOrder && !($isTodayCorteZClosed ?? false))
+                                                <a class="btn btn-danger mr-2" data-toggle="tooltip" data-placement="top"
+                                                    title="" data-original-title="Cancel" href="#"
+                                                    onclick="event.preventDefault(); document.getElementById('cancel-form').submit();">Cancelar</a>
+                                            @endif
 
                                         </form>
-                                        <form id="cancel-form" action="{{ route('order.delete', $order->id) }}"
-                                            method="POST" style="display: none;">
-                                            @method('DELETE')
-                                            @csrf
-                                        </form>
+                                        @if ($canDeleteOrder && !($isTodayCorteZClosed ?? false))
+                                            <form id="cancel-form" action="{{ route('order.delete', $order->id) }}"
+                                                method="POST" style="display: none;">
+                                                @method('DELETE')
+                                                @csrf
+                                            </form>
+                                        @elseif ($canDeleteOrder && ($isTodayCorteZClosed ?? false))
+                                            <span class="badge badge-secondary py-2 px-3 ml-2" title="No es posible cancelar órdenes después de aplicar el Corte Z de hoy">
+                                                <i class="las la-lock mr-1"></i>Cancelación bloqueada (Corte Z aplicado)
+                                            </span>
+                                        @endif
 
                                     </div>
                                 </div>

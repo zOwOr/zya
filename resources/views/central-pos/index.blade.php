@@ -301,6 +301,9 @@
             </small>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center mt-2 mt-md-0">
+            <button type="button" id="btnPosTicketHistory" class="btn btn-outline-dark btn-sm mr-2 shadow-sm font-weight-bold" data-toggle="modal" data-target="#posHistoryModal">
+                <i class="fa-solid fa-clock-rotate-left mr-1"></i> Historial de Tickets
+            </button>
             @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.open_drawer') || auth()->user()->can('cash.open_drawer'))
                 <button type="button" id="btnOpenPhysicalDrawer" class="btn btn-warning btn-sm mr-2 shadow-sm font-weight-bold">
                     <i class="las la-lock-open mr-1"></i> Abrir Cajón Físico
@@ -337,9 +340,9 @@
                 <button type="button" class="btn btn-sm btn-dark font-weight-bold mr-2 shadow-sm" id="posBtnReimprimir">
                     <i class="fa-solid fa-print mr-1"></i> Reimprimir Ticket
                 </button>
-                <a href="#" target="_blank" class="btn btn-sm btn-outline-dark font-weight-bold mr-2 shadow-sm" id="posBtnVerTicket" title="Ver ticket en pantalla o imprimir">
-                    <i class="fa-solid fa-receipt mr-1"></i> Ver Ticket
-                </a>
+                <button type="button" class="btn btn-sm btn-outline-dark font-weight-bold mr-2 shadow-sm" id="posBtnVerTicket" title="Ver ticket en pantalla / WhatsApp o cambiar tamaño">
+                    <i class="fa-solid fa-eye mr-1"></i> Ver Ticket / Captura
+                </button>
                 <button type="button" class="btn btn-sm btn-outline-success font-weight-bold" onclick="document.getElementById('posSaleSuccessAlert').classList.add('d-none')">
                     <i class="fa-solid fa-check mr-1"></i> Listo
                 </button>
@@ -357,8 +360,10 @@
         $canPrestamos = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.prestamos') || auth()->user()->can('prestamos.abonar') || auth()->user()->can('prestamos.create');
         $canTandas = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.tandas') || auth()->user()->can('tandas.abonar');
         $canProductos = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.productos') || auth()->user()->can('pos.create') || auth()->user()->can('orders.create');
+        $canGifts = $canProductos || auth()->user()->can('gifts.deliver') || auth()->user()->can('gifts.read');
+        $canSecProductos = $canProductos || $canGifts;
 
-        $activeTab = $canFinancieras ? 'sec-financieras' : ($canPrestamos ? 'sec-prestamos' : ($canTandas ? 'sec-tandas' : ($canProductos ? 'sec-productos' : 'none')));
+        $activeTab = $canFinancieras ? 'sec-financieras' : ($canPrestamos ? 'sec-prestamos' : ($canTandas ? 'sec-tandas' : ($canSecProductos ? 'sec-productos' : 'none')));
     @endphp
 
     <!-- Cuerpo Principal del Punto de Venta Centralizado -->
@@ -392,7 +397,7 @@
                             </a>
                         </li>
                         @endif
-                        @if ($canProductos)
+                        @if ($canSecProductos)
                         <li class="nav-item">
                             <a class="nav-link pill-prod {{ $activeTab === 'sec-productos' ? 'active' : '' }}" data-toggle="pill" href="#sec-productos" role="tab">
                                 <i class="fa-solid fa-boxes-stacked text-warning"></i>
@@ -673,24 +678,34 @@
                         </div>
                         @endif
 
-                        @if ($canProductos)
-                        <!-- ==================== SECCIÓN 4: VENTA DE PRODUCTOS (INVENTARIO + DINÁMICOS) ==================== -->
+                        @if ($canSecProductos)
+                        <!-- ==================== SECCIÓN 4: VENTA DE PRODUCTOS (INVENTARIO + DINÁMICOS + REGALOS/GIFTS) ==================== -->
                         <div class="tab-pane fade {{ $activeTab === 'sec-productos' ? 'show active' : '' }}" id="sec-productos" role="tabpanel">
-                            <!-- Sub-pestañas para Catálogo vs Producto Libre -->
+                            <!-- Sub-pestañas para Catálogo vs Producto Libre vs Regalos -->
                             <ul class="nav nav-pills mb-3 bg-light p-1 rounded" id="pills-prod-subtabs" role="tablist">
+                                @if ($canProductos)
                                 <li class="nav-item">
                                     <a class="nav-link active font-size-12 py-1 px-3 font-weight-bold" id="pills-stock-tab" data-toggle="pill" href="#subtab-stock" role="tab">
-                                        <i class="fa-solid fa-barcode mr-1 text-primary"></i>A) Catálogo (Inventario Real con Stock)
+                                        <i class="fa-solid fa-barcode mr-1 text-primary"></i>A) Catálogo (Stock)
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link font-size-12 py-1 px-3 font-weight-bold" id="pills-dynamic-tab" data-toggle="pill" href="#subtab-dynamic" role="tab">
-                                        <i class="fa-solid fa-box-open mr-1 text-warning"></i>B) Producto Libre / Servicio (Sin Stock)
+                                        <i class="fa-solid fa-box-open mr-1 text-warning"></i>B) Producto Libre / Servicio
                                     </a>
                                 </li>
+                                @endif
+                                @if ($canGifts)
+                                <li class="nav-item">
+                                    <a class="nav-link {{ !$canProductos ? 'active' : '' }} font-size-12 py-1 px-3 font-weight-bold" id="pills-gift-tab" data-toggle="pill" href="#subtab-gift" role="tab">
+                                        <i class="fa-solid fa-gift mr-1 text-success"></i>C) Regalos / Gifts ($0.00)
+                                    </a>
+                                </li>
+                                @endif
                             </ul>
 
                             <div class="tab-content" id="pills-prod-content">
+                                @if ($canProductos)
                                 <!-- 4A: PRODUCTOS CON IMPACTO EN INVENTARIO -->
                                 <div class="tab-pane fade show active" id="subtab-stock" role="tabpanel">
                                     <div class="form-group mb-2">
@@ -823,6 +838,73 @@
                                         </div>
                                     </div>
                                 </div>
+                                @endif
+
+                                @if ($canGifts)
+                                <!-- 4C: REGALOS / PROMOCIONALES DE PROVEEDOR ($0.00 CON DESCUENTO DE INVENTARIO POR SUCURSAL) -->
+                                <div class="tab-pane fade {{ !$canProductos ? 'show active' : '' }}" id="subtab-gift" role="tabpanel">
+                                    <div class="alert alert-light border py-2 px-3 mb-2 font-size-12">
+                                        <i class="fa-solid fa-gift text-success mr-1"></i>
+                                        Los regalos se agregan al ticket en <strong>$0.00</strong> y se descuentan automáticamente del inventario de esta sucursal al cerrar el cobro.
+                                    </div>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <div class="input-group-prepend"><span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span></div>
+                                        <input type="text" id="posGiftSearchInput" class="form-control" placeholder="Buscar regalo por nombre, código, marca o proveedor...">
+                                        <div class="input-group-append">
+                                            <button type="button" id="btnSearchPosGift" class="btn btn-success font-weight-bold">
+                                                Buscar Regalo
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive border rounded" style="max-height: 240px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover mb-0 font-size-12">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th>Código</th>
+                                                    <th>Regalo / Proveedor</th>
+                                                    <th class="text-center">Stock Sucursal</th>
+                                                    <th class="text-right">Ticket</th>
+                                                    <th class="text-right">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="posGiftsTableBody">
+                                                @forelse ($gifts as $g)
+                                                    <tr>
+                                                        <td><span class="badge badge-light border">{{ $g->code }}</span></td>
+                                                        <td>
+                                                            <strong>{{ $g->name }}</strong>
+                                                            <small class="d-block text-muted">
+                                                                {{ $g->brand ? $g->brand . ' • ' : '' }}Prov: {{ $g->supplier_display_name }}
+                                                            </small>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge badge-pill badge-success">{{ $g->stock_quantity }}</span>
+                                                        </td>
+                                                        <td class="text-right font-weight-bold text-success">$0.00</td>
+                                                        <td class="text-right">
+                                                            <button type="button"
+                                                                class="btn btn-xs btn-success btn-add-gift-item"
+                                                                data-id="{{ $g->id }}"
+                                                                data-name="{{ $g->name }}"
+                                                                data-code="{{ $g->code }}"
+                                                                data-supplier="{{ $g->supplier_display_name }}"
+                                                                data-stock="{{ $g->stock_quantity }}">
+                                                                <i class="fa-solid fa-plus"></i> Agregar
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="5" class="text-center text-muted py-3">
+                                                            No hay regalos disponibles con stock en esta sucursal.
+                                                        </td>
+                                                    </tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                @endif
                             </div>
                         </div>
                         @endif
@@ -874,6 +956,7 @@
                                             <input type="text" id="tabCustomerPhone" class="form-control form-control-sm" placeholder="Teléfono...">
                                         </div>
                                     </div>
+                                    <div id="posCustomerPendingNotesBox" class="mt-2 d-none"></div>
                                 </div>
                             </div>
 
@@ -1063,10 +1146,16 @@
                                 </div>
                             </div>
 
-                            <div class="custom-control custom-checkbox mb-3">
+                            <div class="custom-control custom-checkbox mb-1">
                                 <input type="checkbox" class="custom-control-input" id="posOpenDrawerCheck" checked>
                                 <label class="custom-control-label font-size-12 font-weight-bold text-dark" for="posOpenDrawerCheck">
-                                    <i class="fa-solid fa-print text-primary mr-1"></i>Abrir cajón físico y generar ticket al cobrar
+                                    <i class="fa-solid fa-cash-register text-success mr-1"></i>Abrir cajón físico automáticamente en cobros con efectivo
+                                </label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-3">
+                                <input type="checkbox" class="custom-control-input" id="posAutoPrintCheck" checked>
+                                <label class="custom-control-label font-size-12 font-weight-bold text-dark" for="posAutoPrintCheck">
+                                    <i class="fa-solid fa-print text-primary mr-1"></i>Imprimir ticket automáticamente al cobrar (desmarcar si no hay papel/impresora)
                                 </label>
                             </div>
 
@@ -1075,6 +1164,78 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Historial de Tickets del Punto de Venta (Reimpresión / Vista Previa WhatsApp) -->
+<div class="modal fade" id="posHistoryModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white py-2">
+                <h6 class="modal-title font-weight-bold text-white mb-0">
+                    <i class="fa-solid fa-clock-rotate-left mr-2"></i>Historial de Tickets / Movimientos del POS
+                </h6>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-3 mb-2">
+                        <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Fecha</label>
+                        <input type="date" id="posHistoryDateInput" class="form-control form-control-sm" value="{{ date('Y-m-d') }}">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Buscar Folio / Cliente / Teléfono</label>
+                        <input type="text" id="posHistorySearchInput" class="form-control form-control-sm" placeholder="Ej. MOV-2026... o nombre del cliente">
+                    </div>
+                    <div class="col-md-3 mb-2 d-flex align-items-end">
+                        <button type="button" id="btnFilterPosHistory" class="btn btn-primary btn-sm btn-block font-weight-bold">
+                            <i class="fa-solid fa-magnifying-glass mr-1"></i>Buscar Tickets
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height: 430px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0 font-size-12">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Folio</th>
+                                <th>Fecha / Hora</th>
+                                <th>Cliente</th>
+                                <th>Conceptos</th>
+                                <th>Método</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="posHistoryTableBody">
+                            @forelse ($recentTransactions as $rTx)
+                                <tr>
+                                    <td><span class="badge badge-dark">{{ $rTx->transaction_code }}</span></td>
+                                    <td>{{ $rTx->created_at ? $rTx->created_at->format('d/m/Y H:i') : '' }}</td>
+                                    <td class="font-weight-bold">{{ $rTx->customer_name ?: 'Cliente Mostrador' }}</td>
+                                    <td class="text-muted">{{ \Illuminate\Support\Str::limit(collect($rTx->items_payload ?? [])->pluck('label')->filter()->implode(', '), 60) }}</td>
+                                    <td>{{ strtoupper((string) $rTx->payment_method) }}</td>
+                                    <td class="text-right font-weight-bold">${{ number_format((float) $rTx->total_amount, 2) }}</td>
+                                    <td class="text-right text-nowrap">
+                                        <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1" onclick="window.openTicketPreviewModal('{{ route('central-pos.receipt', $rTx->id) }}', 'Ticket {{ $rTx->transaction_code }}')">
+                                            <i class="fa-solid fa-eye mr-1"></i>Ver
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-dark font-weight-bold" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $rTx->id) }}')">
+                                            <i class="fa-solid fa-print"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-3">Sin movimientos recientes registrados hoy en esta sucursal.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1139,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const qty = Math.max(1, parseInt(item.quantity) || 1);
             const amt = parseFloat(item.amount) || 0;
             const comm = parseFloat(item.commission) || 0;
-            if (item.section === 'prestamo_apertura') {
+            if (item.section === 'prestamo_apertura' || item.section === 'gift') {
                 commission += comm;
             } else {
                 subtotal += (amt * qty);
@@ -1221,6 +1382,192 @@ document.addEventListener('DOMContentLoaded', function () {
         renderAll();
     }
 
+    const pendingNotesBox = document.getElementById('posCustomerPendingNotesBox');
+    let pendingNotesDebounceTimer = null;
+    let pendingNotesRequestSeq = 0;
+    let lastPendingNotesKey = '';
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function renderCustomerPendingNotesBox(data, options = {}) {
+        if (!pendingNotesBox) return;
+
+        if (options.hidden) {
+            pendingNotesBox.classList.add('d-none');
+            pendingNotesBox.innerHTML = '';
+            return;
+        }
+
+        pendingNotesBox.classList.remove('d-none');
+
+        if (options.loading) {
+            pendingNotesBox.innerHTML = `
+                <div class="font-size-11 text-muted d-flex align-items-center py-1">
+                    <i class="fa-solid fa-spinner fa-spin mr-1 text-primary"></i> Verificando notas pendientes del cliente...
+                </div>
+            `;
+            return;
+        }
+
+        if (options.error) {
+            pendingNotesBox.innerHTML = `
+                <div class="font-size-11 text-muted py-1">
+                    <i class="fa-solid fa-circle-info mr-1"></i>No se pudieron consultar las notas pendientes.
+                </div>
+            `;
+            return;
+        }
+
+        if (!data || !data.searched) {
+            pendingNotesBox.classList.add('d-none');
+            pendingNotesBox.innerHTML = '';
+            return;
+        }
+
+        if (!data.has_pending_notes || !Array.isArray(data.pending_notes) || data.pending_notes.length === 0) {
+            pendingNotesBox.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center bg-white rounded border px-2 py-1">
+                    <span class="font-size-11 text-success font-weight-bold">
+                        <i class="fa-solid fa-circle-check mr-1"></i>Cliente sin notas pendientes con saldo.
+                    </span>
+                    <button type="button" class="btn btn-xs btn-link text-muted p-0 btn-refresh-pending-notes" title="Volver a verificar notas pendientes">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        const totalDueFormatted = Number(data.total_due || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const rowsHtml = data.pending_notes.map(note => {
+            const totalFmt = Number(note.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const payFmt = Number(note.pay || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const dueFmt = Number(note.due || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const linksHtml = (note.detail_url || note.pending_due_url) ? `
+                <div class="mt-1 d-flex justify-content-end" style="gap: 6px;">
+                    ${note.detail_url ? `<a href="${escapeHtml(note.detail_url)}" target="_blank" class="btn btn-xs btn-outline-secondary py-0 px-2 font-size-11"><i class="fa-solid fa-eye mr-1"></i>Ver nota</a>` : ''}
+                    ${note.pending_due_url ? `<a href="${escapeHtml(note.pending_due_url)}" target="_blank" class="btn btn-xs btn-warning text-dark font-weight-bold py-0 px-2 font-size-11"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>Abonar / Ver en Notas</a>` : ''}
+                </div>
+            ` : '';
+
+            return `
+                <div class="bg-white rounded border p-2 mt-1">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div class="font-size-12">
+                            <strong class="text-dark">${escapeHtml(note.invoice_no)}</strong>
+                            <span class="text-muted mx-1">&middot;</span>
+                            <span class="text-muted">${escapeHtml(note.order_date_formatted)}</span>
+                            <span class="badge badge-light border text-dark ml-1">${escapeHtml(note.branch_name)}</span>
+                        </div>
+                        <span class="badge badge-danger font-size-11 px-2">Resta: $${dueFmt}</span>
+                    </div>
+                    <div class="font-size-11 text-dark mt-1 text-truncate" title="${escapeHtml(note.concepts)}">
+                        ${escapeHtml(note.concepts)}
+                    </div>
+                    <div class="font-size-11 text-muted">
+                        Total: <strong>$${totalFmt}</strong> &middot; Pagado: <strong class="text-success">$${payFmt}</strong>
+                    </div>
+                    ${linksHtml}
+                </div>
+            `;
+        }).join('');
+
+        pendingNotesBox.innerHTML = `
+            <div class="alert alert-warning border-warning mb-0 p-2 shadow-none">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="font-size-12 font-weight-bold text-dark">
+                        <i class="fa-solid fa-triangle-exclamation text-danger mr-1"></i>
+                        ¡Tiene ${Number(data.pending_notes_count)} nota(s) pendiente(s)!
+                    </div>
+                    <div class="d-flex align-items-center" style="gap: 6px;">
+                        <span class="badge badge-danger font-size-11">Debe: $${totalDueFormatted}</span>
+                        <button type="button" class="btn btn-xs btn-link text-dark p-0 btn-refresh-pending-notes" title="Actualizar notas pendientes">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="max-height: 185px; overflow-y: auto;">
+                    ${rowsHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    function syncCustomerPendingNotes(tab, forceRefresh = false) {
+        if (!pendingNotesBox || !tab) return;
+
+        const cid = String(tab.customerId || '').trim();
+        const rawName = String(tab.customerName || '').trim();
+        const cname = rawName.toLowerCase() === 'cliente mostrador' ? '' : rawName;
+        const cphone = String(tab.customerPhone || '').trim();
+        const phoneDigits = cphone.replace(/\D+/g, '');
+
+        const hasSearchCriteria = cid !== '' || cname.length >= 3 || phoneDigits.length >= 4;
+        if (!hasSearchCriteria) {
+            lastPendingNotesKey = '';
+            pendingNotesRequestSeq++;
+            renderCustomerPendingNotesBox(null, { hidden: true });
+            return;
+        }
+
+        const key = `${cid}|${cname.toLowerCase()}|${phoneDigits}`;
+        if (!forceRefresh && key === lastPendingNotesKey) {
+            return;
+        }
+        lastPendingNotesKey = key;
+
+        const mySeq = ++pendingNotesRequestSeq;
+        renderCustomerPendingNotesBox(null, { loading: true });
+
+        const params = new URLSearchParams();
+        if (cid !== '') params.set('customer_id', cid);
+        if (cname !== '') params.set('customer_name', cname);
+        if (cphone !== '') params.set('customer_phone', cphone);
+
+        fetch(`{{ route('central-pos.lookup-pending-notes') }}?${params.toString()}`)
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(data => {
+                if (mySeq !== pendingNotesRequestSeq) return;
+                renderCustomerPendingNotesBox(data);
+            })
+            .catch(() => {
+                if (mySeq !== pendingNotesRequestSeq) return;
+                renderCustomerPendingNotesBox(null, { error: true });
+            });
+    }
+
+    function scheduleCustomerPendingNotesCheck(tab) {
+        clearTimeout(pendingNotesDebounceTimer);
+        pendingNotesDebounceTimer = setTimeout(() => {
+            syncCustomerPendingNotes(tab, true);
+        }, 320);
+    }
+
+    if (pendingNotesBox) {
+        pendingNotesBox.addEventListener('click', function (e) {
+            if (e.target.closest('.btn-refresh-pending-notes')) {
+                syncCustomerPendingNotes(getActiveTab(), true);
+            }
+        });
+
+        window.addEventListener('focus', function () {
+            const tab = getActiveTab();
+            if (tab && (tab.customerId || (tab.customerName && tab.customerName.trim().length >= 3))) {
+                syncCustomerPendingNotes(tab, true);
+            }
+        });
+    }
+
     function renderActiveCart() {
         const tab = getActiveTab();
         document.getElementById('activeTabTitleBadge').textContent = tab.name;
@@ -1237,6 +1584,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 $custSelect.val('').trigger('change.select2');
             }
         }
+
+        syncCustomerPendingNotes(tab);
 
         const tbody = document.getElementById('tabCartItemsBody');
         tbody.innerHTML = '';
@@ -1260,11 +1609,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     'tanda_abono': '<span class="badge text-white" style="background:#8b5cf6;">Tanda</span>',
                     'producto_inventario': '<span class="badge badge-info">Stock</span>',
                     'producto_dinamico': '<span class="badge badge-warning">Libre</span>',
+                    'gift': '<span class="badge badge-success"><i class="fa-solid fa-gift mr-1"></i>Regalo ($0)</span>',
                 };
                 const tr = document.createElement('tr');
                 const qty = Math.max(1, parseInt(item.quantity) || 1);
-                const unitAmt = parseFloat(item.amount) || 0;
-                const lineAmt = item.section === 'prestamo_apertura' ? 0 : (unitAmt * qty);
+                const isGift = (item.section === 'gift');
+                const unitAmt = isGift ? 0 : (parseFloat(item.amount) || 0);
+                const lineAmt = (item.section === 'prestamo_apertura' || isGift) ? 0 : (unitAmt * qty);
                 const commAmt = parseFloat(item.commission) || 0;
                 const isProduct = (item.section === 'producto_inventario' || item.section === 'producto_dinamico');
                 const isFinanciera = (item.section === 'financiera_abono');
@@ -1272,10 +1623,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const originalAmt = item.original_amount !== undefined ? parseFloat(item.original_amount) : unitAmt;
                 const hasDiscount = isProduct && (originalAmt > unitAmt);
-                const isFree = isProduct && (unitAmt === 0);
+                const isFree = (isProduct && (unitAmt === 0)) || isGift;
 
                 let amountCellHtml = '';
-                if (isEditable) {
+                if (isGift) {
+                    amountCellHtml = `<span class="badge badge-success font-size-11 px-2 py-1">$0.00 (Regalo)</span>`;
+                } else if (isEditable) {
                     amountCellHtml = `
                         <div class="input-group input-group-sm ml-auto" style="max-width: 105px;">
                             <div class="input-group-prepend"><span class="input-group-text p-1 font-size-11">$</span></div>
@@ -1289,7 +1642,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 let qtyCellHtml = '';
-                if (isProduct) {
+                if (isProduct || isGift) {
                     qtyCellHtml = `
                         <input type="number" min="1" class="form-control form-control-sm text-center cart-item-qty-input font-weight-bold p-1" data-idx="${idx}" value="${qty}" style="max-width: 48px; margin: 0 auto;">
                     `;
@@ -1509,6 +1862,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             const tab = getActiveTab();
             if (tab && tab.items[idx]) {
+                if (tab.items[idx].section === 'gift' && tab.items[idx].max_stock !== undefined && qVal > parseInt(tab.items[idx].max_stock)) {
+                    alert(`Solo hay ${tab.items[idx].max_stock} unidades disponibles de este regalo en sucursal.`);
+                    renderActiveCart();
+                    return;
+                }
                 tab.items[idx].quantity = qVal;
                 saveState();
                 renderActiveCart();
@@ -1530,14 +1888,24 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('tabCustomerName').addEventListener('input', function () {
         const tab = getActiveTab();
         tab.customerName = this.value;
+        const cartSelectEl = document.getElementById('posCartCustomerSelect');
+        if (tab.customerId && cartSelectEl) {
+            const selOpt = cartSelectEl.options[cartSelectEl.selectedIndex];
+            if (!selOpt || (selOpt.dataset.name || '') !== this.value) {
+                tab.customerId = '';
+                $('#posCartCustomerSelect').val('').trigger('change.select2');
+            }
+        }
         saveState();
         renderTabsBar();
+        scheduleCustomerPendingNotesCheck(tab);
     });
 
     document.getElementById('tabCustomerPhone').addEventListener('input', function () {
         const tab = getActiveTab();
         tab.customerPhone = this.value;
         saveState();
+        scheduleCustomerPendingNotesCheck(tab);
     });
 
     $('#posCartCustomerSelect').on('change', function () {
@@ -1546,6 +1914,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!cid) {
             tab.customerId = '';
             saveState();
+            syncCustomerPendingNotes(tab, true);
             return;
         }
         const opt = this.options[this.selectedIndex];
@@ -1556,8 +1925,9 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('tabCustomerName').value = tab.customerName;
         document.getElementById('tabCustomerPhone').value = tab.customerPhone;
         renderTabsBar();
+        syncCustomerPendingNotes(tab, true);
 
-        if ($('#posLoanCustomerSelect').val() != cid) {
+        if ($('#posLoanCustomerSelect').length && $('#posLoanCustomerSelect').val() != cid) {
             $('#posLoanCustomerSelect').val(cid).trigger('change');
         }
     });
@@ -2359,6 +2729,87 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // ==================== 4C. REGALOS / PROMOCIONALES ($0.00 DESCONTANDO INVENTARIO SUCURSAL) ====================
+    const posGiftsBody = document.getElementById('posGiftsTableBody');
+    if (posGiftsBody) {
+        posGiftsBody.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-add-gift-item');
+            if (!btn) return;
+
+            const giftId = btn.dataset.id;
+            const maxStock = Math.max(0, parseInt(btn.dataset.stock) || 0);
+            const tab = getActiveTab();
+            const existingQty = tab.items
+                .filter(i => i.section === 'gift' && String(i.gift_id) === String(giftId))
+                .reduce((acc, i) => acc + Math.max(1, parseInt(i.quantity) || 1), 0);
+
+            if (maxStock <= 0 || existingQty >= maxStock) {
+                alert(`Stock insuficiente para entregar más unidades del regalo "${btn.dataset.name}" (Disponible en sucursal: ${maxStock}).`);
+                return;
+            }
+
+            addItemToCurrentTab({
+                section: 'gift',
+                gift_id: giftId,
+                title: `${btn.dataset.name} (Regalo)`,
+                subtitle: `Regalo de proveedor: ${btn.dataset.supplier || '-'} | Código: ${btn.dataset.code || '-'}`,
+                quantity: 1,
+                amount: 0,
+                original_amount: 0,
+                commission: 0,
+                max_stock: maxStock
+            });
+        });
+    }
+
+    function searchPosGifts(query) {
+        if (!posGiftsBody) return;
+        const url = `{{ route('central-pos.lookup-gifts') }}?branch_id={{ $branchId }}&q=${encodeURIComponent(query || '')}`;
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                const gifts = data.gifts || [];
+                posGiftsBody.innerHTML = '';
+                if (!gifts.length) {
+                    posGiftsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No se encontraron regalos con stock en esta sucursal.</td></tr>';
+                    return;
+                }
+                gifts.forEach(g => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><span class="badge badge-light border">${g.code || '-'}</span></td>
+                        <td>
+                            <strong>${g.name}</strong>
+                            <small class="d-block text-muted">${g.brand ? g.brand + ' • ' : ''}Prov: ${g.supplier_name || '-'}</small>
+                        </td>
+                        <td class="text-center"><span class="badge badge-pill badge-success">${g.stock_quantity}</span></td>
+                        <td class="text-right font-weight-bold text-success">$0.00</td>
+                        <td class="text-right">
+                            <button type="button" class="btn btn-xs btn-success btn-add-gift-item"
+                                data-id="${g.id}" data-name="${g.name}" data-code="${g.code || ''}"
+                                data-supplier="${g.supplier_name || ''}" data-stock="${g.stock_quantity}">
+                                <i class="fa-solid fa-plus"></i> Agregar
+                            </button>
+                        </td>
+                    `;
+                    posGiftsBody.appendChild(tr);
+                });
+            })
+            .catch(() => {});
+    }
+
+    const posGiftSearchInput = document.getElementById('posGiftSearchInput');
+    const btnSearchPosGift = document.getElementById('btnSearchPosGift');
+    if (btnSearchPosGift && posGiftSearchInput) {
+        btnSearchPosGift.addEventListener('click', () => searchPosGifts(posGiftSearchInput.value.trim()));
+        posGiftSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchPosGifts(posGiftSearchInput.value.trim());
+            }
+        });
+    }
+
     // ==================== 5. CHECKOUT UNIFICADO Y APERTURA DE CAJÓN ====================
     const btnOpenPhysDrawer = document.getElementById('btnOpenPhysicalDrawer');
     if (btnOpenPhysDrawer) {
@@ -2438,6 +2889,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
+            const shouldAutoOpenDrawer = !!document.getElementById('posOpenDrawerCheck')?.checked && (
+                (tab.paymentMethod === 'efectivo' && cashAmt > 0) ||
+                (tab.paymentMethod === 'mixto' && cashAmt > 0)
+            );
+            const shouldAutoPrint = !!document.getElementById('posAutoPrintCheck')?.checked;
+
             const btn = this;
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Procesando Cobro...';
@@ -2497,14 +2954,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 saveState();
                 renderAll();
 
-                // Apertura AUTOMÁTICA del cajón por USB en procesos de venta
-                if (window.ZyaPosHardware) {
+                // Apertura AUTOMÁTICA del cajón por USB únicamente cuando el cobro involucra efectivo
+                if (shouldAutoOpenDrawer && window.ZyaPosHardware) {
                     ZyaPosHardware.autoOpenUsbDrawer();
                 }
 
                 if (res.receipt_url) {
-                    printTicketDirectly(res.receipt_url);
+                    if (shouldAutoPrint) {
+                        const sep = res.receipt_url.includes('?') ? '&' : '?';
+                        const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
+                        printTicketDirectly(res.receipt_url + sep + 'skip_drawer=1&paper=' + paperMode);
+                    }
                     showSaleSuccessBanner(res.transaction_code, res.receipt_url);
+                    if (window.openTicketPreviewModal) {
+                        window.openTicketPreviewModal(res.receipt_url, 'Ticket ' + res.transaction_code);
+                    }
                 }
             })
             .catch(err => {
@@ -2575,16 +3039,87 @@ document.addEventListener('DOMContentLoaded', function () {
             codeEl.textContent = txCode;
             if (reBtn) {
                 reBtn.onclick = function() {
-                    printTicketDirectly(receiptUrl);
+                    const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
+                    const sep = receiptUrl.includes('?') ? '&' : '?';
+                    printTicketDirectly(receiptUrl + sep + 'skip_drawer=1&paper=' + paperMode);
                 };
             }
             if (viewBtn) {
-                viewBtn.href = receiptUrl;
+                viewBtn.onclick = function() {
+                    if (window.openTicketPreviewModal) {
+                        window.openTicketPreviewModal(receiptUrl, 'Ticket ' + txCode);
+                    }
+                };
             }
             alertEl.classList.remove('d-none');
             alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
+
+    function loadPosTicketHistory() {
+        const tbody = document.getElementById('posHistoryTableBody');
+        if (!tbody) return;
+        const dateVal = document.getElementById('posHistoryDateInput')?.value || '';
+        const searchVal = document.getElementById('posHistorySearchInput')?.value.trim() || '';
+        const url = `{{ route('central-pos.recent-transactions') }}?branch_id={{ $branchId }}&date=${encodeURIComponent(dateVal)}&search=${encodeURIComponent(searchVal)}`;
+
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                const list = data.transactions || [];
+                tbody.innerHTML = '';
+                if (!list.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Sin tickets encontrados para el filtro seleccionado.</td></tr>';
+                    return;
+                }
+                list.forEach(tx => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><span class="badge badge-dark">${tx.transaction_code}</span></td>
+                        <td>${tx.created_at}</td>
+                        <td class="font-weight-bold">${tx.customer_name}</td>
+                        <td class="text-muted">${tx.concepts || '-'}</td>
+                        <td>${tx.payment_method}</td>
+                        <td class="text-right font-weight-bold">$${tx.total_amount}</td>
+                        <td class="text-right text-nowrap">
+                            <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1 btn-hist-preview">
+                                <i class="fa-solid fa-eye mr-1"></i>Ver
+                            </button>
+                            <button type="button" class="btn btn-xs btn-dark font-weight-bold btn-hist-print">
+                                <i class="fa-solid fa-print"></i>
+                            </button>
+                        </td>
+                    `;
+                    tr.querySelector('.btn-hist-preview').addEventListener('click', () => {
+                        if (window.openTicketPreviewModal) {
+                            window.openTicketPreviewModal(tx.receipt_url, 'Ticket ' + tx.transaction_code);
+                        }
+                    });
+                    tr.querySelector('.btn-hist-print').addEventListener('click', () => {
+                        const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
+                        const sep = tx.receipt_url.includes('?') ? '&' : '?';
+                        printTicketDirectly(tx.receipt_url + sep + 'skip_drawer=1&paper=' + paperMode);
+                    });
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(() => {});
+    }
+
+    const btnFilterHistory = document.getElementById('btnFilterPosHistory');
+    const histSearchInp = document.getElementById('posHistorySearchInput');
+    if (btnFilterHistory) {
+        btnFilterHistory.addEventListener('click', loadPosTicketHistory);
+    }
+    if (histSearchInp) {
+        histSearchInp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                loadPosTicketHistory();
+            }
+        });
+    }
+    $('#posHistoryModal').on('shown.bs.modal', loadPosTicketHistory);
 
     renderAll();
 });

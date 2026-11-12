@@ -18,6 +18,14 @@
                     {{ session('info') }}
                 </div>
             @endif
+            @if (session()->has('error'))
+                <div class="alert text-white bg-danger" role="alert">
+                    <div class="iq-alert-text">{{ session('error') }}</div>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <i class="ri-close-line"></i>
+                    </button>
+                </div>
+            @endif
         </div>
 
         <div class="col-lg-4">
@@ -99,8 +107,14 @@
             </div>
             <div class="d-flex gap-2 mt-2 mt-md-0">
                 @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.export') || auth()->user()->can('financieras.dashboard_payments') || auth()->user()->can('financieras.export'))
+                    <form method="GET" action="{{ route('dashboard.financieras.pdf') }}" class="d-inline-flex align-items-center mr-2 bg-white rounded px-2 py-1">
+                        <input type="date" name="date" value="{{ $finStartDate }}" class="form-control form-control-sm border-0 p-0 mr-1" style="height:22px; width:125px; font-size:12px;" title="Fecha para PDF diario de todas las financieras">
+                        <button type="submit" class="btn btn-xs btn-danger font-weight-bold text-nowrap" title="Descargar PDF del día con todas las financieras agrupadas">
+                            <i class="las la-file-pdf"></i> PDF Diario Todas
+                        </button>
+                    </form>
                     <a href="{{ route('dashboard.financieras.pdf', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-danger mr-2">
-                        <i class="las la-file-pdf"></i> Exportar PDF
+                        <i class="las la-file-pdf"></i> PDF Filtro
                     </a>
                     <a href="{{ route('dashboard.financieras.excel', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-success">
                         <i class="las la-file-excel"></i> Exportar Excel
@@ -354,16 +368,29 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="d-flex justify-content-center gap-1">
+                                        <button type="button" onclick="window.openTicketPreviewModal('{{ route('central-pos.receipt', $tx->id) }}', 'Ticket {{ $tx->transaction_code }}')" class="btn btn-xs btn-outline-primary mr-1" title="Ver Ticket completo en pantalla / WhatsApp">
+                                            <i class="las la-eye"></i> Ver
+                                        </button>
                                         <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $tx->id) }}')" class="btn btn-xs btn-outline-dark mr-1" title="Imprimir Ticket">
                                             <i class="las la-print"></i> Ticket
                                         </button>
-                                        @if($tx->status === 'completado' && (auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.cancel_transaction') || auth()->user()->can('cobros.cancel_transaction')))
-                                            <form method="POST" action="{{ route('dashboard.transactions.cancel', $tx->id) }}" onsubmit="return confirm('¿Seguro que deseas cancelar este movimiento?')">
-                                                @csrf
-                                                <button type="submit" class="btn btn-xs btn-outline-danger" title="Cancelar movimiento">
-                                                    <i class="las la-ban"></i>
-                                                </button>
-                                            </form>
+                                        @php
+                                            $canCancelTx = auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.cancel_transaction') || auth()->user()->can('cobros.cancel_transaction');
+                                            $isTodayCorteZClosed = in_array((int) $tx->branch_id, $todayClosedBranchIds ?? [], true);
+                                        @endphp
+                                        @if($tx->status === 'completado' && $canCancelTx)
+                                            @if(!$isTodayCorteZClosed)
+                                                <form method="POST" action="{{ route('dashboard.transactions.cancel', $tx->id) }}" onsubmit="return confirm('¿Seguro que deseas cancelar este movimiento?')">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-xs btn-outline-danger" title="Cancelar movimiento">
+                                                        <i class="las la-ban"></i>
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="btn btn-xs btn-outline-secondary disabled" title="No se puede cancelar: el Corte Z del día ya fue aplicado en esta sucursal">
+                                                    <i class="las la-lock"></i>
+                                                </span>
+                                            @endif
                                         @endif
                                     </div>
                                 </td>

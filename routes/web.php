@@ -67,8 +67,11 @@ Route::middleware(['auth', 'permission:cobros.menu|cobros.read|pos.menu|pos.read
     Route::get('/', [UnifiedPosController::class, 'index'])->name('index');
     Route::get('/lookup-financiera', [UnifiedPosController::class, 'lookupFinanciera'])->name('lookup-financiera');
     Route::get('/lookup-loans', [UnifiedPosController::class, 'lookupCustomerLoans'])->name('lookup-loans');
+    Route::get('/lookup-pending-notes', [UnifiedPosController::class, 'lookupCustomerPendingNotes'])->name('lookup-pending-notes');
     Route::get('/lookup-tanda', [UnifiedPosController::class, 'lookupTanda'])->name('lookup-tanda');
     Route::get('/lookup-products', [UnifiedPosController::class, 'lookupProducts'])->name('lookup-products');
+    Route::get('/lookup-gifts', [UnifiedPosController::class, 'lookupGifts'])->name('lookup-gifts');
+    Route::get('/recent-transactions', [UnifiedPosController::class, 'recentTransactions'])->name('recent-transactions');
     Route::post('/checkout', [UnifiedPosController::class, 'checkout'])->name('checkout');
     Route::get('/receipt/{transaction}', [UnifiedPosController::class, 'printReceipt'])->name('receipt');
     Route::get('/open-drawer', [UnifiedPosController::class, 'openCashDrawer'])->name('open-drawer');
@@ -94,7 +97,9 @@ Route::middleware(['auth', 'permission:prestamos.menu|prestamos.read'])->prefix(
     Route::get('/{loan}', [LoanController::class, 'show'])->name('show');
     Route::post('/{loan}/payments', [LoanController::class, 'registerPayment'])->name('payments.store');
     Route::post('/{loan}/close-manual', [LoanController::class, 'manualClose'])->name('close-manual');
+    Route::post('/{loan}/cancel', [LoanController::class, 'cancel'])->name('cancel');
     Route::get('/{loan}/pagare/print', [LoanController::class, 'printPromissoryNote'])->name('pagare.print');
+    Route::get('/{loan}/recibo-entrega/print', [LoanController::class, 'printDeliveryReceipt'])->name('delivery-receipt.print');
     Route::post('/{loan}/pagare/upload', [LoanController::class, 'uploadPromissoryNote'])->name('pagare.upload');
     Route::get('/{loan}/pagare/download', [LoanController::class, 'downloadPromissoryNote'])->name('pagare.download');
 
@@ -102,6 +107,13 @@ Route::middleware(['auth', 'permission:prestamos.menu|prestamos.read'])->prefix(
     Route::get('/{loan}/video/stream', [LoanController::class, 'streamVideo'])->name('video.stream');
     Route::post('/{loan}/video', [LoanController::class, 'updateVideo'])->name('video.update');
     Route::delete('/{loan}/video', [LoanController::class, 'deleteVideo'])->name('video.delete');
+});
+
+// ====== MÓDULO DE VENTA A CRÉDITO DE ARTÍCULOS ======
+Route::middleware(['auth', 'permission:prestamos.menu|prestamos.read'])->prefix('article-credits')->name('article-credits.')->group(function () {
+    Route::get('/', [LoanController::class, 'articleCreditsIndex'])->name('index');
+    Route::get('/create', [LoanController::class, 'articleCreditsCreate'])->name('create');
+    Route::post('/', [LoanController::class, 'store'])->name('store');
 });
 
 // ====== MÓDULO DE GIFTS Y PROMOCIONALES POR PROVEEDOR ======
@@ -213,6 +225,11 @@ Route::middleware(['permission:cash.menu|cash.read'])->group(function () {
     Route::post('/cash/auto-cut-config', [CashController::class, 'updateAutoCutConfig'])->name('cash.autoCutConfig');
     Route::get('/cash/filter-by-date', [CashController::class, 'filterByDate'])->name('cash.filterByDate');
     Route::get('/cash/print', [CashController::class, 'printCut'])->name('cash.printCut');
+    Route::get('/cash/export-pdf', [CashController::class, 'exportCutsPdf'])->name('cash.exportPdf');
+    Route::get('/cash/export-excel', [CashController::class, 'exportCutsExcel'])->name('cash.exportExcel');
+    Route::get('/cash/expenses', [CashController::class, 'expensesReport'])->name('cash.expenses');
+    Route::get('/cash/expenses/pdf', [CashController::class, 'exportExpensesPdf'])->name('cash.expenses.pdf');
+    Route::get('/cash/expenses/excel', [CashController::class, 'exportExpensesExcel'])->name('cash.expenses.excel');
 });
 
 // ====== ORDERS ======

@@ -1,18 +1,27 @@
 @extends('dashboard.body.main')
 
 @section('container')
+@php
+    $isArticle = ($operationType ?? 'prestamo') === 'credito_articulo';
+@endphp
 <div class="container-fluid">
     <div class="row">
         <div class="col-lg-12">
             <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
                 <div>
-                    <h4 class="mb-1 font-weight-bold"><i class="fa-solid fa-file-invoice-dollar text-primary mr-2"></i>Crear Nuevo Préstamo</h4>
+                    <h4 class="mb-1 font-weight-bold">
+                        <i class="fa-solid {{ $isArticle ? 'fa-cart-plus text-info' : 'fa-file-invoice-dollar text-primary' }} mr-2"></i>{{ $isArticle ? 'Nueva Venta a Crédito de Artículo' : 'Crear Nuevo Préstamo' }}
+                    </h4>
                     <p class="mb-0 text-muted font-size-13">
-                        El monto prestado no descuenta de caja; únicamente se refleja en caja la <strong>Comisión por Apertura</strong> y los abonos posteriores.
+                        @if ($isArticle)
+                            Registra la ficha del artículo, precio, enganche y pagos a crédito. Si aplica enganche, únicamente ese monto entra a caja hoy y después se cobran los abonos.
+                        @else
+                            El monto prestado no descuenta de caja; únicamente se refleja en caja la <strong>Comisión por Apertura</strong> y los abonos posteriores.
+                        @endif
                     </p>
                 </div>
-                <a href="{{ route('loans.index') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="fa-solid fa-arrow-left mr-1"></i>Volver a Préstamos
+                <a href="{{ $isArticle ? route('article-credits.index') : route('loans.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-arrow-left mr-1"></i>{{ $isArticle ? 'Volver a Crédito de Artículos' : 'Volver a Préstamos' }}
                 </a>
             </div>
 
@@ -32,7 +41,7 @@
                     <i class="fa-solid fa-triangle-exclamation fa-2x text-danger mr-3 mt-1"></i>
                     <div class="w-100">
                         <h5 class="font-weight-bold text-danger mb-1">
-                            ¡ATENCIÓN! El cliente seleccionado tiene préstamos abiertos y pagos pendientes
+                            ¡ATENCIÓN! El cliente seleccionado tiene préstamos o créditos abiertos y pagos pendientes
                         </h5>
                         <p id="customerAlertSummary" class="mb-2 text-dark font-size-14"></p>
                         <div id="customerOpenLoansList" class="mb-2"></div>
@@ -41,15 +50,16 @@
                 </div>
             </div>
 
-            <form action="{{ route('loans.store') }}" method="POST" enctype="multipart/form-data" id="createLoanForm">
+            <form action="{{ $isArticle ? route('article-credits.store') : route('loans.store') }}" method="POST" enctype="multipart/form-data" id="createLoanForm">
                 @csrf
+                <input type="hidden" name="operation_type" value="{{ $operationType ?? 'prestamo' }}">
                 <div class="row">
-                    <!-- Columna Izquierda: Cliente, Tipo de Préstamo e Información Específica -->
+                    <!-- Columna Izquierda: Cliente, Aval y Tipo / Ficha del Artículo -->
                     <div class="col-lg-6">
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-header bg-white border-bottom py-3">
-                                <h6 class="font-weight-bold mb-0 text-primary">
-                                    1. Selección de Cliente y Tipo de Préstamo (Opcional)
+                                <h6 class="font-weight-bold mb-0 {{ $isArticle ? 'text-info' : 'text-primary' }}">
+                                    1. {{ $isArticle ? 'Cliente, Aval y Ficha del Artículo' : 'Selección de Cliente y Tipo de Préstamo (Opcional)' }}
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -61,6 +71,8 @@
                                             @foreach ($customers as $customer)
                                                 <option value="{{ $customer->id }}"
                                                     data-aval="{{ $customer->aval_name }}"
+                                                    data-aval-phone="{{ $customer->aval_phone }}"
+                                                    data-aval-address="{{ $customer->aval_address }}"
                                                     {{ (string)old('customer_id', $selectedCustomerId) === (string)$customer->id ? 'selected' : '' }}>
                                                     {{ $customer->tit_name }} ({{ $customer->tit_phone ?? 'Sin tel' }})
                                                 </option>
@@ -81,68 +93,146 @@
                                         </div>
                                     @endif
 
-                                    <div class="col-md-12 form-group">
-                                        <label class="font-weight-bold font-size-12">Nombre del Aval <small class="text-muted">(Se sincroniza automáticamente con el cliente)</small></label>
+                                    <div class="col-md-6 form-group">
+                                        <label class="font-weight-bold font-size-12">Nombre del Aval <small class="text-muted">(Opcional; se sincroniza con cliente)</small></label>
                                         <input type="text" name="aval_name" id="avalNameInput" class="form-control form-control-sm" value="{{ old('aval_name') }}" placeholder="Nombre completo del aval...">
                                     </div>
-
-                                    <div class="col-md-12 form-group">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <label class="font-weight-bold mb-0">
-                                                Tipo de Préstamo <small class="text-muted">(Opcional — no obligatorio)</small>
-                                            </label>
-                                            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.catalogs'))
-                                                <a href="{{ route('loans.types.index') }}" class="font-size-12 font-weight-bold text-primary" target="_blank">
-                                                    <i class="fa-solid fa-sliders mr-1"></i>Gestionar Catálogo de Tipos
-                                                </a>
-                                            @endif
-                                        </div>
-
-                                        <!-- Botones de Acceso Rápido a Tasas Predefinidas Editables -->
-                                        <div class="mb-2">
-                                            <small class="text-muted font-weight-bold mr-1">Tasas Predefinidas:</small>
-                                            <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="20">20%</button>
-                                            <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="40">40%</button>
-                                            <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="50">50%</button>
-                                            <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="60">60%</button>
-                                            <button type="button" class="btn btn-xs btn-outline-secondary btn-rate-clear mb-1" title="Captura personalizada directa">Directo / Libre</button>
-                                        </div>
-
-                                        <select name="loan_type_id" id="loanTypeSelect" class="form-control select2-autocomplete">
-                                            <option value="">-- Sin tipo predefinido (Captura Directa / Personalizado) --</option>
-                                            @foreach ($loanTypes as $lt)
-                                                <option value="{{ $lt->id }}"
-                                                    data-rate="{{ $lt->default_interest_rate }}"
-                                                    data-fee="{{ $lt->default_opening_fee }}"
-                                                    data-frequency="{{ $lt->default_frequency }}"
-                                                    data-periods="{{ $lt->default_periods }}"
-                                                    data-fields='@json($lt->required_fields ?? [])'
-                                                    {{ old('loan_type_id') == $lt->id ? 'selected' : '' }}>
-                                                    {{ $lt->name }} ({{ number_format($lt->default_interest_rate, 0) }}% | {{ \App\Models\Loan::frequencyLabel($lt->default_frequency) }})
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                    <div class="col-md-6 form-group">
+                                        <label class="font-weight-bold font-size-12">Teléfono del Aval <small class="text-muted">(Opcional)</small></label>
+                                        <input type="text" name="aval_phone" id="avalPhoneInput" class="form-control form-control-sm" value="{{ old('aval_phone') }}" placeholder="Teléfono del aval...">
                                     </div>
+                                    <div class="col-md-{{ $isArticle ? '12' : '7' }} form-group">
+                                        <label class="font-weight-bold font-size-12">Domicilio del Aval <small class="text-muted">(Opcional)</small></label>
+                                        <input type="text" name="aval_address" id="avalAddressInput" class="form-control form-control-sm" value="{{ old('aval_address') }}" placeholder="Calle, número, colonia...">
+                                    </div>
+
+                                    @if (!$isArticle)
+                                        <div class="col-md-5 form-group">
+                                            <label class="font-weight-bold font-size-12">Medio de entrega (Recibo)</label>
+                                            <select name="delivery_method" class="form-control form-control-sm">
+                                                <option value="">-- Marcar al entregar / manual --</option>
+                                                <option value="efectivo" {{ old('delivery_method') === 'efectivo' ? 'selected' : '' }}>Efectivo</option>
+                                                <option value="transferencia" {{ old('delivery_method') === 'transferencia' ? 'selected' : '' }}>Transferencia</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-12 form-group">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <label class="font-weight-bold mb-0">
+                                                    Tipo de Préstamo <small class="text-muted">(Opcional — no obligatorio)</small>
+                                                </label>
+                                                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.catalogs'))
+                                                    <a href="{{ route('loans.types.index') }}" class="font-size-12 font-weight-bold text-primary" target="_blank">
+                                                        <i class="fa-solid fa-sliders mr-1"></i>Gestionar Catálogo de Tipos
+                                                    </a>
+                                                @endif
+                                            </div>
+
+                                            <!-- Botones de Acceso Rápido a Tasas Predefinidas Editables -->
+                                            <div class="mb-2">
+                                                <small class="text-muted font-weight-bold mr-1">Tasas Predefinidas:</small>
+                                                <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="20">20%</button>
+                                                <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="40">40%</button>
+                                                <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="50">50%</button>
+                                                <button type="button" class="btn btn-xs btn-outline-primary btn-rate-preset mr-1 mb-1" data-rate="60">60%</button>
+                                                <button type="button" class="btn btn-xs btn-outline-secondary btn-rate-clear mb-1" title="Captura personalizada directa">Directo / Libre</button>
+                                            </div>
+
+                                            <select name="loan_type_id" id="loanTypeSelect" class="form-control select2-autocomplete">
+                                                <option value="">-- Sin tipo predefinido (Captura Directa / Personalizado) --</option>
+                                                @foreach ($loanTypes as $lt)
+                                                    <option value="{{ $lt->id }}"
+                                                        data-rate="{{ $lt->default_interest_rate }}"
+                                                        data-fee="{{ $lt->default_opening_fee }}"
+                                                        data-frequency="{{ $lt->default_frequency }}"
+                                                        data-periods="{{ $lt->default_periods }}"
+                                                        data-fields='@json($lt->required_fields ?? [])'
+                                                        {{ old('loan_type_id') == $lt->id ? 'selected' : '' }}>
+                                                        {{ $lt->name }} ({{ number_format($lt->default_interest_rate, 0) }}% | {{ \App\Models\Loan::frequencyLabel($lt->default_frequency) }})
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    @endif
                                 </div>
 
-                                <!-- Sección dinámica según el tipo de préstamo seleccionado -->
-                                <div class="bg-light rounded p-3 border mt-2">
-                                    <h6 class="font-weight-bold text-dark mb-2">
-                                        <i class="fa-solid fa-clipboard-list mr-1 text-primary"></i>Información Requerida según Tipo de Préstamo
-                                    </h6>
-                                    <div id="dynamicLoanTypeFields" class="row">
-                                        <div class="col-12 text-muted font-size-13">
-                                            <i class="fa-solid fa-check-circle text-success mr-1"></i>Modo Préstamo Directo: No requiere catálogo predefinido. Captura directamente capital, abonos y frecuencia.
+                                @if ($isArticle)
+                                    <!-- Ficha Técnica del Artículo a Crédito -->
+                                    <div class="bg-light rounded p-3 border border-info mt-1">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="font-weight-bold text-info mb-0">
+                                                <i class="fa-solid fa-box-open mr-1"></i>Ficha del Artículo a Crédito
+                                            </h6>
+                                            <small class="text-muted">Los campos que no apliquen pueden quedar vacíos</small>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Estado / Tipo</label>
+                                                <select name="article_status" class="form-control form-control-sm">
+                                                    <option value="">-- No aplica / Vacío --</option>
+                                                    <option value="nuevo" {{ old('article_status') === 'nuevo' ? 'selected' : '' }}>Nuevo</option>
+                                                    <option value="seminuevo" {{ old('article_status') === 'seminuevo' ? 'selected' : '' }}>Seminuevo</option>
+                                                    <option value="servicio" {{ old('article_status') === 'servicio' ? 'selected' : '' }}>Servicio</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-8 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Artículo / Descripción</label>
+                                                <input type="text" name="article_name" class="form-control form-control-sm" value="{{ old('article_name') }}" placeholder="Ej. Estufa 6 quemadores, Laptop, Tablet, Plancha...">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Marca</label>
+                                                <input type="text" name="article_brand" class="form-control form-control-sm" value="{{ old('article_brand') }}" placeholder="Ej. Mabe, HP, Samsung...">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Modelo</label>
+                                                <input type="text" name="article_model" class="form-control form-control-sm" value="{{ old('article_model') }}" placeholder="Ej. EM7620...">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Color</label>
+                                                <input type="text" name="article_color" class="form-control form-control-sm" value="{{ old('article_color') }}" placeholder="Ej. Negro, Plata...">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Capacidad</label>
+                                                <input type="text" name="article_capacity" class="form-control form-control-sm" value="{{ old('article_capacity') }}" placeholder="Ej. 256 GB, 30&quot;, 10 kg...">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">IMEI</label>
+                                                <input type="text" name="article_imei" class="form-control form-control-sm" value="{{ old('article_imei') }}" placeholder="Si aplica (celular/tablet)">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Número de Serie</label>
+                                                <input type="text" name="article_serial" class="form-control form-control-sm" value="{{ old('article_serial') }}" placeholder="No. de serie si aplica">
+                                            </div>
+                                            <div class="col-md-12 form-group mb-2">
+                                                <label class="font-weight-bold font-size-12 mb-1">Garantía</label>
+                                                <input type="text" name="article_warranty" class="form-control form-control-sm" value="{{ old('article_warranty') }}" placeholder="Ej. 3 meses directo en tienda / 1 año fabricante">
+                                            </div>
+                                            <div class="col-md-12 form-group mb-0">
+                                                <label class="font-weight-bold font-size-12 mb-1">Observaciones del Artículo</label>
+                                                <textarea name="article_observations" rows="2" class="form-control form-control-sm" placeholder="Accesorios incluidos, detalles estéticos, notas técnicas...">{{ old('article_observations') }}</textarea>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                @else
+                                    <!-- Sección dinámica según el tipo de préstamo seleccionado -->
+                                    <div class="bg-light rounded p-3 border mt-2">
+                                        <h6 class="font-weight-bold text-dark mb-2">
+                                            <i class="fa-solid fa-clipboard-list mr-1 text-primary"></i>Información Requerida según Tipo de Préstamo
+                                        </h6>
+                                        <div id="dynamicLoanTypeFields" class="row">
+                                            <div class="col-12 text-muted font-size-13">
+                                                <i class="fa-solid fa-check-circle text-success mr-1"></i>Modo Préstamo Directo: No requiere catálogo predefinido. Captura directamente capital, abonos y frecuencia.
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 
                         <!-- Expediente: Video de Evidencia y Pagaré -->
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-header bg-white border-bottom py-3">
-                                <h6 class="font-weight-bold mb-0 text-primary">
+                                <h6 class="font-weight-bold mb-0 {{ $isArticle ? 'text-info' : 'text-primary' }}">
                                     2. Expediente: Video de Evidencia (Opcional) y Pagaré
                                 </h6>
                             </div>
@@ -167,8 +257,8 @@
                                         </small>
                                     </div>
                                     <div class="col-md-12 form-group mb-0">
-                                        <label class="font-weight-bold">Observaciones / Notas del Préstamo</label>
-                                        <textarea name="notes" rows="2" class="form-control" placeholder="Acuerdos o detalles adicionales del préstamo...">{{ old('notes') }}</textarea>
+                                        <label class="font-weight-bold">{{ $isArticle ? 'Observaciones / Notas del Crédito' : 'Observaciones / Notas del Préstamo' }}</label>
+                                        <textarea name="notes" rows="2" class="form-control" placeholder="{{ $isArticle ? 'Acuerdos de entrega o detalles adicionales de la venta...' : 'Acuerdos o detalles adicionales del préstamo...' }}">{{ old('notes') }}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -178,17 +268,65 @@
                     <!-- Columna Derecha: Condiciones Financieras, Amortización y Comisión por Apertura -->
                     <div class="col-lg-6">
                         <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-header bg-primary text-white py-3">
+                            <div class="card-header {{ $isArticle ? 'bg-info' : 'bg-primary' }} text-white py-3">
                                 <h6 class="font-weight-bold mb-0 text-white">
                                     3. Condiciones Financieras y Amortización
                                 </h6>
                             </div>
                             <div class="card-body">
+                                @if ($isArticle)
+                                    <div class="mb-2">
+                                        <small class="text-muted font-weight-bold mr-1">Tasas Predefinidas:</small>
+                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="20">20%</button>
+                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="40">40%</button>
+                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="50">50%</button>
+                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="60">60%</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary btn-rate-clear mb-1" title="Captura personalizada directa">Directo / Libre</button>
+                                    </div>
+
+                                    <div class="row bg-light rounded p-2 mb-3 border border-info">
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-weight-bold font-size-12 mb-1">Precio del Artículo ($) <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="1" name="article_price" id="articlePriceInput" class="form-control font-weight-bold text-dark" value="{{ old('article_price', 6500) }}" required>
+                                        </div>
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-weight-bold font-size-12 text-success mb-1">Enganche ($) <small class="text-muted">(Opcional)</small></label>
+                                            <input type="number" step="0.01" min="0" name="down_payment" id="downPaymentInput" class="form-control font-weight-bold text-success" value="{{ old('down_payment', 1500) }}">
+                                        </div>
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-weight-bold font-size-12 mb-1">Método de Enganche</label>
+                                            <select name="down_payment_method" id="downPaymentMethodSelect" class="form-control form-control-sm">
+                                                <option value="efectivo" {{ old('down_payment_method') === 'efectivo' ? 'selected' : '' }}>Efectivo</option>
+                                                <option value="transferencia" {{ old('down_payment_method') === 'transferencia' ? 'selected' : '' }}>Transferencia</option>
+                                                <option value="tarjeta" {{ old('down_payment_method') === 'tarjeta' ? 'selected' : '' }}>Tarjeta</option>
+                                                <option value="mixto" {{ old('down_payment_method') === 'mixto' ? 'selected' : '' }}>Pago Mixto (Combinado)</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="downPaymentMixedBox" class="col-12 d-none mt-1">
+                                            <div class="row">
+                                                <div class="col-4">
+                                                    <label class="font-size-11">Enganche Efectivo</label>
+                                                    <input type="number" step="0.01" min="0" name="down_payment_cash" class="form-control form-control-sm" value="{{ old('down_payment_cash', 0) }}">
+                                                </div>
+                                                <div class="col-4">
+                                                    <label class="font-size-11">Enganche Tarjeta</label>
+                                                    <input type="number" step="0.01" min="0" name="down_payment_card" class="form-control form-control-sm" value="{{ old('down_payment_card', 0) }}">
+                                                </div>
+                                                <div class="col-4">
+                                                    <label class="font-size-11">Enganche Transferencia</label>
+                                                    <input type="number" step="0.01" min="0" name="down_payment_transfer" class="form-control form-control-sm" value="{{ old('down_payment_transfer', 0) }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+
                                 <div class="row">
                                     <div class="col-md-6 form-group">
-                                        <label class="font-weight-bold">Capital Prestado ($) <span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="1" name="principal_amount" id="principalInput" class="form-control form-control-lg font-weight-bold text-dark" value="{{ old('principal_amount', 5000) }}" required>
-                                        <small class="text-muted font-size-11">Monto entregado (sin salida de caja)</small>
+                                        <label class="font-weight-bold">{{ $isArticle ? 'Monto Financiado ($)' : 'Capital Prestado ($)' }} <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.01" min="1" name="principal_amount" id="principalInput" class="form-control form-control-lg font-weight-bold text-dark {{ $isArticle ? 'bg-light' : '' }}" value="{{ old('principal_amount', 5000) }}" {{ $isArticle ? 'readonly' : 'required' }}>
+                                        <small class="text-muted font-size-11">{{ $isArticle ? 'Calculado automáticamente (Precio - Enganche)' : 'Monto entregado (sin salida de caja)' }}</small>
                                     </div>
                                     <div class="col-md-6 form-group">
                                         <label class="font-weight-bold text-primary">Abono por Pago / Cuota ($) <span class="text-danger">*</span></label>
@@ -295,9 +433,9 @@
                                 <!-- Comisión por Apertura (Conservada exactamente con su impacto contable y desglose) -->
                                 <div class="bg-light p-3 rounded border border-success">
                                     <label class="font-weight-bold text-success mb-1">
-                                        <i class="fa-solid fa-cash-register mr-1"></i>Comisión por Apertura ($) — Único impacto en Caja hoy
+                                        <i class="fa-solid fa-cash-register mr-1"></i>Comisión por Apertura ($) — {{ $isArticle ? 'Opcional (se suma al ingreso de caja)' : 'Único impacto en Caja hoy' }}
                                     </label>
-                                    <input type="number" step="0.01" min="0" name="opening_commission" id="commissionInput" class="form-control form-control-lg font-weight-bold text-success mb-2" value="{{ old('opening_commission', 150) }}">
+                                    <input type="number" step="0.01" min="0" name="opening_commission" id="commissionInput" class="form-control form-control-lg font-weight-bold text-success mb-2" value="{{ old('opening_commission', $isArticle ? 0 : 150) }}">
 
                                     <div class="form-group mb-2">
                                         <label class="font-size-12 font-weight-bold">Método de Pago de la Comisión</label>
@@ -325,8 +463,8 @@
                                     </div>
                                 </div>
 
-                                <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">
-                                    <i class="fa-solid fa-check-circle mr-1"></i>Crear Préstamo y Generar Pagaré
+                                <button type="submit" class="btn {{ $isArticle ? 'btn-info' : 'btn-primary' }} btn-block btn-lg mt-4">
+                                    <i class="fa-solid fa-check-circle mr-1"></i>{{ $isArticle ? 'Registrar Venta a Crédito y Generar Documentos' : 'Crear Préstamo y Generar Pagaré' }}
                                 </button>
                             </div>
                         </div>
@@ -362,6 +500,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const commissionInput = document.getElementById('commissionInput');
     const commMethodSelect = document.getElementById('commMethodSelect');
     const commMixedBox = document.getElementById('commMixedBox');
+    const articlePriceInput = document.getElementById('articlePriceInput');
+    const downPaymentInput = document.getElementById('downPaymentInput');
+    const downPaymentMethodSelect = document.getElementById('downPaymentMethodSelect');
+    const downPaymentMixedBox = document.getElementById('downPaymentMixedBox');
 
     const calcTotalDisplay = document.getElementById('calcTotalDisplay');
     const calcInterestDisplay = document.getElementById('calcInterestDisplay');
@@ -581,6 +723,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Renderizar campos dinámicos si se selecciona un tipo de catálogo con garantía / datos
     function renderLoanTypeFields(applyDefaults = false) {
+        if (!loanTypeSelect || !dynamicFieldsContainer) return;
         const option = loanTypeSelect.options[loanTypeSelect.selectedIndex];
         if (!option || !option.value) {
             dynamicFieldsContainer.innerHTML = `
@@ -712,30 +855,66 @@ document.addEventListener('DOMContentLoaded', function () {
         width: '100%'
     });
 
+    function syncAvalFromCustomer(selOpt, overwrite) {
+        if (!selOpt || !selOpt.dataset) return;
+        [
+            ['avalNameInput', selOpt.dataset.aval || ''],
+            ['avalPhoneInput', selOpt.dataset.avalPhone || ''],
+            ['avalAddressInput', selOpt.dataset.avalAddress || ''],
+        ].forEach(function ([id, val]) {
+            const el = document.getElementById(id);
+            if (el && (overwrite || !el.value)) {
+                el.value = val;
+            }
+        });
+    }
+
+    function bindMixedMethodToggle(selectEl, boxEl) {
+        if (!selectEl || !boxEl) return;
+        const sync = function () {
+            boxEl.classList.toggle('d-none', selectEl.value !== 'mixto');
+        };
+        selectEl.addEventListener('change', sync);
+        sync();
+    }
+
+    function recalculateArticleFinancedAmount() {
+        if (!articlePriceInput) return;
+        const price = parseFloat(articlePriceInput.value) || 0;
+        const down = downPaymentInput ? (parseFloat(downPaymentInput.value) || 0) : 0;
+        principalInput.value = Math.max(0, price - down).toFixed(2);
+        onGeneralFinancialChange();
+    }
+
     $('#customerSelect').on('change', function () {
         checkCustomerOpenLoans(this.value);
-        const selOpt = this.options[this.selectedIndex];
-        if (selOpt && selOpt.dataset && selOpt.dataset.aval) {
-            const avalInput = document.getElementById('avalNameInput');
-            if (avalInput) avalInput.value = selOpt.dataset.aval;
-        }
+        syncAvalFromCustomer(this.options[this.selectedIndex], true);
     });
 
-    $('#loanTypeSelect').select2({
-        placeholder: '-- Sin tipo predefinido (Captura Directa) --',
-        allowClear: true,
-        width: '100%'
-    });
+    if ($('#loanTypeSelect').length) {
+        $('#loanTypeSelect').select2({
+            placeholder: '-- Sin tipo predefinido (Captura Directa) --',
+            allowClear: true,
+            width: '100%'
+        });
 
-    $('#loanTypeSelect').on('change', function () {
-        renderLoanTypeFields(true);
-    });
+        $('#loanTypeSelect').on('change', function () {
+            renderLoanTypeFields(true);
+        });
+    }
 
     // Botones de presets de tasa (20%, 40%, 50%, 60%)
     document.querySelectorAll('.btn-rate-preset').forEach(btn => {
         btn.addEventListener('click', function () {
-            document.querySelectorAll('.btn-rate-preset').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
-            this.classList.replace('btn-outline-primary', 'btn-primary');
+            document.querySelectorAll('.btn-rate-preset').forEach(b => {
+                b.classList.remove('btn-primary', 'btn-info');
+                b.classList.add(b.classList.contains('btn-outline-info') ? 'btn-outline-info' : 'btn-outline-primary');
+            });
+            if (this.classList.contains('btn-outline-info')) {
+                this.classList.replace('btn-outline-info', 'btn-info');
+            } else {
+                this.classList.replace('btn-outline-primary', 'btn-primary');
+            }
             rateInput.value = this.dataset.rate;
             updateFromRate();
         });
@@ -744,8 +923,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const clearPresetBtn = document.querySelector('.btn-rate-clear');
     if (clearPresetBtn) {
         clearPresetBtn.addEventListener('click', function () {
-            document.querySelectorAll('.btn-rate-preset').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
-            $('#loanTypeSelect').val('').trigger('change');
+            document.querySelectorAll('.btn-rate-preset').forEach(b => {
+                b.classList.remove('btn-primary', 'btn-info');
+                if (!b.classList.contains('btn-outline-primary') && !b.classList.contains('btn-outline-info')) {
+                    b.classList.add('btn-outline-primary');
+                }
+            });
+            if ($('#loanTypeSelect').length) {
+                $('#loanTypeSelect').val('').trigger('change');
+            }
             updateFromInstallment();
         });
     }
@@ -755,6 +941,13 @@ document.addEventListener('DOMContentLoaded', function () {
     rateInput.addEventListener('input', updateFromRate);
     principalInput.addEventListener('input', onGeneralFinancialChange);
     periodsInput.addEventListener('input', onGeneralFinancialChange);
+
+    if (articlePriceInput) {
+        articlePriceInput.addEventListener('input', recalculateArticleFinancedAmount);
+    }
+    if (downPaymentInput) {
+        downPaymentInput.addEventListener('input', recalculateArticleFinancedAmount);
+    }
 
     frequencyInput.addEventListener('change', handleFrequencyChange);
     weeklyDaySelect.addEventListener('change', function () {
@@ -771,28 +964,23 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     firstPaymentDateInput.addEventListener('change', onGeneralFinancialChange);
 
-    // Pago mixto de comisión por apertura
-    commMethodSelect.addEventListener('change', function () {
-        if (this.value === 'mixto') {
-            commMixedBox.classList.remove('d-none');
-        } else {
-            commMixedBox.classList.add('d-none');
-        }
-    });
+    // Pago mixto de comisión por apertura y enganche
+    bindMixedMethodToggle(commMethodSelect, commMixedBox);
+    bindMixedMethodToggle(downPaymentMethodSelect, downPaymentMixedBox);
 
     // Inicialización al cargar la página
     handleFrequencyChange();
     autoSuggestFirstPaymentDate();
-    updateFromInstallment();
+    if (articlePriceInput) {
+        recalculateArticleFinancedAmount();
+    } else {
+        updateFromInstallment();
+    }
     renderLoanTypeFields(false);
 
     if (customerSelect.value) {
         checkCustomerOpenLoans(customerSelect.value);
-        const selOpt = customerSelect.options[customerSelect.selectedIndex];
-        if (selOpt && selOpt.dataset && selOpt.dataset.aval) {
-            const avalInput = document.getElementById('avalNameInput');
-            if (avalInput && !avalInput.value) avalInput.value = selOpt.dataset.aval;
-        }
+        syncAvalFromCustomer(customerSelect.options[customerSelect.selectedIndex], false);
     }
 });
 </script>

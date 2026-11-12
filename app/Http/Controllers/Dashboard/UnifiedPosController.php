@@ -11,6 +11,8 @@ use App\Models\FinFinanciera;
 use App\Models\FinSale;
 use App\Models\FinSaleNote;
 use App\Models\FinSalePayment;
+use App\Models\Gift;
+use App\Models\GiftMovement;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\LoanPayment;
@@ -41,8 +43,11 @@ class UnifiedPosController extends Controller
         'index' => 'read',
         'lookupFinanciera' => 'read',
         'lookupCustomerLoans' => 'read',
+        'lookupCustomerPendingNotes' => 'read',
         'lookupTanda' => 'read',
         'lookupProducts' => 'read',
+        'lookupGifts' => 'read',
+        'recentTransactions' => 'read',
         'checkout' => 'create',
         'printReceipt' => 'read',
         'openCashDrawer' => 'open_drawer',
@@ -63,8 +68,8 @@ class UnifiedPosController extends Controller
 
             $action = $request->route()?->getActionMethod();
 
-            // 1. Acceso a la Consola POS y Reimpresión de Recibo
-            if (in_array($action, ['index', 'printReceipt'])) {
+            // 1. Acceso a la Consola POS, Consulta de Notas Pendientes y Reimpresión de Recibo
+            if (in_array($action, ['index', 'printReceipt', 'lookupCustomerPendingNotes'])) {
                 if (!$user->can('cobros.read') && !$user->can('cobros.menu') && !$user->can('pos.read') && !$user->can('pos.menu')) {
                     abort(403, 'No tienes permisos para acceder al Punto de Venta.');
                 }
@@ -122,6 +127,13 @@ class UnifiedPosController extends Controller
             ->take(100)
             ->get(['id', 'product_name', 'product_code', 'selling_price', 'stock_quantity', 'brand', 'model', 'imei', 'category_status', 'warranty_time']);
 
+        $gifts = Gift::with(['supplier', 'finSupplier'])
+            ->where('branch_id', $branchId)
+            ->where('status', 'activo')
+            ->where('stock_quantity', '>', 0)
+            ->orderBy('name')
+            ->get();
+
         $branches = Branch::orderBy('name')->get();
 
         // Movimientos recientes del día en curso
@@ -129,7 +141,7 @@ class UnifiedPosController extends Controller
             ->where('branch_id', $branchId)
             ->whereDate('created_at', Carbon::today())
             ->orderByDesc('created_at')
-            ->take(10)
+            ->take(25)
             ->get();
 
         return view('central-pos.index', compact(
@@ -138,6 +150,7 @@ class UnifiedPosController extends Controller
             'customers',
             'tandas',
             'products',
+            'gifts',
             'branches',
             'branchId',
             'recentTransactions'
@@ -260,7 +273,10 @@ class UnifiedPosController extends Controller
             return [
                 'id' => $loan->id,
                 'loan_code' => $loan->loan_code,
-                'type_name' => $loan->loanType?->name ?? 'General',
+                'operation_type' => $loan->operation_type ?? 'prestamo',
+                'type_name' => $loan->isArticleCredit()
+                    ? ('Crédito Artículo (' . $loan->article_summary_label . ')')
+                    : ($loan->loanType?->name ?? 'General'),
                 'principal_amount' => (float) $loan->principal_amount,
                 'total_amount' => (float) $loan->total_amount,
                 'paid_amount' => (float) $loan->paid_amount,
@@ -286,6 +302,170 @@ class UnifiedPosController extends Controller
             'has_open_loans' => $formatted->isNotEmpty(),
             'open_loans_count' => $formatted->count(),
             'open_loans' => $formatted,
+        ]);
+    }
+
+    /**
+     * Consultar Notas de Venta con Saldo Pendiente (orders.due > 0) de un cliente
+     * desde el Punto de Venta, soportando cliente del catálogo o nombre/teléfono escrito.
+     */
+    public function lookupCustomerPendingNotes(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->isSuperAdmin() && !$user->can('cobros.read') && !$user->can('cobros.menu') && !$user->can('pos.read') && !$user->can('pos.menu')) {
+            return response()->json([
+                'searched' => false,
+                'has_pending_notes' => false,
+                'pending_notes_count' => 0,
+                'total_due' => 0,
+                'pending_notes' => [],
+                'message' => 'Sin permisos para consultar notas pendientes.',
+            ], 403);
+        }
+
+        $customerId = (int) $request->input('customer_id', 0);
+        $rawName = trim((string) $request->input('customer_name', ''));
+        $searchName = mb_strtolower($rawName, 'UTF-8') === 'cliente mostrador' ? '' : $rawName;
+        $searchPhone = trim((string) $request->input('customer_phone', ''));
+        $phoneDigits = preg_replace('/\D+/', '', $searchPhone);
+
+        if ($customerId <= 0 && mb_strlen($searchName, 'UTF-8') < 3 && mb_strlen($phoneDigits, 'UTF-8') < 4) {
+            return response()->json([
+                'searched' => false,
+                'has_pending_notes' => false,
+                'pending_notes_count' => 0,
+                'total_due' => 0,
+                'pending_notes' => [],
+            ]);
+        }
+
+        $query = Order::with(['customer', 'branch', 'posTransaction.branch', 'orderDetails.product'])
+            ->where('due', '>', 0)
+            ->where('order_status', '!=', 'cancelado')
+            ->whereDoesntHave('posTransaction', fn($tx) => $tx->where('status', 'cancelado'));
+
+        if ($customerId > 0) {
+            $customer = Customer::find($customerId);
+            if (!$customer) {
+                return response()->json([
+                    'searched' => true,
+                    'has_pending_notes' => false,
+                    'pending_notes_count' => 0,
+                    'total_due' => 0,
+                    'pending_notes' => [],
+                ]);
+            }
+
+            $custName = trim((string) $customer->tit_name);
+            $custNameLower = mb_strtolower($custName, 'UTF-8');
+
+            $query->where(function ($q) use ($customerId, $custName, $custNameLower) {
+                $q->where(function ($direct) use ($customerId, $custName, $custNameLower) {
+                    $direct->where('customer_id', $customerId)
+                        ->where(function ($verifyTx) use ($customerId, $custName, $custNameLower) {
+                            $verifyTx->whereDoesntHave('posTransaction')
+                                ->orWhereHas('posTransaction', function ($tx) use ($customerId, $custName, $custNameLower) {
+                                    $tx->where('customer_id', $customerId)
+                                        ->orWhere(function ($unlinked) use ($custName, $custNameLower) {
+                                            $unlinked->whereNull('customer_id')
+                                                ->where(function ($nameCheck) use ($custName, $custNameLower) {
+                                                    $nameCheck->whereNull('customer_name')
+                                                        ->orWhere('customer_name', '')
+                                                        ->orWhere('customer_name', 'Cliente Mostrador');
+                                                    if ($custName !== '' && $custNameLower !== 'cliente mostrador') {
+                                                        $nameCheck->orWhereRaw('LOWER(TRIM(customer_name)) = ?', [$custNameLower]);
+                                                    }
+                                                });
+                                        });
+                                });
+                        });
+                })->orWhereHas('posTransaction', function ($tx) use ($customerId, $custName, $custNameLower) {
+                    $tx->where('customer_id', $customerId);
+                    if ($custName !== '' && $custNameLower !== 'cliente mostrador') {
+                        $tx->orWhere(function ($unlinkedMatch) use ($custNameLower) {
+                            $unlinkedMatch->whereNull('customer_id')
+                                ->whereRaw('LOWER(TRIM(customer_name)) = ?', [$custNameLower]);
+                        });
+                    }
+                });
+            });
+        } else {
+            $query->where(function ($q) use ($searchName, $searchPhone, $phoneDigits) {
+                if (mb_strlen($searchName, 'UTF-8') >= 3) {
+                    $q->whereHas('posTransaction', fn($tx) => $tx->where('customer_name', 'like', "%{$searchName}%"))
+                        ->orWhere(function ($custMatch) use ($searchName) {
+                            $custMatch->whereHas('customer', fn($c) => $c->where('tit_name', 'like', "%{$searchName}%"))
+                                ->where(function ($noContradiction) use ($searchName) {
+                                    $noContradiction->whereDoesntHave('posTransaction')
+                                        ->orWhereHas('posTransaction', function ($tx) use ($searchName) {
+                                            $tx->whereNotNull('customer_id')
+                                                ->orWhere('customer_name', 'like', "%{$searchName}%")
+                                                ->orWhere('customer_name', 'Cliente Mostrador')
+                                                ->orWhereNull('customer_name')
+                                                ->orWhere('customer_name', '');
+                                        });
+                                });
+                        });
+                }
+
+                if (mb_strlen($phoneDigits, 'UTF-8') >= 4) {
+                    $phoneNeedle = mb_strlen($searchPhone, 'UTF-8') >= 4 ? $searchPhone : $phoneDigits;
+                    $q->orWhereHas('posTransaction', fn($tx) => $tx->where('customer_phone', 'like', "%{$phoneNeedle}%"))
+                        ->orWhereHas('customer', function ($c) use ($phoneNeedle) {
+                            $c->where('tit_phone', 'like', "%{$phoneNeedle}%")
+                                ->orWhere('alternate_phone', 'like', "%{$phoneNeedle}%");
+                        });
+                }
+            });
+        }
+
+        $orders = $query->orderByDesc('order_date')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        $canViewOrders = $user->isSuperAdmin() || $user->can('orders.menu') || $user->can('orders.read');
+
+        $formatted = $orders->map(function (Order $order) use ($canViewOrders) {
+            $conceptsList = $order->orderDetails->map(function ($detail) {
+                $name = $detail->is_dynamic
+                    ? ($detail->dynamic_product_name ?: 'Producto Libre')
+                    : ($detail->productRelation?->product_name ?? 'Producto');
+                $qty = max(1, (int) $detail->quantity);
+                return $qty > 1 ? "{$name} (x{$qty})" : $name;
+            })->filter()->values();
+
+            $concepts = $conceptsList->isNotEmpty()
+                ? $conceptsList->take(3)->implode(', ') . ($conceptsList->count() > 3 ? ' (+' . ($conceptsList->count() - 3) . ' más)' : '')
+                : 'Nota de venta';
+
+            $displayCustomer = ($order->posTransaction && !$order->posTransaction->customer_id && trim((string) $order->posTransaction->customer_name) !== '')
+                ? $order->posTransaction->customer_name
+                : ($order->customer?->tit_name ?? $order->posTransaction?->customer_name ?? 'Cliente');
+
+            return [
+                'id' => $order->id,
+                'invoice_no' => $order->invoice_no,
+                'order_date' => $order->order_date,
+                'order_date_formatted' => $order->order_date ? Carbon::parse($order->order_date)->format('d/m/Y') : '-',
+                'branch_name' => $order->resolved_branch?->name ?? 'Sucursal Matriz',
+                'customer_name' => $displayCustomer,
+                'concepts' => $concepts,
+                'total' => round((float) $order->total, 2),
+                'pay' => round((float) $order->pay, 2),
+                'due' => round((float) $order->due, 2),
+                'payment_status' => $order->payment_status,
+                'detail_url' => $canViewOrders ? route('order.orderDetails', $order->id) : null,
+                'pending_due_url' => $canViewOrders ? route('order.pendingDue', ['search' => $order->invoice_no]) : null,
+            ];
+        });
+
+        return response()->json([
+            'searched' => true,
+            'has_pending_notes' => $formatted->isNotEmpty(),
+            'pending_notes_count' => $formatted->count(),
+            'total_due' => round((float) $formatted->sum('due'), 2),
+            'pending_notes' => $formatted->values(),
         ]);
     }
 
@@ -336,6 +516,113 @@ class UnifiedPosController extends Controller
             ->get(['id', 'product_name', 'product_code', 'selling_price', 'stock_quantity', 'brand', 'model', 'imei', 'category_status', 'warranty_time']);
 
         return response()->json(['products' => $products]);
+    }
+
+    /**
+     * Buscar regalos / promocionales disponibles en la sucursal activa para agregarlos en $0.00 al POS.
+     */
+    public function lookupGifts(Request $request)
+    {
+        $user = auth()->user();
+        if (
+            !$user->isSuperAdmin()
+            && !$user->can('cobros.productos')
+            && !$user->can('cobros.read')
+            && !$user->can('pos.read')
+            && !$user->can('gifts.read')
+            && !$user->can('gifts.deliver')
+        ) {
+            return response()->json(['gifts' => [], 'message' => 'Sin permisos para consultar regalos.'], 403);
+        }
+
+        $branchId = ($this->canAccessAllBranches() && $request->filled('branch_id'))
+            ? (int) $request->input('branch_id')
+            : ($user->branch_id ?? Branch::value('id'));
+
+        $q = trim((string) $request->input('q', ''));
+        $gifts = Gift::with(['supplier', 'finSupplier'])
+            ->where('branch_id', $branchId)
+            ->where('status', 'activo')
+            ->where('stock_quantity', '>', 0)
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('name', 'like', "%{$q}%")
+                        ->orWhere('code', 'like', "%{$q}%")
+                        ->orWhere('brand', 'like', "%{$q}%")
+                        ->orWhere('supplier_name', 'like', "%{$q}%");
+                });
+            })
+            ->orderBy('name')
+            ->limit(30)
+            ->get()
+            ->map(function (Gift $g) {
+                return [
+                    'id' => $g->id,
+                    'code' => $g->code,
+                    'name' => $g->name,
+                    'brand' => $g->brand,
+                    'stock_quantity' => (int) $g->stock_quantity,
+                    'supplier_name' => $g->supplier_display_name,
+                    'branch_id' => $g->branch_id,
+                ];
+            });
+
+        return response()->json(['gifts' => $gifts]);
+    }
+
+    /**
+     * Historial de tickets recientes para reimpresión o vista previa (WhatsApp / sin papel / sin luz).
+     */
+    public function recentTransactions(Request $request)
+    {
+        $user = auth()->user();
+        if (
+            !$user->isSuperAdmin()
+            && !$user->can('cobros.read')
+            && !$user->can('cobros.menu')
+            && !$user->can('pos.read')
+            && !$user->can('pos.menu')
+        ) {
+            return response()->json(['transactions' => []], 403);
+        }
+
+        $branchId = ($this->canAccessAllBranches() && $request->filled('branch_id'))
+            ? (int) $request->input('branch_id')
+            : ($user->branch_id ?? Branch::value('id'));
+
+        $date = trim((string) $request->input('date', Carbon::today()->format('Y-m-d')));
+        $search = trim((string) $request->input('search', ''));
+
+        $transactions = PosTransaction::with('user')
+            ->when(!$this->canAccessAllBranches() || $request->filled('branch_id'), fn($q) => $q->where('branch_id', $branchId))
+            ->when($date !== '' && $search === '', fn($q) => $q->whereDate('created_at', $date))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('transaction_code', 'like', "%{$search}%")
+                        ->orWhere('customer_name', 'like', "%{$search}%")
+                        ->orWhere('customer_phone', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('created_at')
+            ->limit(30)
+            ->get()
+            ->map(function (PosTransaction $tx) {
+                $concepts = collect($tx->items_payload ?? [])->pluck('label')->filter()->implode(', ');
+                return [
+                    'id' => $tx->id,
+                    'transaction_code' => $tx->transaction_code,
+                    'customer_name' => $tx->customer_name ?: 'Cliente Mostrador',
+                    'total_amount' => number_format((float) $tx->total_amount, 2),
+                    'payment_method' => strtoupper((string) $tx->payment_method),
+                    'status' => $tx->status,
+                    'user_name' => $tx->user?->name ?? 'Sistema',
+                    'created_at' => $tx->created_at ? $tx->created_at->format('d/m/Y H:i') : '',
+                    'concepts' => Str::limit($concepts, 70),
+                    'receipt_url' => route('central-pos.receipt', $tx->id),
+                ];
+            });
+
+        return response()->json(['transactions' => $transactions]);
     }
 
     /**
@@ -415,6 +702,13 @@ class UnifiedPosController extends Controller
                             'message' => 'No tienes permisos para vender Productos en el Punto de Venta.',
                         ], 403);
                     }
+                } elseif ($sec === 'gift') {
+                    if (!$user->can('cobros.productos') && !$user->can('pos.create') && !$user->can('orders.create') && !$user->can('gifts.deliver')) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'No tienes permisos para entregar Regalos / Promocionales en el Punto de Venta.',
+                        ], 403);
+                    }
                 }
             }
         }
@@ -432,7 +726,7 @@ class UnifiedPosController extends Controller
             }
         }
 
-        foreach ($items as $item) {
+        foreach ($items as $idx => $item) {
             $section = $item['section'] ?? '';
             $qty = max(1, (int) ($item['quantity'] ?? 1));
             $unitAmount = round((float) ($item['amount'] ?? 0), 2);
@@ -441,6 +735,10 @@ class UnifiedPosController extends Controller
             if ($section === 'prestamo_apertura') {
                 // En apertura de préstamo, el capital prestado NO entra ni sale de caja; SOLO se cobra la comisión por apertura
                 $commissionTotal += $comm;
+            } elseif ($section === 'gift') {
+                // Los regalos/promocionales siempre salen en $0.00 en ticket y sin cargo al total
+                $items[$idx]['amount'] = 0;
+                $items[$idx]['commission'] = 0;
             } else {
                 $subtotal += ($unitAmount * $qty);
                 $commissionTotal += $comm;
@@ -536,9 +834,10 @@ class UnifiedPosController extends Controller
                 $resolvedCustomerId,
                 $resolvedCustomerName
             ) {
-                // 1. Validar stock real primero para productos de inventario
+                // 1. Validar stock real primero para productos de inventario y regalos
                 $inventoryItems = [];
                 $dynamicItems = [];
+                $giftItems = [];
 
                 foreach ($items as $item) {
                     $section = $item['section'] ?? '';
@@ -555,6 +854,20 @@ class UnifiedPosController extends Controller
                         $inventoryItems[] = ['product' => $product, 'item' => $item, 'qty' => $qty];
                     } elseif ($section === 'producto_dinamico') {
                         $dynamicItems[] = $item;
+                    } elseif ($section === 'gift') {
+                        $giftId = (int) ($item['gift_id'] ?? 0);
+                        $qty = max(1, (int) ($item['quantity'] ?? 1));
+                        $gift = Gift::where('id', $giftId)->lockForUpdate()->first();
+                        if (!$gift || $gift->status !== 'activo') {
+                            throw new \RuntimeException("El regalo seleccionado no existe o no está activo.");
+                        }
+                        if ($gift->branch_id && (int) $gift->branch_id !== (int) $branchId) {
+                            throw new \RuntimeException("El regalo '{$gift->name}' pertenece a otra sucursal y no puede entregarse desde esta caja.");
+                        }
+                        if ($gift->stock_quantity < $qty) {
+                            throw new \RuntimeException("Stock insuficiente del regalo '{$gift->name}' (Disponible: {$gift->stock_quantity}, Solicitado: {$qty}).");
+                        }
+                        $giftItems[] = ['gift' => $gift, 'item' => $item, 'qty' => $qty];
                     }
                 }
 
@@ -581,7 +894,7 @@ class UnifiedPosController extends Controller
                     'transfer_amount' => $transferAmount,
                     'payment_references' => $validated['payment_references'] ?? [],
                     'items_payload' => $items,
-                    'drawer_opened' => (bool) ($validated['open_drawer'] ?? true),
+                    'drawer_opened' => (($cashAmount > 0 || ($method === 'efectivo' && ($paidToday > 0 || $changeAmount > 0))) && (bool) ($validated['open_drawer'] ?? true)),
                     'status' => 'completado',
                     'notes' => $txNotes,
                 ]);
@@ -741,6 +1054,35 @@ class UnifiedPosController extends Controller
                     }
                 }
 
+                // 2B. Descontar inventario y registrar entrega de Regalos / Gifts (siempre $0.00)
+                foreach ($giftItems as $giftData) {
+                    /** @var Gift $gift */
+                    $gift = $giftData['gift'];
+                    $qty = $giftData['qty'];
+                    $prevStock = (int) $gift->stock_quantity;
+                    $newStock = max(0, $prevStock - $qty);
+
+                    $gift->stock_quantity = $newStock;
+                    $gift->save();
+
+                    GiftMovement::create([
+                        'gift_id' => $gift->id,
+                        'branch_id' => $gift->branch_id ?: $branchId,
+                        'user_id' => auth()->id(),
+                        'movement_type' => 'entrega_cliente',
+                        'quantity' => $qty,
+                        'previous_stock' => $prevStock,
+                        'new_stock' => $newStock,
+                        'supplier_name' => $gift->supplier_display_name ?: $gift->supplier_name,
+                        'customer_name' => $resolvedCustomerName,
+                        'customer_phone' => $validated['customer_phone'] ?? null,
+                        'reference_module' => 'central_pos',
+                        'reference_code' => $txCode,
+                        'notes' => $giftData['item']['notes'] ?? "Regalo entregado en POS 4 en 1 ({$txCode})",
+                        'movement_date' => now(),
+                    ]);
+                }
+
                 // 3. Procesar cada ítem de Financieras, Préstamos y Tandas
                 foreach ($items as $item) {
                     $section = $item['section'] ?? '';
@@ -875,7 +1217,9 @@ class UnifiedPosController extends Controller
                             ],
                             'scheduled_date' => $scheduledDate,
                             'paid_at' => now(),
-                            'notes' => $item['notes'] ?? 'Abono registrado en Módulo Centralizado',
+                            'notes' => $item['notes'] ?? ($loan->isArticleCredit()
+                                ? 'Abono Crédito Artículo registrado en Módulo Centralizado'
+                                : 'Abono registrado en Módulo Centralizado'),
                         ]);
                     }
 

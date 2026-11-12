@@ -15,10 +15,25 @@ class Loan extends Model
 
     protected $fillable = [
         'loan_code',
+        'operation_type',
+        'delivery_method',
         'branch_id',
         'customer_id',
         'user_id',
         'loan_type_id',
+        'article_price',
+        'down_payment',
+        'down_payment_method',
+        'article_status',
+        'article_name',
+        'article_brand',
+        'article_model',
+        'article_color',
+        'article_capacity',
+        'article_imei',
+        'article_serial',
+        'article_warranty',
+        'article_observations',
         'principal_amount',
         'interest_rate',
         'interest_amount',
@@ -39,10 +54,15 @@ class Loan extends Model
         'closed_by',
         'closing_reason',
         'closing_final_paid',
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
         'notes',
     ];
 
     protected $casts = [
+        'article_price' => 'decimal:2',
+        'down_payment' => 'decimal:2',
         'principal_amount' => 'decimal:2',
         'interest_rate' => 'decimal:2',
         'interest_amount' => 'decimal:2',
@@ -55,6 +75,7 @@ class Loan extends Model
         'start_date' => 'date',
         'due_date' => 'date',
         'closed_manually_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'type_specific_data' => 'array',
     ];
 
@@ -185,6 +206,11 @@ class Loan extends Model
         return $this->belongsTo(User::class, 'closed_by');
     }
 
+    public function canceller()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
     public function loanType()
     {
         return $this->belongsTo(LoanType::class, 'loan_type_id');
@@ -203,6 +229,177 @@ class Loan extends Model
     public function isOpen(): bool
     {
         return in_array($this->status, ['activo', 'mora']);
+    }
+
+    public function isArticleCredit(): bool
+    {
+        return $this->operation_type === 'credito_articulo';
+    }
+
+    public function getOperationLabelAttribute(): string
+    {
+        return $this->isArticleCredit() ? 'Venta a Crédito de Artículo' : 'Préstamo Personal';
+    }
+
+    public function getArticleStatusLabelAttribute(): string
+    {
+        return match ($this->article_status) {
+            'nuevo' => 'Nuevo',
+            'seminuevo' => 'Seminuevo',
+            'servicio' => 'Servicio',
+            default => '',
+        };
+    }
+
+    /**
+     * Resumen corto legible del artículo vendido a crédito.
+     */
+    public function getArticleSummaryLabelAttribute(): string
+    {
+        $parts = array_filter([
+            $this->article_name,
+            $this->article_brand,
+            $this->article_model,
+            $this->article_capacity,
+            $this->article_color,
+        ], fn ($val) => !is_null($val) && trim((string) $val) !== '');
+
+        if (!empty($parts)) {
+            return implode(' ', $parts);
+        }
+
+        return 'Artículo / Mercancía';
+    }
+
+    /**
+     * Arreglo ordenado de especificaciones no vacías de la ficha del artículo.
+     *
+     * @return array<string, string>
+     */
+    public function getArticleSpecsAttribute(): array
+    {
+        $raw = [
+            'Estado / Tipo' => $this->article_status_label,
+            'Artículo / Descripción' => $this->article_name,
+            'Marca' => $this->article_brand,
+            'Modelo' => $this->article_model,
+            'Color' => $this->article_color,
+            'Capacidad' => $this->article_capacity,
+            'IMEI' => $this->article_imei,
+            'Número de Serie' => $this->article_serial,
+            'Garantía' => $this->article_warranty,
+            'Observaciones' => $this->article_observations,
+        ];
+
+        $result = [];
+        foreach ($raw as $label => $value) {
+            $trimmed = trim((string) ($value ?? ''));
+            if ($trimmed !== '') {
+                $result[$label] = $trimmed;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Frase en español para describir la periodicidad en el pagaré y el recibo.
+     */
+    public function getPaymentScheduleDescriptionAttribute(): string
+    {
+        return match ($this->payment_frequency) {
+            '12_26' => 'programados los días 12 y 26 de cada mes',
+            'quincenal' => 'programados de forma quincenal (días 15 y 30 de cada mes)',
+            'semanal' => 'programados de forma semanal',
+            'mensual' => 'programados de forma mensual',
+            default => 'con periodicidad ' . strtolower($this->payment_frequency_label),
+        };
+    }
+
+    /**
+     * Resuelve datos del aval combinando ficha del cliente y captura específica del préstamo.
+     *
+     * @return array{name: string, phone: string, address: string, has_aval: bool}
+     */
+    public function resolveAvalInfo(): array
+    {
+        $extra = is_array($this->type_specific_data) ? $this->type_specific_data : [];
+        $name = trim((string) ($extra['aval_nombre'] ?? $extra['aval_name'] ?? $this->customer?->aval_name ?? ''));
+        $phone = trim((string) ($extra['aval_telefono'] ?? $extra['aval_phone'] ?? $this->customer?->aval_phone ?? ''));
+        $address = trim((string) ($extra['aval_domicilio'] ?? $extra['aval_address'] ?? $this->customer?->aval_address ?? ''));
+
+        if ($name === '' && $this->customer?->aval_name) {
+            $name = trim((string) $this->customer->aval_name);
+        }
+
+        return [
+            'name' => $name,
+            'phone' => $phone,
+            'address' => $address,
+            'has_aval' => $name !== '' || $phone !== '' || $address !== '',
+        ];
+    }
+
+    /**
+     * Lugar de firma / entrega basado en la sucursal del préstamo o crédito.
+     */
+    public function resolvePlaceOfSigning(): string
+    {
+        $branchName = trim((string) ($this->branch?->name ?? 'Allende'));
+        if (stripos($branchName, 'cercado') !== false) {
+            return 'El Cercado, Santiago, Nuevo León';
+        }
+        if (stripos($branchName, 'nuevo león') !== false || stripos($branchName, 'n.l.') !== false) {
+            return $branchName;
+        }
+        return $branchName . ', Nuevo León';
+    }
+
+    /**
+     * Formatea una fecha en español natural (ej. "miércoles 11 de noviembre del 2026" o sin día).
+     */
+    public static function formatDateEs(?Carbon $date, bool $includeWeekday = false): string
+    {
+        if (!$date) {
+            return '-';
+        }
+        $weekdays = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        $months = [
+            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+            5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+            9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+        ];
+        $base = $date->day . ' de ' . $months[$date->month] . ' de ' . $date->year;
+        if ($includeWeekday) {
+            return $weekdays[$date->dayOfWeek] . ' ' . $date->day . ' de ' . $months[$date->month] . ' del ' . $date->year;
+        }
+        return $base;
+    }
+
+    /**
+     * Convierte la cantidad de pagos a texto en español (ej. 8 -> "ocho").
+     */
+    public static function integerCountInSpanish(int $count): string
+    {
+        $units = [
+            0 => 'cero', 1 => 'un', 2 => 'dos', 3 => 'tres', 4 => 'cuatro',
+            5 => 'cinco', 6 => 'seis', 7 => 'siete', 8 => 'ocho', 9 => 'nueve',
+            10 => 'diez', 11 => 'once', 12 => 'doce', 13 => 'trece', 14 => 'catorce',
+            15 => 'quince', 16 => 'dieciséis', 17 => 'diecisiete', 18 => 'dieciocho',
+            19 => 'diecinueve', 20 => 'veinte', 21 => 'veintiún', 22 => 'veintidós',
+            23 => 'veintitrés', 24 => 'veinticuatro', 25 => 'veinticinco',
+            26 => 'veintiséis', 27 => 'veintisiete', 28 => 'veintiocho', 29 => 'veintinueve',
+        ];
+        if (isset($units[$count])) {
+            return $units[$count];
+        }
+        if ($count < 100) {
+            $tens = [3 => 'treinta', 4 => 'cuarenta', 5 => 'cincuenta', 6 => 'sesenta', 7 => 'setenta', 8 => 'ochenta', 9 => 'noventa'];
+            $d = intdiv($count, 10);
+            $u = $count % 10;
+            return ($tens[$d] ?? (string) $count) . ($u > 0 ? ' y ' . $units[$u] : '');
+        }
+        return (string) $count;
     }
 
     public function hasOverdueInstallments(): bool

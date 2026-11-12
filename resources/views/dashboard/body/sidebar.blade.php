@@ -42,10 +42,16 @@
                     </li>
 
                     @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.menu') || auth()->user()->can('cash.read'))
-                        <li class="{{ Request::is('cash*') ? 'active' : '' }}">
+                        <li class="{{ Request::is('cash*') && !Request::is('cash/expenses*') ? 'active' : '' }}">
                             <a href="{{ route('cash.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-vault text-info"></i>
                                 <span class="ml-3">Corte y Caja</span>
+                            </a>
+                        </li>
+                        <li class="{{ Request::is('cash/expenses*') ? 'active' : '' }}">
+                            <a href="{{ route('cash.expenses') }}" class="svg-icon">
+                                <i class="fa-solid fa-file-invoice-dollar text-danger"></i>
+                                <span class="ml-3">Reporte de Gastos</span>
                             </a>
                         </li>
                     @endif
@@ -55,6 +61,12 @@
                             <a href="{{ route('loans.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-hand-holding-dollar text-success"></i>
                                 <span class="ml-3">Préstamos</span>
+                            </a>
+                        </li>
+                        <li class="{{ Request::is('article-credits*') ? 'active' : '' }}">
+                            <a href="{{ route('article-credits.index') }}" class="svg-icon">
+                                <i class="fa-solid fa-box-open text-info"></i>
+                                <span class="ml-3">Crédito de Artículos</span>
                             </a>
                         </li>
                     @endif

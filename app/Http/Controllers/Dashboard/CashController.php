@@ -8,14 +8,18 @@ use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
 use App\Models\CashFlow;
 use App\Models\DailyCut;
+use App\Models\FinSalePayment;
 use App\Models\Order;
 use App\Models\OrderDetails;
 use App\Models\PaymentHistory;
 use App\Models\PosTransaction;
 use App\Services\CashFlowService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class CashController extends Controller
 {
@@ -32,6 +36,11 @@ class CashController extends Controller
         'updateAutoCutConfig' => 'edit',
         'filterByDate' => 'read',
         'printCut' => 'read',
+        'exportCutsPdf' => 'export',
+        'exportCutsExcel' => 'export',
+        'expensesReport' => 'read',
+        'exportExpensesPdf' => 'export',
+        'exportExpensesExcel' => 'export',
     ];
 
     public function __construct()
@@ -46,10 +55,82 @@ class CashController extends Controller
 
     protected function resolveBranchId(?Request $request = null): int
     {
-        if ($request && $this->canAccessAllBranches() && $request->filled('branch_id')) {
+        if ($request && $this->canAccessAllBranches() && $request->filled('branch_id') && $request->input('branch_id') !== 'all') {
             return (int) $request->input('branch_id');
         }
         return (int) (auth()->user()->branch_id ?? Branch::value('id') ?? 1);
+    }
+
+    /**
+     * Resuelve el alcance de sucursales para consultas/reportes (una sucursal o 'all' para usuarios multi-sucursal).
+     */
+    protected function resolveBranchScope(Request $request, bool $defaultAllForMultiBranch = false): array
+    {
+        $canAll = $this->canAccessAllBranches();
+        $requested = $request->input('branch_id');
+
+        if ($canAll && ($requested === 'all' || ($defaultAllForMultiBranch && !$request->filled('branch_id')))) {
+            $branchIds = Branch::pluck('id')->map(fn($id) => (int) $id)->all();
+            return [
+                'is_all' => true,
+                'branch_id' => 'all',
+                'branch_ids' => !empty($branchIds) ? $branchIds : [1],
+                'label' => 'Todas las Sucursales',
+            ];
+        }
+
+        $branchId = $this->resolveBranchId($request);
+        $branchName = Branch::find($branchId)?->name ?? 'Principal';
+
+        return [
+            'is_all' => false,
+            'branch_id' => $branchId,
+            'branch_ids' => [$branchId],
+            'label' => $branchName,
+        ];
+    }
+
+    /**
+     * Resumen de abonos a financieras en el periodo/corte (excluye cancelaciones y filas en ceros).
+     */
+    protected function buildFinancieraSummary(array $branchIds, ?string $startDate = null, ?string $endDate = null): array
+    {
+        $payments = FinSalePayment::with(['financiera', 'sale', 'posTransaction'])
+            ->whereIn('branch_id', $branchIds)
+            ->where(function ($q) {
+                $q->whereNull('pos_transaction_id')
+                    ->orWhereHas('posTransaction', fn($pt) => $pt->where('status', '!=', 'cancelado'));
+            })
+            ->when($startDate, fn($q) => $q->whereDate('payment_date', '>=', $startDate))
+            ->when($endDate, fn($q) => $q->whereDate('payment_date', '<=', $endDate))
+            ->get();
+
+        $items = $payments
+            ->groupBy(fn($p) => $p->financiera?->name ?? ($p->sale?->financiera ?? 'Financiera'))
+            ->map(function ($group, $finName) {
+                $amount = round((float) $group->sum('amount'), 2);
+                $commission = round((float) $group->sum('commission_amount'), 2);
+                $total = round((float) $group->sum('total_amount'), 2);
+
+                return [
+                    'name' => $finName,
+                    'count' => $group->count(),
+                    'amount' => $amount,
+                    'commission' => $commission,
+                    'total' => $total,
+                ];
+            })
+            ->filter(fn($row) => $row['count'] > 0 && ($row['total'] > 0 || $row['amount'] > 0))
+            ->sortBy('name')
+            ->values();
+
+        return [
+            'items' => $items->all(),
+            'grand_count' => (int) $items->sum('count'),
+            'grand_amount' => round((float) $items->sum('amount'), 2),
+            'grand_commission' => round((float) $items->sum('commission'), 2),
+            'grand_total' => round((float) $items->sum('total'), 2),
+        ];
     }
 
     /**
@@ -73,8 +154,14 @@ class CashController extends Controller
     {
         $perPage = 15;
         $date = $request->input('date');
-        $branchId = $this->resolveBranchId($request);
-        $this->ensurePastDaysAutoClosed($branchId);
+        $branchScope = $this->resolveBranchScope($request, false);
+        $isAllBranches = $branchScope['is_all'];
+        $branchIds = $branchScope['branch_ids'];
+        $branchId = $branchScope['branch_id'];
+
+        if (!$isAllBranches) {
+            $this->ensurePastDaysAutoClosed((int) $branchId);
+        }
 
         $cashFlows = CashFlow::with(['user', 'branch'])
             ->where('branch_id', $branchId)
@@ -157,8 +244,14 @@ class CashController extends Controller
             $endDate = $tmp;
         }
 
-        $branchId = $this->resolveBranchId($request);
-        $this->ensurePastDaysAutoClosed($branchId);
+        $branchScope = $this->resolveBranchScope($request, false);
+        $isAllBranches = $branchScope['is_all'];
+        $branchIds = $branchScope['branch_ids'];
+        $branchId = $branchScope['branch_id'];
+
+        if (!$isAllBranches) {
+            $this->ensurePastDaysAutoClosed((int) $branchId);
+        }
 
         $search = $request->input('search');
 
@@ -198,20 +291,20 @@ class CashController extends Controller
         };
 
         $specialProviderPayments = PaymentHistory::with('user')
-            ->where('branch_id', $branchId)
+            ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
             ->whereIn('order_id', $specialProviderOrderIds)
             ->get();
 
         $externalPayments = PaymentHistory::with('user')
-            ->where('branch_id', $branchId)
+            ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
             ->whereIn('method', ['Cheque', 'Due'])
             ->whereNotIn('order_id', $specialProviderOrderIds)
             ->get();
 
-        $cashFlows = CashFlow::with(['user', 'posTransaction'])
-            ->where('branch_id', $branchId)
+        $cashFlows = CashFlow::with(['user', 'posTransaction', 'branch'])
+            ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
@@ -226,8 +319,8 @@ class CashController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $allDailyCashFlows = CashFlow::with(['user', 'posTransaction'])
-            ->where('branch_id', $branchId)
+        $allDailyCashFlows = CashFlow::with(['user', 'posTransaction', 'branch'])
+            ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
@@ -256,32 +349,34 @@ class CashController extends Controller
         $totalBanco = round($handCash + $cheque + $due, 2);
 
         // El saldo inicial depende del modo de consulta
-        if ($filterType === 'dia') {
-            $openingBalance = DailyCut::resolveOpeningBalance($branchId, $selectedDate);
+        if ($filterType === 'dia' && !$isAllBranches) {
+            $openingBalance = DailyCut::resolveOpeningBalance((int) $branchId, $selectedDate);
             $finalDailyCut = DailyCut::with('user')
-                ->where('branch_id', $branchId)
+                ->where('branch_id', (int) $branchId)
                 ->whereDate('date', $selectedDate)
                 ->where('cut_type', 'corte_z')
                 ->latest('id')
                 ->first();
 
             $preCuts = DailyCut::with('user')
-                ->where('branch_id', $branchId)
+                ->where('branch_id', (int) $branchId)
                 ->whereDate('date', $selectedDate)
                 ->where('cut_type', 'pre_corte')
                 ->orderByDesc('created_at')
                 ->get();
+        } elseif ($filterType === 'rango' && !$isAllBranches) {
+            $openingBalance = DailyCut::resolveOpeningBalance((int) $branchId, $startDate);
+            $finalDailyCut = null;
+            $preCuts = collect();
         } else {
-            $openingBalance = $filterType === 'rango'
-                ? DailyCut::resolveOpeningBalance($branchId, $startDate)
-                : 0.0;
+            $openingBalance = 0.0;
             $finalDailyCut = null;
             $preCuts = collect();
         }
 
         // Historial de cortes para el filtro solicitado (día, rango o todos)
         $cutsHistory = DailyCut::with(['user', 'branch'])
-            ->where('branch_id', $branchId)
+            ->whereIn('branch_id', $branchIds)
             ->tap($cutDateScope)
             ->orderByDesc('date')
             ->orderByDesc('id')
@@ -336,12 +431,20 @@ class CashController extends Controller
 
         $branches = $this->canAccessAllBranches()
             ? Branch::orderBy('name')->get()
-            : Branch::where('id', $branchId)->get();
-        $currentBranch = $branches->firstWhere('id', $branchId) ?? Branch::find($branchId);
+            : Branch::where('id', (int) $branchId)->get();
+        $currentBranch = !$isAllBranches
+            ? ($branches->firstWhere('id', (int) $branchId) ?? Branch::find((int) $branchId))
+            : (object) ['name' => 'Todas las Sucursales', 'auto_cut_enabled' => false, 'auto_cut_time' => '21:00'];
 
-        $pendingDueTotal = $filterType === 'dia' ? $this->resolvePendingDueTotal($branchId, $selectedDate) : 0.0;
+        $pendingDueTotal = ($filterType === 'dia' && !$isAllBranches)
+            ? $this->resolvePendingDueTotal((int) $branchId, $selectedDate)
+            : 0.0;
         $expectedCash = round($openingBalance + $handCash - $totalExpense, 2);
         $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+
+        $finStart = $filterType === 'dia' ? $selectedDate : ($filterType === 'rango' ? $startDate : null);
+        $finEnd = $filterType === 'dia' ? $selectedDate : ($filterType === 'rango' ? $endDate : null);
+        $financieraSummary = $this->buildFinancieraSummary($branchIds, $finStart, $finEnd);
 
         return view('cash.daily-cut', compact(
             'cashFlows',
@@ -366,10 +469,13 @@ class CashController extends Controller
             'moduleBreakdown',
             'branches',
             'branchId',
+            'isAllBranches',
+            'branchScope',
             'currentBranch',
             'pendingDueTotal',
             'expectedCash',
-            'chronologicalOperations'
+            'chronologicalOperations',
+            'financieraSummary'
         ));
     }
 
@@ -665,16 +771,24 @@ class CashController extends Controller
     public function printCut(Request $request)
     {
         $cutId = $request->input('cut_id');
+        $branchScope = $this->resolveBranchScope($request, false);
+        $isAllBranches = $branchScope['is_all'];
+        $branchIds = $branchScope['branch_ids'];
         $branchId = $this->resolveBranchId($request);
         $filterType = $request->input('filter_type');
 
         // Si se solicita un corte específico por cut_id, siempre imprimir ese corte individual
         if ($cutId) {
-            $dailyCut = DailyCut::with(['branch', 'user'])->where('branch_id', $branchId)->findOrFail($cutId);
+            $cutQuery = DailyCut::with(['branch', 'user']);
+            if (!$this->canAccessAllBranches()) {
+                $cutQuery->where('branch_id', $branchId);
+            }
+            $dailyCut = $cutQuery->findOrFail($cutId);
+            $cutBranchId = (int) $dailyCut->branch_id;
             $date = $dailyCut->date ? $dailyCut->date->toDateString() : Carbon::parse($dailyCut->created_at)->toDateString();
 
             $cashFlows = CashFlow::with(['user', 'posTransaction'])
-                ->where('branch_id', $branchId)
+                ->where('branch_id', $cutBranchId)
                 ->whereDate('created_at', $date)
                 ->orderBy('created_at')
                 ->get();
@@ -683,10 +797,18 @@ class CashController extends Controller
             $cashIncome = (float) $dailyCut->cash_income;
             $totalExpense = (float) $dailyCut->total_expense;
             $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
-            $pendingDueTotal = $this->resolvePendingDueTotal($branchId, $date);
+            $pendingDueTotal = $this->resolvePendingDueTotal($cutBranchId, $date);
             $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+            $financieraSummary = $this->buildFinancieraSummary([$cutBranchId], $date, $date);
 
-            return view('cash.print', compact('dailyCut', 'cashFlows', 'expectedCash', 'pendingDueTotal', 'chronologicalOperations'));
+            return view('cash.print', compact(
+                'dailyCut',
+                'cashFlows',
+                'expectedCash',
+                'pendingDueTotal',
+                'chronologicalOperations',
+                'financieraSummary'
+            ));
         }
 
         // Si no hay cut_id, determinar si se solicita imprimir reporte del rango o todos los registros
@@ -700,21 +822,32 @@ class CashController extends Controller
             }
         }
 
-        $branch = Branch::find($branchId);
+        $branch = $isAllBranches
+            ? (object) ['name' => 'Todas las Sucursales']
+            : Branch::find($branchId);
 
-        if ($filterType === 'rango' || $filterType === 'todos') {
-            $startDate = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->subDays(7)->toDateString();
-            $endDate = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString();
+        if ($filterType === 'rango' || $filterType === 'todos' || $isAllBranches) {
+            if (!$filterType || ($filterType === 'dia' && $isAllBranches)) {
+                $filterType = $request->filled('start_date') || $request->filled('end_date') ? 'rango' : 'dia';
+            }
+            $selectedDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+            $startDate = $filterType === 'dia'
+                ? $selectedDate
+                : ($request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->subDays(7)->toDateString());
+            $endDate = $filterType === 'dia'
+                ? $selectedDate
+                : ($request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString());
+
             if ($startDate > $endDate) {
                 $tmp = $startDate;
                 $startDate = $endDate;
                 $endDate = $tmp;
             }
 
-            $cutsQuery = DailyCut::with(['branch', 'user'])->where('branch_id', $branchId);
-            $flowsQuery = CashFlow::with(['user', 'posTransaction'])->where('branch_id', $branchId);
+            $cutsQuery = DailyCut::with(['branch', 'user'])->whereIn('branch_id', $branchIds);
+            $flowsQuery = CashFlow::with(['user', 'posTransaction'])->whereIn('branch_id', $branchIds);
 
-            if ($filterType === 'rango') {
+            if ($filterType === 'rango' || $filterType === 'dia') {
                 $cutsQuery->whereBetween('date', [$startDate, $endDate]);
                 $flowsQuery->whereBetween('created_at', [
                     Carbon::parse($startDate)->startOfDay(),
@@ -741,6 +874,11 @@ class CashController extends Controller
             $totalDifference = round((float) $cutsHistory->where('cut_type', 'corte_z')->sum('difference_amount'), 2);
 
             $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+            $financieraSummary = $this->buildFinancieraSummary(
+                $branchIds,
+                $filterType === 'todos' ? null : $startDate,
+                $filterType === 'todos' ? null : $endDate
+            );
             $isMultiCutReport = true;
 
             return view('cash.print', compact(
@@ -761,7 +899,8 @@ class CashController extends Controller
                 'cutsXCount',
                 'totalDeclaredCash',
                 'totalDifference',
-                'chronologicalOperations'
+                'chronologicalOperations',
+                'financieraSummary'
             ));
         }
 
@@ -817,8 +956,351 @@ class CashController extends Controller
 
         $pendingDueTotal = $this->resolvePendingDueTotal($branchId, $date);
         $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+        $financieraSummary = $this->buildFinancieraSummary([$branchId], $date, $date);
 
-        return view('cash.print', compact('dailyCut', 'cashFlows', 'expectedCash', 'pendingDueTotal', 'chronologicalOperations'));
+        return view('cash.print', compact(
+            'dailyCut',
+            'cashFlows',
+            'expectedCash',
+            'pendingDueTotal',
+            'chronologicalOperations',
+            'financieraSummary'
+        ));
+    }
+
+    /**
+     * Construye datos compartidos para exportación de Cortes Z (PDF y Excel) multi-sucursal o por sucursal.
+     */
+    protected function buildCutsReportData(Request $request): array
+    {
+        $branchScope = $this->resolveBranchScope($request, true);
+        $branchIds = $branchScope['branch_ids'];
+
+        $filterType = $request->input('filter_type');
+        if (!$filterType) {
+            if ($request->filled('start_date') || $request->filled('end_date')) {
+                $filterType = 'rango';
+            } elseif ($request->filled('date')) {
+                $filterType = 'dia';
+            } else {
+                $filterType = 'rango';
+            }
+        }
+        if (!in_array($filterType, ['dia', 'rango', 'todos'], true)) {
+            $filterType = 'rango';
+        }
+
+        $selectedDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+        $startDate = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->startOfMonth()->toDateString();
+        $endDate = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString();
+
+        if ($startDate > $endDate) {
+            $tmp = $startDate;
+            $startDate = $endDate;
+            $endDate = $tmp;
+        }
+
+        $onlyZ = $request->has('only_z') ? $request->boolean('only_z') : true;
+
+        $cutsQuery = DailyCut::with(['branch', 'user'])
+            ->whereIn('branch_id', $branchIds)
+            ->when($onlyZ, fn($q) => $q->where('cut_type', 'corte_z'));
+
+        if ($filterType === 'dia') {
+            $cutsQuery->whereDate('date', $selectedDate);
+            $finStart = $selectedDate;
+            $finEnd = $selectedDate;
+        } elseif ($filterType === 'rango') {
+            $cutsQuery->whereBetween('date', [$startDate, $endDate]);
+            $finStart = $startDate;
+            $finEnd = $endDate;
+        } else {
+            $finStart = null;
+            $finEnd = null;
+        }
+
+        $cuts = $cutsQuery->orderByDesc('date')->orderBy('branch_id')->orderByDesc('id')->get();
+        $financieraSummary = $this->buildFinancieraSummary($branchIds, $finStart, $finEnd);
+
+        $totals = [
+            'total_income' => round((float) $cuts->sum('total_income'), 2),
+            'cash_income' => round((float) $cuts->sum('cash_income'), 2),
+            'card_income' => round((float) $cuts->sum('card_income'), 2),
+            'transfer_income' => round((float) $cuts->sum('transfer_income'), 2),
+            'total_expense' => round((float) $cuts->sum('total_expense'), 2),
+            'declared_cash' => round((float) $cuts->whereNotNull('declared_cash')->sum('declared_cash'), 2),
+            'difference' => round((float) $cuts->whereNotNull('declared_cash')->sum('difference_amount'), 2),
+        ];
+
+        return [
+            'cuts' => $cuts,
+            'totals' => $totals,
+            'financieraSummary' => $financieraSummary,
+            'filterType' => $filterType,
+            'selectedDate' => $selectedDate,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'onlyZ' => $onlyZ,
+            'branchScope' => $branchScope,
+            'branchLabel' => $branchScope['label'],
+        ];
+    }
+
+    /**
+     * Exportar Cortes Z de una o todas las sucursales a PDF.
+     */
+    public function exportCutsPdf(Request $request)
+    {
+        $data = $this->buildCutsReportData($request);
+        $pdf = Pdf::loadView('cash.cuts-pdf', $data)->setPaper('letter', 'landscape');
+        $suffix = $data['filterType'] === 'dia'
+            ? $data['selectedDate']
+            : ($data['filterType'] === 'rango' ? "{$data['startDate']}_a_{$data['endDate']}" : 'historico');
+
+        return $pdf->download("Cortes_Z_{$suffix}.pdf");
+    }
+
+    /**
+     * Exportar Cortes Z de una o todas las sucursales a Excel (.xlsx).
+     */
+    public function exportCutsExcel(Request $request)
+    {
+        $data = $this->buildCutsReportData($request);
+        $cuts = $data['cuts'];
+        $financieraSummary = $data['financieraSummary'];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Cortes Z');
+
+        $headers = [
+            'Folio', 'Tipo', 'Sucursal', 'Fecha', 'Hora Cierre', 'Cajero',
+            'Fondo Inicial ($)', 'Total Ingresos ($)', 'Ingresos Efectivo ($)',
+            'Ingresos Tarjeta ($)', 'Ingresos Transferencia ($)', 'Egresos Efectivo ($)',
+            'Efectivo Esperado ($)', 'Efectivo Declarado ($)', 'Diferencia ($)', 'Modo', 'Notas'
+        ];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:Q1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($cuts as $cut) {
+            $opening = (float) ($cut->opening_balance ?? 0);
+            $cashInc = (float) ($cut->cash_income ?? 0);
+            $expense = (float) ($cut->total_expense ?? 0);
+            $expected = round($opening + $cashInc - $expense, 2);
+
+            $sheet->setCellValue("A{$row}", '#' . $cut->id);
+            $sheet->setCellValue("B{$row}", $cut->cut_type === 'corte_z' ? 'Corte Z' : 'Pre-Corte X');
+            $sheet->setCellValue("C{$row}", $cut->branch?->name ?? 'Sucursal');
+            $sheet->setCellValue("D{$row}", $cut->date ? Carbon::parse($cut->date)->format('d/m/Y') : '');
+            $sheet->setCellValue("E{$row}", optional($cut->closed_at ?? $cut->created_at)->format('H:i'));
+            $sheet->setCellValue("F{$row}", $cut->user?->name ?? 'Automático');
+            $sheet->setCellValue("G{$row}", $opening);
+            $sheet->setCellValue("H{$row}", (float) ($cut->total_income ?? 0));
+            $sheet->setCellValue("I{$row}", $cashInc);
+            $sheet->setCellValue("J{$row}", (float) ($cut->card_income ?? 0));
+            $sheet->setCellValue("K{$row}", (float) ($cut->transfer_income ?? 0));
+            $sheet->setCellValue("L{$row}", $expense);
+            $sheet->setCellValue("M{$row}", $expected);
+            $sheet->setCellValue("N{$row}", $cut->declared_cash !== null ? (float) $cut->declared_cash : '');
+            $sheet->setCellValue("O{$row}", $cut->declared_cash !== null ? (float) ($cut->difference_amount ?? 0) : '');
+            $sheet->setCellValue("P{$row}", strtoupper((string) ($cut->cut_mode ?? 'manual')));
+            $sheet->setCellValue("Q{$row}", (string) ($cut->notes ?? ''));
+            $row++;
+        }
+
+        if (!empty($financieraSummary['items'])) {
+            $finSheet = $spreadsheet->createSheet();
+            $finSheet->setTitle('Abonos Financieras');
+            $finSheet->fromArray(['Financiera', 'Operaciones', 'Abonos ($)', 'Comisiones ($)', 'Total ($)'], null, 'A1');
+            $finSheet->getStyle('A1:E1')->getFont()->setBold(true);
+            $fRow = 2;
+            foreach ($financieraSummary['items'] as $finItem) {
+                $finSheet->fromArray([
+                    $finItem['name'],
+                    $finItem['count'],
+                    $finItem['amount'],
+                    $finItem['commission'],
+                    $finItem['total'],
+                ], null, "A{$fRow}");
+                $fRow++;
+            }
+            $finSheet->fromArray([
+                'TOTAL GENERAL',
+                $financieraSummary['grand_count'],
+                $financieraSummary['grand_amount'],
+                $financieraSummary['grand_commission'],
+                $financieraSummary['grand_total'],
+            ], null, "A{$fRow}");
+            $finSheet->getStyle("A{$fRow}:E{$fRow}")->getFont()->setBold(true);
+            foreach (range('A', 'E') as $col) {
+                $finSheet->getColumnDimension($col)->setAutoSize(true);
+            }
+        }
+
+        foreach (range('A', 'Q') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $suffix = $data['filterType'] === 'dia'
+            ? $data['selectedDate']
+            : ($data['filterType'] === 'rango' ? "{$data['startDate']}_a_{$data['endDate']}" : 'historico');
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'cuts_xlsx_');
+        (new Xlsx($spreadsheet))->save($tempFile);
+
+        return response()->download($tempFile, "Cortes_Z_{$suffix}.xlsx")->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Construye datos compartidos para el Reporte de Gastos por día, semana, mes o rango personalizado.
+     */
+    protected function buildExpensesReportData(Request $request): array
+    {
+        $branchScope = $this->resolveBranchScope($request, true);
+        $branchIds = $branchScope['branch_ids'];
+
+        $period = $request->input('period', 'dia');
+        if (!in_array($period, ['dia', 'semana', 'mes', 'rango'], true)) {
+            $period = 'dia';
+        }
+
+        $refDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+        $refCarbon = Carbon::parse($refDate);
+
+        if ($period === 'semana') {
+            $startDate = $refCarbon->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
+            $endDate = $refCarbon->copy()->endOfWeek(Carbon::SUNDAY)->toDateString();
+            $periodLabel = 'Semana';
+        } elseif ($period === 'mes') {
+            $startDate = $refCarbon->copy()->startOfMonth()->toDateString();
+            $endDate = $refCarbon->copy()->endOfMonth()->toDateString();
+            $periodLabel = 'Mes (' . ucfirst($refCarbon->locale('es')->monthName) . ' ' . $refCarbon->year . ')';
+        } elseif ($period === 'rango') {
+            $startDate = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->startOfMonth()->toDateString();
+            $endDate = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString();
+            if ($startDate > $endDate) {
+                $tmp = $startDate;
+                $startDate = $endDate;
+                $endDate = $tmp;
+            }
+            $periodLabel = 'Rango personalizado';
+        } else {
+            $startDate = $refDate;
+            $endDate = $refDate;
+            $periodLabel = 'Día';
+        }
+
+        $search = trim((string) $request->input('search', ''));
+
+        $expenses = CashFlow::with(['branch', 'user'])
+            ->where('type', 'expense')
+            ->whereIn('branch_id', $branchIds)
+            ->whereBetween('created_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay(),
+            ])
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('description', 'like', "%{$search}%")
+                        ->orWhere('reference', 'like', "%{$search}%")
+                        ->orWhere('module', 'like', "%{$search}%")
+                        ->orWhere('customer_name', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+        $totalExpense = round((float) $expenses->sum('amount'), 2);
+        $byBranch = $expenses
+            ->groupBy(fn($e) => $e->branch?->name ?? 'General')
+            ->map(function ($group, $name) {
+                return [
+                    'branch_name' => $name,
+                    'count' => $group->count(),
+                    'total' => round((float) $group->sum('amount'), 2),
+                ];
+            })
+            ->sortKeys()
+            ->values();
+
+        $branches = $this->canAccessAllBranches()
+            ? Branch::orderBy('name')->get()
+            : Branch::whereIn('id', $branchIds)->get();
+
+        return [
+            'expenses' => $expenses,
+            'totalExpense' => $totalExpense,
+            'byBranch' => $byBranch,
+            'period' => $period,
+            'periodLabel' => $periodLabel,
+            'refDate' => $refDate,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'search' => $search,
+            'branches' => $branches,
+            'branchId' => $branchScope['branch_id'],
+            'isAllBranches' => $branchScope['is_all'],
+            'branchLabel' => $branchScope['label'],
+        ];
+    }
+
+    /**
+     * Reporte de gastos por día, semana, mes o rango de fechas personalizado.
+     */
+    public function expensesReport(Request $request)
+    {
+        return view('cash.expenses', $this->buildExpensesReportData($request));
+    }
+
+    /**
+     * Exportar Reporte de Gastos a PDF.
+     */
+    public function exportExpensesPdf(Request $request)
+    {
+        $data = $this->buildExpensesReportData($request);
+        $pdf = Pdf::loadView('cash.expenses-pdf', $data)->setPaper('letter', 'portrait');
+        return $pdf->download("Gastos_{$data['startDate']}_a_{$data['endDate']}.pdf");
+    }
+
+    /**
+     * Exportar Reporte de Gastos a Excel (.xlsx).
+     */
+    public function exportExpensesExcel(Request $request)
+    {
+        $data = $this->buildExpensesReportData($request);
+        $expenses = $data['expenses'];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Gastos');
+        $sheet->fromArray(['Fecha/Hora', 'Sucursal', 'Módulo', 'Referencia', 'Concepto / Detalle', 'Registró', 'Importe ($)'], null, 'A1');
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($expenses as $exp) {
+            $sheet->fromArray([
+                optional($exp->created_at)->format('d/m/Y H:i'),
+                $exp->branch?->name ?? 'General',
+                $exp->module ?: 'Caja',
+                $exp->reference ?: '',
+                $exp->description ?: 'Gasto registrado en caja',
+                $exp->user?->name ?? 'Sistema',
+                (float) $exp->amount,
+            ], null, "A{$row}");
+            $row++;
+        }
+        $sheet->fromArray(['', '', '', '', 'TOTAL DEL PERÍODO', '', $data['totalExpense']], null, "A{$row}");
+        $sheet->getStyle("E{$row}:G{$row}")->getFont()->setBold(true);
+
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'expenses_xlsx_');
+        (new Xlsx($spreadsheet))->save($tempFile);
+
+        return response()->download($tempFile, "Gastos_{$data['startDate']}_a_{$data['endDate']}.xlsx")->deleteFileAfterSend(true);
     }
 
     /**
@@ -831,7 +1313,7 @@ class CashController extends Controller
         foreach ($cashFlows as $flow) {
             $concepts = [];
 
-            if ($flow->posTransaction && !empty($flow->posTransaction->items_payload)) {
+            if ($flow->type === 'income' && $flow->posTransaction && !empty($flow->posTransaction->items_payload)) {
                 foreach ($flow->posTransaction->items_payload as $item) {
                     $qty = max(1, (int) ($item['quantity'] ?? 1));
                     $sec = $item['section'] ?? '';
@@ -887,7 +1369,7 @@ class CashController extends Controller
 
         $posDue = (float) PosTransaction::where('branch_id', $branchId)
             ->whereDate('created_at', $date)
-            ->where('status', '!=', 'cancelada')
+            ->whereNotIn('status', ['cancelado', 'cancelada'])
             ->get()
             ->sum(function ($tx) {
                 $netPaid = max(0, (float) $tx->paid_amount - (float) $tx->change_amount);

@@ -3,16 +3,24 @@
 @section('container')
 <div class="container-fluid">
     @php
+        $isAllBranches = $isAllBranches ?? false;
         $printParams = ['branch_id' => $branchId, 'filter_type' => $filterType];
         if ($filterType === 'dia') {
             $printParams['date'] = $selectedDate;
-            if (isset($finalDailyCut) && $finalDailyCut) {
+            if (isset($finalDailyCut) && $finalDailyCut && !$isAllBranches) {
                 $printParams['cut_id'] = $finalDailyCut->id;
             }
         } elseif ($filterType === 'rango') {
             $printParams['start_date'] = $startDate;
             $printParams['end_date'] = $endDate;
         }
+        $exportCutsParams = [
+            'branch_id' => $branchId,
+            'filter_type' => $filterType,
+            'date' => $selectedDate,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ];
     @endphp
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
         <div>
@@ -37,17 +45,28 @@
             </small>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.all_branches') || auth()->user()->can('cash.edit'))
-                <button type="button" class="btn btn-outline-primary mr-2 shadow-sm font-weight-bold" data-toggle="modal" data-target="#autoCutConfigModal">
-                    <i class="las la-cog"></i> Configurar Cierre Automático
+        <div class="d-flex flex-wrap gap-2 align-items-center mt-2 mt-md-0">
+            @if(!$isAllBranches && (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.all_branches') || auth()->user()->can('cash.edit')))
+                <button type="button" class="btn btn-outline-primary btn-sm mr-2 shadow-sm font-weight-bold" data-toggle="modal" data-target="#autoCutConfigModal">
+                    <i class="las la-cog"></i> Cierre Automático
                 </button>
             @endif
-            <a href="{{ route('cash.index', ['branch_id' => $branchId, 'date' => $selectedDate]) }}" class="btn btn-outline-secondary mr-2 shadow-sm">
-                <i class="las la-arrow-left"></i> Historial de Caja
+            <a href="{{ route('cash.expenses', ['branch_id' => $branchId, 'date' => $selectedDate]) }}" class="btn btn-outline-danger btn-sm mr-2 shadow-sm font-weight-bold">
+                <i class="fa-solid fa-file-invoice-dollar"></i> Reporte Gastos
+            </a>
+            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.export') || auth()->user()->can('cash.read'))
+                <a href="{{ route('cash.exportPdf', $exportCutsParams) }}" class="btn btn-danger btn-sm mr-2 shadow-sm font-weight-bold">
+                    <i class="las la-file-pdf"></i> Cortes Z PDF
+                </a>
+                <a href="{{ route('cash.exportExcel', $exportCutsParams) }}" class="btn btn-success btn-sm mr-2 shadow-sm font-weight-bold">
+                    <i class="las la-file-excel"></i> Cortes Z Excel
+                </a>
+            @endif
+            <a href="{{ route('cash.index', ['branch_id' => $isAllBranches ? null : $branchId, 'date' => $selectedDate]) }}" class="btn btn-outline-secondary btn-sm mr-2 shadow-sm">
+                <i class="las la-arrow-left"></i> Historial
             </a>
             <a href="{{ route('cash.printCut', $printParams) }}"
-               class="btn btn-dark shadow-sm font-weight-bold" target="_blank">
+               class="btn btn-dark btn-sm shadow-sm font-weight-bold" target="_blank">
                 <i class="las la-print"></i>
                 @if($filterType === 'dia')
                     Imprimir Corte
@@ -130,8 +149,9 @@
                     <div class="col-lg-2 col-md-3 mb-2 mb-md-0">
                         <label class="small font-weight-bold mb-1">Sucursal:</label>
                         <select name="branch_id" class="form-control font-weight-bold">
+                            <option value="all" {{ $isAllBranches ? 'selected' : '' }}>Todas las sucursales</option>
                             @foreach($branches as $b)
-                                <option value="{{ $b->id }}" {{ (int)$branchId === (int)$b->id ? 'selected' : '' }}>
+                                <option value="{{ $b->id }}" {{ !$isAllBranches && (int)$branchId === (int)$b->id ? 'selected' : '' }}>
                                     {{ $b->name }}
                                 </option>
                             @endforeach
@@ -270,6 +290,7 @@
         </div>
     </div>
 
+    @if(!$isAllBranches)
     {{-- Acciones de Pre-Corte (Corte X) y Corte Final (Corte Z) --}}
     <div class="row mb-4">
         {{-- Panel Pre-Corte (Corte X) --}}
@@ -523,6 +544,12 @@
         </div>
     </div>
     @else
+        <div class="alert alert-info shadow-sm mb-4">
+            <i class="las la-building la-lg mr-1"></i>
+            <strong>Vista Consolidada de Todas las Sucursales:</strong> Puedes consultar movimientos, exportar Cortes Z en PDF/Excel o revisar el resumen de financieras. Para aplicar un Pre-Corte X o Corte Z individual, selecciona una sucursal específica arriba.
+        </div>
+    @endif
+    @else
         {{-- Modo Histórico (Rango o Todos los registros) --}}
         <div class="alert alert-info shadow-sm d-flex justify-content-between align-items-center mb-4">
             <div>
@@ -617,6 +644,55 @@
                             ${{ number_format($totDiff, 2) }}
                         </strong>
                     </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- RESUMEN DE ABONOS A FINANCIERAS (SOLO FINANCIERAS CON MOVIMIENTOS) --}}
+    @if(!empty($financieraSummary['items']))
+        <div class="card shadow-sm mb-4 border-info">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center py-2">
+                <h6 class="mb-0 font-weight-bold text-white">
+                    <i class="las la-mobile mr-1"></i> Resumen de Abonos a Financieras del Corte / Período
+                </h6>
+                <span class="badge badge-light text-dark font-weight-bold">
+                    Total General: ${{ number_format($financieraSummary['grand_total'], 2) }}
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0 font-size-13">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Financiera</th>
+                                <th class="text-center"># Abonos</th>
+                                <th class="text-right">Abonos ($)</th>
+                                <th class="text-right">Comisiones ($)</th>
+                                <th class="text-right font-weight-bold">Total Cobrado ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($financieraSummary['items'] as $finRow)
+                                <tr>
+                                    <td class="font-weight-bold text-dark">{{ $finRow['name'] }}</td>
+                                    <td class="text-center">{{ $finRow['count'] }}</td>
+                                    <td class="text-right">${{ number_format($finRow['amount'], 2) }}</td>
+                                    <td class="text-right">${{ number_format($finRow['commission'], 2) }}</td>
+                                    <td class="text-right font-weight-bold text-primary">${{ number_format($finRow['total'], 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="thead-light font-weight-bold">
+                            <tr>
+                                <th>TOTAL GENERAL DE ABONOS A FINANCIERAS</th>
+                                <th class="text-center">{{ $financieraSummary['grand_count'] }}</th>
+                                <th class="text-right">${{ number_format($financieraSummary['grand_amount'], 2) }}</th>
+                                <th class="text-right">${{ number_format($financieraSummary['grand_commission'], 2) }}</th>
+                                <th class="text-right text-success font-size-14">${{ number_format($financieraSummary['grand_total'], 2) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
