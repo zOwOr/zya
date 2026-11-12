@@ -196,9 +196,10 @@ class TicketPrintAndDirectPrintTest extends TestCase
         $this->assertStringContainsString('ROSA ISELA TORRES', $content);
         $this->assertMatchesRegularExpression('/Cliente:.*<span class="bold"[^>]*>ROSA ISELA TORRES<\/span>/s', $content);
 
-        // 3. Financiera en negritas
+        // 3. Financiera en negritas y sin duplicados (evitar PAYJOY, PAYJOY)
         $this->assertStringContainsString('Financiera:', $content);
         $this->assertMatchesRegularExpression('/Financiera:.*<span class="bold"[^>]*>PAYJOY<\/span>/s', $content);
+        $this->assertStringNotContainsString('PAYJOY, PAYJOY', $content);
 
         // 4. Importe en negritas
         $this->assertMatchesRegularExpression('/Importe:.*<span class="bold[^"]*"[^>]*>\$523\.00<\/span>/s', $content);
@@ -303,5 +304,117 @@ class TicketPrintAndDirectPrintTest extends TestCase
         $contractContent = $contractRes->getContent();
         $this->assertStringContainsString(route('central-pos.index'), $contractContent);
         $this->assertStringContainsString(route('dashboard'), $contractContent);
+    }
+
+    /**
+     * Verificar que el ticket deduplica nombres de financiera insensibles a mayúsculas
+     * y funciona con navegación en las 3 sucursales (Allende, Montemorelos, El Cercado).
+     */
+    public function test_ticket_deduplicates_financiera_and_works_in_all_three_branches(): void
+    {
+        $branches = [
+            'Allende' => $this->branchAllende,
+            'Montemorelos' => $this->branchMorelos,
+            'El Cercado' => $this->branchCercado,
+        ];
+
+        foreach ($branches as $branchName => $branch) {
+            $user = User::create([
+                'name' => 'Cajero ' . $branchName,
+                'username' => 'cajero_' . strtolower($branchName) . '_' . uniqid(),
+                'email' => 'cajero_' . strtolower($branchName) . '_' . uniqid() . '@zyacelulares.com',
+                'password' => bcrypt('password123'),
+                'branch_id' => $branch->id,
+            ]);
+            $user->assignRole('SuperAdmin');
+            $this->actingAs($user);
+
+            $brand = FinBrand::firstOrCreate(['name' => 'Samsung']);
+            $device = FinDevice::create([
+                'brand_id' => $brand->id,
+                'model' => 'Galaxy A15',
+                'imei' => '3599' . rand(10000000000, 99999999999),
+                'status' => 'vendido',
+                'branch_id' => $branch->id,
+            ]);
+
+            $finSale = FinSale::create([
+                'branch_id' => $branch->id,
+                'device_id' => $device->id,
+                'financiera_id' => $this->payjoy->id,
+                'user_id' => $user->id,
+                'sale_code' => 'FIN-' . strtoupper(substr($branchName, 0, 3)) . '-' . uniqid(),
+                'customer_name' => 'Cliente ' . $branchName,
+                'customer_phone' => '8260001122',
+                'tag_contrato' => 'TAG-' . strtoupper(substr($branchName, 0, 3)),
+                'price' => 3500.00,
+                'down_payment' => 0.00,
+                'total_financed' => 3500.00,
+                'abonos_count' => 1,
+                'total_abonos_paid' => 302.00,
+                'sale_date' => now()->toDateString(),
+                'status' => 'activa',
+            ]);
+
+            // Transacción con posibles duplicados en case: 'PayJoy' y 'PAYJOY'
+            $tx = PosTransaction::create([
+                'transaction_code' => 'MOV-' . date('Ymd') . '-' . strtoupper(substr($branchName, 0, 3)),
+                'branch_id' => $branch->id,
+                'user_id' => $user->id,
+                'customer_name' => 'José Luis Guerrero Sánchez',
+                'subtotal' => 292.00,
+                'commission_total' => 10.00,
+                'total_amount' => 302.00,
+                'paid_amount' => 302.00,
+                'change_amount' => 0.00,
+                'payment_method' => 'efectivo',
+                'cash_amount' => 302.00,
+                'card_amount' => 0.00,
+                'transfer_amount' => 0.00,
+                'items_payload' => [
+                    [
+                        'section' => 'financiera_abono',
+                        'sale_id' => $finSale->id,
+                        'title' => '1x Abono Financiera (PAYJOY) TAG: DDSJXWW',
+                        'financiera_name' => 'PAYJOY',
+                        'quantity' => 1,
+                        'amount' => 292.00,
+                        'commission' => 10.00,
+                    ],
+                ],
+                'drawer_opened' => true,
+                'status' => 'completado',
+            ]);
+
+            FinSalePayment::create([
+                'fin_sale_id' => $finSale->id,
+                'financiera_id' => $this->payjoy->id, // Nombre en DB es 'PayJoy'
+                'branch_id' => $branch->id,
+                'user_id' => $user->id,
+                'pos_transaction_id' => $tx->id,
+                'receipt_code' => 'ABFIN-' . uniqid(),
+                'tag_contrato' => 'TAG-DDSJXWW',
+                'customer_name' => 'José Luis Guerrero Sánchez',
+                'installment_number' => 1,
+                'amount' => 292.00,
+                'commission_amount' => 10.00,
+                'total_amount' => 302.00,
+                'payment_method' => 'efectivo',
+                'payment_date' => now(),
+            ]);
+
+            $res = $this->get(route('central-pos.receipt', $tx->id));
+            $res->assertStatus(200);
+
+            $html = $res->getContent();
+            // Verificar nombre de sucursal
+            $this->assertStringContainsString("Sucursal: {$branchName}", $html);
+            // Verificar que dice exactamente PAYJOY y NO 'PAYJOY, PAYJOY'
+            $this->assertStringContainsString('>PAYJOY<', $html);
+            $this->assertStringNotContainsString('PAYJOY, PAYJOY', $html);
+            // Botones de retorno presentes
+            $this->assertStringContainsString(route('central-pos.index'), $html);
+            $this->assertStringContainsString(route('dashboard'), $html);
+        }
     }
 }

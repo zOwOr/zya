@@ -130,13 +130,25 @@
                 } elseif (!empty($item['title'])) {
                     foreach (['PayJoy', 'Credimás', 'Credimas', 'Creditienda', 'Contado'] as $known) {
                         if (stripos($item['title'], $known) !== false) {
-                            $financieraList[] = $known;
+                            $financieraList[] = ($known === 'Credimas') ? 'Credimás' : $known;
+                            break;
                         }
                     }
                 }
             }
         }
-        $financieraList = array_values(array_unique(array_filter($financieraList)));
+        $uniqueFinancieras = [];
+        foreach ($financieraList as $f) {
+            $cleaned = trim((string) $f);
+            if ($cleaned !== '') {
+                $upper = mb_strtoupper($cleaned, 'UTF-8');
+                if ($upper === 'CREDIMAS') {
+                    $upper = 'CREDIMÁS';
+                }
+                $uniqueFinancieras[$upper] = $upper;
+            }
+        }
+        $financieraList = array_values($uniqueFinancieras);
     @endphp
 
     <div class="row-flex">
@@ -154,7 +166,7 @@
     @if (!empty($financieraList))
         <div class="row-flex">
             <span class="bold">Financiera:</span>
-            <span class="bold" style="font-size: 13px;">{{ strtoupper(implode(', ', $financieraList)) }}</span>
+            <span class="bold" style="font-size: 13px;">{{ implode(', ', $financieraList) }}</span>
         </div>
     @endif
     <div class="row-flex">

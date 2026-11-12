@@ -2418,29 +2418,36 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function printTicketDirectly(url) {
-        let frame = document.getElementById('posDirectPrintFrame');
-        if (!frame) {
-            frame = document.createElement('iframe');
-            frame.id = 'posDirectPrintFrame';
-            frame.name = 'posDirectPrintFrame';
-            frame.style.position = 'fixed';
-            frame.style.right = '0';
-            frame.style.bottom = '0';
-            frame.style.width = '0';
-            frame.style.height = '0';
-            frame.style.border = '0';
-            frame.style.opacity = '0';
-            frame.style.pointerEvents = 'none';
-            document.body.appendChild(frame);
+        let oldFrame = document.getElementById('posDirectPrintFrame');
+        if (oldFrame) {
+            oldFrame.remove();
         }
+        let frame = document.createElement('iframe');
+        frame.id = 'posDirectPrintFrame';
+        frame.name = 'posDirectPrintFrame';
+        frame.style.position = 'fixed';
+        frame.style.right = '0';
+        frame.style.bottom = '0';
+        frame.style.width = '1px';
+        frame.style.height = '1px';
+        frame.style.border = '0';
+        frame.style.opacity = '0.01';
+        frame.style.pointerEvents = 'none';
+
         frame.onload = function() {
             try {
-                frame.contentWindow.focus();
-                frame.contentWindow.print();
+                if (frame.contentWindow && frame.contentWindow.location.href !== 'about:blank') {
+                    setTimeout(function() {
+                        frame.contentWindow.focus();
+                        frame.contentWindow.print();
+                    }, 250);
+                }
             } catch (e) {
                 console.error('Error al imprimir ticket directo:', e);
             }
         };
+
+        document.body.appendChild(frame);
         frame.src = url;
     }
 
