@@ -194,6 +194,12 @@ class TicketPrintAndDirectPrintTest extends TestCase
         $this->assertStringContainsString('size: portrait', $content);
         $this->assertStringContainsString('margin: 0mm', $content);
         $this->assertStringNotContainsString('size: 80mm auto', $content);
+        $this->assertStringContainsString('padding: 0 6mm 0 2mm !important', $content);
+        $this->assertStringContainsString('white-space: nowrap', $content);
+
+        // Verificación de encabezado comercial: REPARACIONES en vez de FINANCIERA
+        $this->assertStringContainsString('CELULARES, ACCESORIOS Y REPARACIONES', $content);
+        $this->assertStringNotContainsString('CELULARES, ACCESORIOS Y FINANCIERA', $content);
 
         // Verificación de altura calibrada para guillotina sin sobrante excesivo de papel
         $this->assertStringContainsString('height: 8mm', $content);
