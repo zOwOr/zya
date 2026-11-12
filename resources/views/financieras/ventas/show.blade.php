@@ -290,9 +290,9 @@
                                                 <td>{{ $abono->user?->name ?? 'Sistema' }}</td>
                                                 <td class="text-right">
                                                     @if ($abono->pos_transaction_id)
-                                                        <a href="{{ route('central-pos.receipt', $abono->pos_transaction_id) }}" target="_blank" class="btn btn-xs btn-outline-dark">
+                                                        <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $abono->pos_transaction_id) }}')" class="btn btn-xs btn-outline-dark" title="Imprimir Ticket">
                                                             <i class="fa-solid fa-print"></i>
-                                                        </a>
+                                                        </button>
                                                     @endif
                                                 </td>
                                             </tr>

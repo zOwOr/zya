@@ -316,8 +316,9 @@ class LoanFeatureTest extends TestCase
             'commission_payment_method' => 'transferencia',
         ]);
 
-        // Obtener los flujos de caja generados hoy para la sucursal
+        // Obtener los flujos de caja generados hoy para la sucursal por comisión de apertura
         $flows = CashFlow::where('branch_id', $this->branch->id)
+            ->where('module', 'Préstamos (Comisión Apertura)')
             ->whereDate('created_at', $today)
             ->get();
 
