@@ -20,7 +20,7 @@
             width: 70mm;
             max-width: 70mm;
             margin: 0 auto;
-            padding: 4px 2px;
+            padding: 4px 6mm 4px 2mm;
             font-size: 12px;
             font-weight: 700;
             line-height: 1.25;
@@ -35,12 +35,26 @@
             width: 48mm;
             max-width: 48mm;
             font-size: 11px;
-            padding: 3px 1px;
+            padding: 3px 4mm 3px 1mm;
         }
         .center { text-align: center; }
         .bold, b, strong { font-weight: 900 !important; }
         .divider { border-top: 1.5px dashed #000 !important; margin: 5px 0; }
-        .row-flex { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0; }
+        .row-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 2px 0;
+            gap: 4px;
+        }
+        .row-flex > :first-child {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .row-flex > :last-child {
+            text-align: right;
+            word-break: break-word;
+        }
         .toolbar {
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
@@ -81,24 +95,29 @@
                 margin: 0mm;
             }
             .no-print { display: none !important; }
-            html, body {
+            html {
                 width: 100% !important;
-                margin: 0 auto !important;
+                margin: 0 !important;
                 padding: 0 !important;
                 background: #fff !important;
-                height: auto !important;
-                min-height: 0 !important;
             }
             body {
                 width: 70mm !important;
                 max-width: 70mm !important;
-                padding: 0 1.5mm !important;
+                margin: 0 !important;
+                padding: 0 6mm 0 2mm !important;
+                box-sizing: border-box !important;
+                background: #fff !important;
+                height: auto !important;
+                min-height: 0 !important;
                 overflow: hidden !important;
             }
             body.paper-58mm {
                 width: 48mm !important;
                 max-width: 48mm !important;
-                padding: 0 1mm !important;
+                margin: 0 !important;
+                padding: 0 4mm 0 1mm !important;
+                box-sizing: border-box !important;
                 overflow: hidden !important;
             }
         }
@@ -125,7 +144,7 @@
     <span style="display:none;">&#27;&#112;&#0;&#25;&#250;</span>
 
     <div class="center bold" style="font-size: 15px; letter-spacing: 1px;">ZYA</div>
-    <div class="center" style="font-size: 11px;">CELULARES, ACCESORIOS Y FINANCIERA</div>
+    <div class="center" style="font-size: 11px;">CELULARES, ACCESORIOS Y REPARACIONES</div>
     <div class="center bold">Sucursal: {{ $transaction->branch?->name ?? 'Matriz' }}</div>
     <div class="center" style="font-size: 11px;">TICKET UNIFICADO DE PAGO / VENTA</div>
     <div class="divider"></div>
@@ -235,9 +254,9 @@
         $dueAmount = max(0, round((float) $transaction->total_amount - $paidToday, 2));
     @endphp
 
-    <div class="row-flex bold" style="font-size: 15px; margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
+    <div class="row-flex bold" style="font-size: 13.5px; margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
         <span class="bold">TOTAL DE LA NOTA:</span>
-        <span class="bold" style="font-size: 16px;">${{ number_format($transaction->total_amount, 2) }} MXN</span>
+        <span class="bold" style="font-size: 15px;">${{ number_format($transaction->total_amount, 2) }} MXN</span>
     </div>
 
     @if ($dueAmount > 0)
