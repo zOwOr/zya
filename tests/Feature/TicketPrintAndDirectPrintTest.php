@@ -187,10 +187,20 @@ class TicketPrintAndDirectPrintTest extends TestCase
 
         $content = $response->getContent();
 
-        // 1. Verificación de Ancho térmico de seguridad (70mm) para no cortarse a la derecha
+        // 1. Verificación de Ancho térmico de seguridad (70mm) para no cortarse a la derecha y orientación vertical (portrait)
         $this->assertStringContainsString('width: 70mm', $content);
         $this->assertStringContainsString('max-width: 70mm', $content);
         $this->assertStringNotContainsString('width: 76mm', $content);
+        $this->assertStringContainsString('size: portrait', $content);
+        $this->assertStringContainsString('margin: 0mm', $content);
+        $this->assertStringNotContainsString('size: 80mm auto', $content);
+
+        // Verificación de altura calibrada para guillotina sin sobrante excesivo de papel
+        $this->assertStringContainsString('height: 8mm', $content);
+        $this->assertStringNotContainsString('height: 18mm', $content);
+
+        // Verificación de guardia contra doble disparo en iframe
+        $this->assertStringContainsString('window.self === window.top', $content);
 
         // 2. Cliente en negritas
         $this->assertStringContainsString('ROSA ISELA TORRES', $content);

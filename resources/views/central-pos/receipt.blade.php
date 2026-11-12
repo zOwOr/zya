@@ -6,37 +6,40 @@
     <title>Ticket {{ $transaction->transaction_code }}</title>
     <style>
         @page {
-            size: 80mm auto;
+            size: portrait;
             margin: 0mm;
         }
         * {
             box-sizing: border-box;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color: #000 !important;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: Arial, "Helvetica Neue", Helvetica, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             width: 70mm;
             max-width: 70mm;
             margin: 0 auto;
-            padding: 6px 2px;
+            padding: 4px 2px;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
             line-height: 1.25;
             color: #000 !important;
             background: #fff;
             word-break: break-word;
             overflow-wrap: break-word;
+            text-rendering: geometricPrecision;
+            -webkit-font-smoothing: antialiased;
         }
         body.paper-58mm {
             width: 48mm;
             max-width: 48mm;
             font-size: 11px;
-            padding: 4px 1px;
+            padding: 3px 1px;
         }
         .center { text-align: center; }
-        .bold { font-weight: 800 !important; }
-        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        .bold, b, strong { font-weight: 900 !important; }
+        .divider { border-top: 1.5px dashed #000 !important; margin: 5px 0; }
         .row-flex { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0; }
         .toolbar {
             background: #f1f5f9;
@@ -73,17 +76,30 @@
             border-color: #15803d;
         }
         @media print {
+            @page {
+                size: portrait;
+                margin: 0mm;
+            }
             .no-print { display: none !important; }
+            html, body {
+                width: 100% !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
+                background: #fff !important;
+                height: auto !important;
+                min-height: 0 !important;
+            }
             body {
                 width: 70mm !important;
                 max-width: 70mm !important;
-                margin: 0 auto !important;
-                padding: 0 !important;
+                padding: 0 1.5mm !important;
+                overflow: hidden !important;
             }
             body.paper-58mm {
                 width: 48mm !important;
                 max-width: 48mm !important;
-                padding: 0 !important;
+                padding: 0 1mm !important;
+                overflow: hidden !important;
             }
         }
     </style>
@@ -280,8 +296,8 @@
         Conserve este comprobante para cualquier aclaración.
     </div>
 
-    {{-- Margen inferior para que la guillotina de la impresora térmica no corte el texto --}}
-    <div style="height: 18mm;"></div>
+    {{-- Margen inferior calibrado para el corte de guillotina térmica sin sobrante de papel --}}
+    <div style="height: 8mm; line-height: 8mm; overflow: hidden; page-break-inside: avoid;">&nbsp;</div>
 
     <script>
         window.ZyaPosHardware = {
@@ -340,12 +356,14 @@
                 }
             @endif
 
-            // Disparar diálogo de impresión tanto en ventana independiente como dentro de iframe de impresión directa
-            try {
-                window.focus();
-                window.print();
-            } catch (e) {
-                console.warn('Auto-print dialog blocked or unavailable:', e);
+            // Disparar diálogo de impresión solo si la ventana es independiente (evita doble impresión cuando se carga en iframe)
+            if (window.self === window.top) {
+                try {
+                    window.focus();
+                    window.print();
+                } catch (e) {
+                    console.warn('Auto-print dialog blocked or unavailable:', e);
+                }
             }
         });
     </script>
