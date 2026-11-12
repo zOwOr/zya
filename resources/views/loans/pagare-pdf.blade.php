@@ -70,10 +70,26 @@
     </style>
 </head>
 <body>
-    <div class="no-print" style="margin-bottom: 15px; text-align: right;">
-        <button onclick="window.print()" style="padding: 8px 16px; background: #1d4ed8; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            Imprimir Pagaré para Firma
-        </button>
+    <div class="no-print" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center;">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <a href="{{ route('loans.show', $loan->id) }}" style="padding: 6px 12px; font-size: 13px; font-weight: bold; border: 1px solid #94a3b8; border-radius: 5px; background: #fff; text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+                ⬅️ Volver al Préstamo
+            </a>
+            <a href="{{ route('loans.index') }}" style="padding: 6px 12px; font-size: 13px; font-weight: bold; border: 1px solid #94a3b8; border-radius: 5px; background: #fff; text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+                📋 Catálogo de Préstamos
+            </a>
+            <a href="{{ route('central-pos.index') }}" style="padding: 6px 12px; font-size: 13px; font-weight: bold; border: 1px solid #94a3b8; border-radius: 5px; background: #fff; text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+                🛒 Punto de Venta
+            </a>
+            <a href="{{ route('dashboard') }}" style="padding: 6px 12px; font-size: 13px; font-weight: bold; border: 1px solid #94a3b8; border-radius: 5px; background: #fff; text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
+                🏠 Menú Principal
+            </a>
+        </div>
+        <div>
+            <button onclick="window.print()" style="padding: 8px 16px; background: #1d4ed8; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px;">
+                🖨️ Imprimir Pagaré para Firma
+            </button>
+        </div>
     </div>
 
     <div class="header-box">

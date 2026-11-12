@@ -597,6 +597,10 @@ class LoanController extends Controller
                 $method = $validated['payment_method'] ?? 'efectivo';
                 $paymentCode = 'CIER-' . date('Ymd') . '-' . strtoupper(Str::random(4));
 
+                $cashAmount = $method === 'efectivo' ? $additional : 0;
+                $cardAmount = $method === 'tarjeta' ? $additional : 0;
+                $transferAmount = $method === 'transferencia' ? $additional : 0;
+
                 LoanPayment::create([
                     'loan_id' => $lockedLoan->id,
                     'branch_id' => $branchId,
@@ -605,6 +609,11 @@ class LoanController extends Controller
                     'payment_type' => 'cierre_manual',
                     'amount' => $additional,
                     'payment_method' => $method,
+                    'payment_breakdown' => [
+                        'efectivo' => $cashAmount,
+                        'tarjeta' => $cardAmount,
+                        'transferencia' => $transferAmount,
+                    ],
                     'paid_at' => now(),
                     'notes' => 'Abono final al cerrar préstamo manualmente: ' . $validated['closing_reason'],
                 ]);
@@ -620,6 +629,9 @@ class LoanController extends Controller
                         'customer_id' => $lockedLoan->customer_id,
                         'customer_name' => $lockedLoan->customer?->tit_name,
                         'payment_method' => $method,
+                        'cash_amount' => $cashAmount,
+                        'card_amount' => $cardAmount,
+                        'transfer_amount' => $transferAmount,
                     ]
                 );
 

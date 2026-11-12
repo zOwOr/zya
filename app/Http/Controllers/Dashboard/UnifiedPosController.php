@@ -51,7 +51,48 @@ class UnifiedPosController extends Controller
 
     public function __construct()
     {
-        $this->initializeModulePermission();
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user) {
+                abort(401);
+            }
+
+            if ($user->isSuperAdmin()) {
+                return $next($request);
+            }
+
+            $action = $request->route()?->getActionMethod();
+
+            // 1. Acceso a la Consola POS y Reimpresión de Recibo
+            if (in_array($action, ['index', 'printReceipt'])) {
+                if (!$user->can('cobros.read') && !$user->can('cobros.menu') && !$user->can('pos.read') && !$user->can('pos.menu')) {
+                    abort(403, 'No tienes permisos para acceder al Punto de Venta.');
+                }
+            }
+
+            // 2. Procesar Cobro / Checkout
+            if ($action === 'checkout') {
+                if (!$user->can('cobros.create') && !$user->can('pos.create') && !$user->can('orders.create')) {
+                    abort(403, 'No tienes permisos para procesar cobros y ventas.');
+                }
+            }
+
+            // 3. Abrir Cajón Físico
+            if ($action === 'openCashDrawer') {
+                if (!$user->can('cobros.open_drawer') && !$user->can('cash.open_drawer')) {
+                    abort(403, 'No tienes permisos para abrir el cajón de dinero.');
+                }
+            }
+
+            // 4. Abono Rápido de Financieras
+            if ($action === 'registerDirectFinancieraAbono') {
+                if (!$user->can('cobros.financieras') && !$user->can('financieras.ventas.abonar')) {
+                    abort(403, 'No tienes permisos para registrar abonos de financieras.');
+                }
+            }
+
+            return $next($request);
+        });
     }
 
     protected function canAccessAllBranches(): bool
@@ -108,6 +149,11 @@ class UnifiedPosController extends Controller
      */
     public function lookupFinanciera(Request $request)
     {
+        $user = auth()->user();
+        if (!$user->isSuperAdmin() && !$user->can('cobros.financieras') && !$user->can('financieras.read') && !$user->can('financieras.ventas.read')) {
+            return response()->json(['results' => [], 'message' => 'Sin permisos para consultar financieras.'], 403);
+        }
+
         $query = trim((string) $request->input('q', ''));
         $financieraId = $request->input('financiera_id');
 
@@ -177,6 +223,11 @@ class UnifiedPosController extends Controller
      */
     public function lookupCustomerLoans(Request $request)
     {
+        $user = auth()->user();
+        if (!$user->isSuperAdmin() && !$user->can('cobros.prestamos') && !$user->can('prestamos.read')) {
+            return response()->json(['open_loans' => [], 'has_open_loans' => false, 'message' => 'Sin permisos para consultar préstamos.'], 403);
+        }
+
         $customerId = $request->input('customer_id');
         if (!$customerId) {
             return response()->json(['open_loans' => [], 'has_open_loans' => false]);
@@ -239,10 +290,39 @@ class UnifiedPosController extends Controller
     }
 
     /**
+     * Buscar tandas activas para aportaciones en el Punto de Venta.
+     */
+    public function lookupTanda(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->isSuperAdmin() && !$user->can('cobros.tandas') && !$user->can('tandas.read')) {
+            return response()->json(['tandas' => [], 'message' => 'Sin permisos para consultar tandas.'], 403);
+        }
+
+        $branchId = $this->canAccessAllBranches() && $request->filled('branch_id')
+            ? (int) $request->input('branch_id')
+            : (auth()->user()->branch_id ?? Branch::value('id'));
+
+        $q = trim((string) $request->input('q', ''));
+        $tandas = Tanda::with(['participants', 'periods'])
+            ->when(!$this->canAccessAllBranches() && $branchId, fn($query) => $query->where('branch_id', $branchId))
+            ->when($q !== '', fn($query) => $query->where('description', 'like', "%{$q}%"))
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['tandas' => $tandas]);
+    }
+
+    /**
      * Buscar productos de inventario por código de barras, IMEI o nombre.
      */
     public function lookupProducts(Request $request)
     {
+        $user = auth()->user();
+        if (!$user->isSuperAdmin() && !$user->can('cobros.productos') && !$user->can('pos.read') && !$user->can('product.read')) {
+            return response()->json(['products' => [], 'message' => 'Sin permisos para consultar productos.'], 403);
+        }
+
         $q = trim((string) $request->input('q', ''));
         $products = Product::when($q !== '', function ($query) use ($q) {
                 $query->where('product_name', 'like', "%{$q}%")
@@ -299,6 +379,43 @@ class UnifiedPosController extends Controller
                     ], 422);
                 }
                 $loanInstallmentIds[] = $instId;
+            }
+        }
+
+        // Validar permisos granulares de las 4 secciones del Punto de Venta
+        $user = auth()->user();
+        if (!$user->isSuperAdmin()) {
+            foreach ($items as $item) {
+                $sec = $item['section'] ?? '';
+                if ($sec === 'financiera_abono') {
+                    if (!$user->can('cobros.financieras') && !$user->can('financieras.ventas.abonar')) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'No tienes permisos para registrar abonos de Financieras en el Punto de Venta.',
+                        ], 403);
+                    }
+                } elseif ($sec === 'prestamo_abono' || $sec === 'prestamo_apertura') {
+                    if (!$user->can('cobros.prestamos') && !$user->can('prestamos.abonar') && !$user->can('prestamos.create')) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'No tienes permisos para crear o abonar Préstamos en el Punto de Venta.',
+                        ], 403);
+                    }
+                } elseif ($sec === 'tanda_abono') {
+                    if (!$user->can('cobros.tandas') && !$user->can('tandas.abonar')) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'No tienes permisos para registrar aportaciones de Tandas en el Punto de Venta.',
+                        ], 403);
+                    }
+                } elseif ($sec === 'producto_inventario' || $sec === 'producto_dinamico') {
+                    if (!$user->can('cobros.productos') && !$user->can('pos.create') && !$user->can('orders.create')) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'No tienes permisos para vender Productos en el Punto de Venta.',
+                        ], 403);
+                    }
+                }
             }
         }
 

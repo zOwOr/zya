@@ -40,7 +40,27 @@
 </head>
 
 <body>
-        <div class="container mt-4">
+    <div class="no-print d-print-none" style="background: #0f172a; padding: 12px 20px; border-bottom: 2px solid #1e293b; margin-bottom: 20px;">
+        <div class="container d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a href="{{ route('central-pos.index') }}" class="btn btn-sm btn-outline-light font-weight-bold" style="margin-right: 8px;">
+                    ⬅️ Volver al Punto de Venta
+                </a>
+                <a href="{{ route('order.pendingDue') }}" class="btn btn-sm btn-outline-light font-weight-bold" style="margin-right: 8px;">
+                    📋 Notas con Saldo Pendiente
+                </a>
+                <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-light font-weight-bold">
+                    🏠 Menú Principal
+                </a>
+            </div>
+            <div>
+                <button onclick="window.print()" class="btn btn-sm btn-primary font-weight-bold">
+                    🖨️ Imprimir Contrato
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="container mt-2">
         <!-- ENCABEZADO -->
         <div class="d-flex justify-content-between mb-3">
             <img src="{{ asset('assets/images/logo.png') }}" alt="logo" style="max-height: 80px;">
@@ -177,7 +197,13 @@
             </div>
         </div>
 
-        <div class="text-center mt-4 no-print">
+        <div class="text-center mt-4 no-print d-print-none">
+            <a href="{{ route('central-pos.index') }}" class="btn btn-outline-secondary mr-2">
+                ⬅️ Punto de Venta
+            </a>
+            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary mr-2">
+                🏠 Menú Principal
+            </a>
             <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir Contrato</button>
         </div>
     </div>
