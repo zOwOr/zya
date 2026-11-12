@@ -2,10 +2,29 @@
 
 @section('container')
 <div class="container-fluid">
+    @php
+        $printParams = ['branch_id' => $branchId, 'filter_type' => $filterType];
+        if ($filterType === 'dia') {
+            $printParams['date'] = $selectedDate;
+            if (isset($finalDailyCut) && $finalDailyCut) {
+                $printParams['cut_id'] = $finalDailyCut->id;
+            }
+        } elseif ($filterType === 'rango') {
+            $printParams['start_date'] = $startDate;
+            $printParams['end_date'] = $endDate;
+        }
+    @endphp
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
         <div>
             <h3 class="mb-0 font-weight-bold">
-                <i class="las la-calculator text-primary"></i> Corte de Caja Diario - {{ \Carbon\Carbon::parse($selectedDate)->format('d/m/Y') }}
+                <i class="las la-calculator text-primary"></i>
+                @if($filterType === 'dia')
+                    Corte de Caja Diario - {{ \Carbon\Carbon::parse($selectedDate)->format('d/m/Y') }}
+                @elseif($filterType === 'rango')
+                    Corte de Caja - Rango del {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                @else
+                    Corte de Caja - Historial Completo (Todos los Registros)
+                @endif
             </h3>
             <small class="text-muted">
                 Sucursal: <strong>{{ $currentBranch->name ?? ($branches->firstWhere('id', $branchId)->name ?? 'Principal') }}</strong>
@@ -27,9 +46,16 @@
             <a href="{{ route('cash.index', ['branch_id' => $branchId, 'date' => $selectedDate]) }}" class="btn btn-outline-secondary mr-2 shadow-sm">
                 <i class="las la-arrow-left"></i> Historial de Caja
             </a>
-            <a href="{{ route('cash.printCut', ['date' => $selectedDate, 'branch_id' => $branchId, 'cut_id' => $finalDailyCut->id ?? null]) }}"
+            <a href="{{ route('cash.printCut', $printParams) }}"
                class="btn btn-dark shadow-sm font-weight-bold" target="_blank">
-                <i class="las la-print"></i> Imprimir Corte
+                <i class="las la-print"></i>
+                @if($filterType === 'dia')
+                    Imprimir Corte
+                @elseif($filterType === 'rango')
+                    Imprimir Reporte del Rango
+                @else
+                    Imprimir Todos los Cortes
+                @endif
             </a>
         </div>
     </div>
@@ -50,18 +76,60 @@
         </div>
     @endif
 
-    {{-- Filtro por Fecha, Sucursal y Búsqueda --}}
-    <div class="card shadow-sm mb-4">
+    {{-- Filtro por Fecha, Rango o Todos los registros, Sucursal y Búsqueda --}}
+    <div class="card shadow-sm mb-4 border-primary">
+        <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <span class="font-weight-bold text-dark font-size-13">
+                <i class="las la-filter text-primary mr-1"></i> Filtros de Consulta y Reportes de Corte
+            </span>
+            <span class="badge badge-primary font-size-12 px-2 py-1">
+                @if($filterType === 'dia')
+                    Filtro Activo: Día Específico
+                @elseif($filterType === 'rango')
+                    Filtro Activo: Rango de Fechas
+                @else
+                    Filtro Activo: Todos los Registros
+                @endif
+            </span>
+        </div>
         <div class="card-body py-3">
-            <form method="GET" action="{{ route('cash.dailyCut') }}" class="row align-items-end">
-                <div class="col-md-3">
-                    <label class="small font-weight-bold mb-1">Fecha de Corte:</label>
-                    <input type="date" name="date" value="{{ $selectedDate }}" class="form-control">
+            <form method="GET" action="{{ route('cash.dailyCut') }}" id="cutFilterForm" class="row align-items-end">
+                <div class="col-lg-3 col-md-4 mb-2 mb-md-0">
+                    <label class="small font-weight-bold mb-1"><i class="las la-calendar mr-1"></i>Tipo de Filtro:</label>
+                    <select name="filter_type" id="filterTypeSelect" class="form-control font-weight-bold text-primary">
+                        <option value="dia" {{ $filterType === 'dia' ? 'selected' : '' }}>Día en específico</option>
+                        <option value="rango" {{ $filterType === 'rango' ? 'selected' : '' }}>Rango de fechas</option>
+                        <option value="todos" {{ $filterType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                    </select>
                 </div>
+
+                <div class="col-lg-3 col-md-4 mb-2 mb-md-0" id="singleDateContainer" style="{{ $filterType === 'dia' ? '' : 'display: none;' }}">
+                    <label class="small font-weight-bold mb-1">Fecha de Corte:</label>
+                    <input type="date" name="date" id="singleDateInput" value="{{ $selectedDate }}" class="form-control" {{ $filterType === 'dia' ? '' : 'disabled' }}>
+                </div>
+
+                <div class="col-lg-4 col-md-5 mb-2 mb-md-0" id="dateRangeContainer" style="{{ $filterType === 'rango' ? '' : 'display: none;' }}">
+                    <label class="small font-weight-bold mb-1">Rango de Fechas (Desde - Hasta):</label>
+                    <div class="input-group">
+                        <input type="date" name="start_date" id="startDateInput" value="{{ $startDate }}" class="form-control" title="Fecha inicial" {{ $filterType === 'rango' ? '' : 'disabled' }}>
+                        <div class="input-group-prepend input-group-append">
+                            <span class="input-group-text font-size-12 px-2">a</span>
+                        </div>
+                        <input type="date" name="end_date" id="endDateInput" value="{{ $endDate }}" class="form-control" title="Fecha final" {{ $filterType === 'rango' ? '' : 'disabled' }}>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-4 mb-2 mb-md-0" id="allRecordsContainer" style="{{ $filterType === 'todos' ? '' : 'display: none;' }}">
+                    <label class="small font-weight-bold mb-1">Alcance:</label>
+                    <div class="alert alert-info py-1 px-2 mb-0 font-size-12 d-flex align-items-center" style="height: 38px;">
+                        <i class="las la-globe mr-1 font-size-16"></i> Histórico completo sin límite de fecha
+                    </div>
+                </div>
+
                 @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.all_branches'))
-                    <div class="col-md-3">
+                    <div class="col-lg-2 col-md-3 mb-2 mb-md-0">
                         <label class="small font-weight-bold mb-1">Sucursal:</label>
-                        <select name="branch_id" class="form-control">
+                        <select name="branch_id" class="form-control font-weight-bold">
                             @foreach($branches as $b)
                                 <option value="{{ $b->id }}" {{ (int)$branchId === (int)$b->id ? 'selected' : '' }}>
                                     {{ $b->name }}
@@ -70,19 +138,25 @@
                         </select>
                     </div>
                 @endif
-                <div class="col-md-4">
-                    <label class="small font-weight-bold mb-1">Buscar cliente, referencia, módulo o método:</label>
-                    <input type="text" name="search" value="{{ $search }}" class="form-control" placeholder="Ej. nombre de cliente, efectivo, financiera...">
+
+                <div class="col-lg-2 col-md-3 mb-2 mb-md-0">
+                    <label class="small font-weight-bold mb-1">Buscar:</label>
+                    <input type="text" name="search" value="{{ $search }}" class="form-control" placeholder="Cliente, ref, módulo...">
                 </div>
-                <div class="col-md-2 mt-2 mt-md-0">
-                    <button class="btn btn-primary btn-block" type="submit">
-                        <i class="las la-search"></i> Consultar
+
+                <div class="col-lg-2 col-md-3 mt-2 mt-md-0 d-flex">
+                    <button class="btn btn-primary flex-grow-1 mr-1 shadow-sm font-weight-bold" type="submit">
+                        <i class="las la-search"></i> Filtrar
                     </button>
+                    <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId]) }}" class="btn btn-outline-secondary shadow-sm" title="Restablecer filtros a Hoy">
+                        <i class="las la-sync"></i>
+                    </a>
                 </div>
             </form>
         </div>
     </div>
 
+    @if($filterType === 'dia')
     {{-- Estado del Corte del Día --}}
     @if($finalDailyCut)
         <div class="alert alert-success d-flex justify-content-between align-items-center shadow-sm">
@@ -448,6 +522,250 @@
             </div>
         </div>
     </div>
+    @else
+        {{-- Modo Histórico (Rango o Todos los registros) --}}
+        <div class="alert alert-info shadow-sm d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <i class="las la-history la-lg mr-1"></i>
+                @if($filterType === 'rango')
+                    <strong>Modo Consulta por Rango:</strong> Mostrando movimientos y cortes del <strong>{{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}</strong> al <strong>{{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}</strong>.
+                @else
+                    <strong>Modo Consulta Histórico:</strong> Mostrando todos los movimientos y cortes registrados sin límite de fechas.
+                @endif
+                <span class="d-block small text-muted mt-1">
+                    Puedes consultar y reimprimir cualquier corte individual o generar el reporte consolidado. Para aplicar un Corte Z diario o arqueo de hoy, selecciona <strong>"Día en específico"</strong> en los filtros superiores.
+                </span>
+            </div>
+            <a href="{{ route('cash.printCut', $printParams) }}" target="_blank" class="btn btn-sm btn-dark font-weight-bold shadow-sm text-nowrap ml-3">
+                <i class="las la-print mr-1"></i> Imprimir Reporte Consolidado
+            </a>
+        </div>
+
+        {{-- Resumen Consolidado de KPIs del Periodo --}}
+        <div class="row mb-3">
+            <div class="col-md-3 mb-3">
+                <div class="card border-primary h-100 shadow-sm">
+                    <div class="card-header bg-primary text-white text-center py-2">
+                        <h6 class="mb-0 font-weight-bold"><i class="las la-coins mr-1"></i> Total Ingresos Globales</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="font-weight-bold mb-0 text-primary">${{ number_format($totalIncome, 2) }}</h3>
+                        <small class="text-muted font-weight-bold">Efectivo cobrado: ${{ number_format($handCash, 2) }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card border-danger h-100 shadow-sm">
+                    <div class="card-header bg-danger text-white text-center py-2">
+                        <h6 class="mb-0 font-weight-bold"><i class="las la-arrow-circle-up mr-1"></i> Total Egresos Efectivo</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="font-weight-bold text-danger mb-0">${{ number_format($totalExpense, 2) }}</h3>
+                        <small class="text-muted">Salidas de efectivo en caja</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card border-success h-100 shadow-sm">
+                    <div class="card-header bg-success text-white text-center py-2">
+                        <h6 class="mb-0 font-weight-bold"><i class="las la-balance-scale mr-1"></i> Balance Operativo</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="font-weight-bold text-success mb-0">${{ number_format($totalIncome - $totalExpense, 2) }}</h3>
+                        <small class="text-muted">Ingresos menos egresos</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card border-dark h-100 shadow-sm">
+                    <div class="card-header bg-dark text-white text-center py-2">
+                        <h6 class="mb-0 font-weight-bold"><i class="las la-receipt mr-1"></i> Cortes Registrados</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="font-weight-bold mb-0 text-dark">{{ $cutsHistory->count() }}</h3>
+                        <small class="text-dark d-block mt-1 font-weight-bold">
+                            {{ $cutsHistory->where('cut_type', 'corte_z')->count() }} Cortes Z | {{ $cutsHistory->where('cut_type', 'pre_corte')->count() }} Pre-Cortes X
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Totales informativos del periodo consultado --}}
+        <div class="card shadow-sm mb-4 border-secondary bg-light">
+            <div class="card-body py-2 px-3">
+                <div class="row align-items-center text-center text-md-left">
+                    <div class="col-md-3 my-1">
+                        <span class="text-muted small d-block">Transferencias:</span>
+                        <strong class="text-primary font-size-15">${{ number_format($cheque, 2) }}</strong>
+                    </div>
+                    <div class="col-md-3 my-1">
+                        <span class="text-muted small d-block">Pagos con Tarjeta:</span>
+                        <strong class="text-info font-size-15">${{ number_format($due, 2) }}</strong>
+                    </div>
+                    <div class="col-md-3 my-1">
+                        <span class="text-muted small d-block">Efectivo Físico Declarado (Cortes Z):</span>
+                        <strong class="text-dark font-size-15">${{ number_format($cutsHistory->where('cut_type', 'corte_z')->sum('declared_cash'), 2) }}</strong>
+                    </div>
+                    <div class="col-md-3 my-1 text-md-right">
+                        <span class="text-muted small d-block">Diferencia Acumulada en Cortes:</span>
+                        @php $totDiff = (float)$cutsHistory->where('cut_type', 'corte_z')->sum('difference_amount'); @endphp
+                        <strong class="font-size-15 {{ $totDiff < 0 ? 'text-danger' : ($totDiff > 0 ? 'text-warning' : 'text-success') }}">
+                            ${{ number_format($totDiff, 2) }}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ======================================================== --}}
+    {{-- TABLA DE CORTES DE CAJA REGISTRADOS (CORTES Z Y ARQUEOS X) --}}
+    {{-- ======================================================== --}}
+    <div class="card shadow-sm mb-4 border-primary">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap py-2">
+            <div>
+                <h6 class="mb-0 font-weight-bold text-white">
+                    <i class="las la-receipt mr-1"></i> Cortes Registrados
+                    @if($filterType === 'dia')
+                        del Día ({{ \Carbon\Carbon::parse($selectedDate)->format('d/m/Y') }})
+                    @elseif($filterType === 'rango')
+                        del Periodo ({{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }})
+                    @else
+                        (Todos los Registros Históricos)
+                    @endif
+                </h6>
+                <small class="text-white-50">
+                    Total: <strong>{{ $cutsHistory->count() }}</strong> cortes encontrados
+                    ({{ $cutsHistory->where('cut_type', 'corte_z')->count() }} Cortes Z, {{ $cutsHistory->where('cut_type', 'pre_corte')->count() }} Pre-Cortes X)
+                </small>
+            </div>
+            <div>
+                <a href="{{ route('cash.printCut', $printParams) }}"
+                   target="_blank"
+                   class="btn btn-sm btn-light font-weight-bold shadow-sm">
+                    <i class="las la-print mr-1"></i> Imprimir Reporte de Cortes
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if($cutsHistory->count() > 0)
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-striped mb-0 font-size-13">
+                        <thead class="thead-light font-weight-bold text-dark text-center">
+                            <tr>
+                                <th style="width: 70px;">Folio</th>
+                                <th style="width: 130px;">Tipo de Corte</th>
+                                <th style="width: 100px;">Fecha Op.</th>
+                                <th style="width: 90px;">Hora Cierre</th>
+                                <th>Sucursal</th>
+                                <th>Cajero / Usuario</th>
+                                <th class="text-right">Fondo Inicial</th>
+                                <th class="text-right text-success">Ingresos Tot.</th>
+                                <th class="text-right text-danger">Egresos Efec.</th>
+                                <th class="text-right font-weight-bold">Efectivo Físico</th>
+                                <th class="text-center">Cuadre / Dif.</th>
+                                <th style="width: 90px;" class="text-center">Modo</th>
+                                <th style="width: 120px;" class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($cutsHistory as $cut)
+                                @php
+                                    $diff = (float)($cut->difference_amount ?? 0);
+                                    $isZ = $cut->cut_type === 'corte_z';
+                                @endphp
+                                <tr class="align-middle">
+                                    <td class="text-center font-weight-bold text-dark align-middle">
+                                        #{{ $cut->id }}
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        @if($isZ)
+                                            <span class="badge badge-success px-2 py-1 font-size-11">
+                                                <i class="las la-check-double mr-1"></i>Corte Z (Final)
+                                            </span>
+                                        @else
+                                            <span class="badge badge-info px-2 py-1 font-size-11">
+                                                <i class="las la-clock mr-1"></i>Pre-Corte X
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center font-weight-bold align-middle">
+                                        {{ $cut->date ? \Carbon\Carbon::parse($cut->date)->format('d/m/Y') : '-' }}
+                                    </td>
+                                    <td class="text-center text-muted align-middle">
+                                        {{ optional($cut->closed_at ?? $cut->created_at)->format('H:i') }} hrs
+                                    </td>
+                                    <td class="align-middle font-size-12">
+                                        {{ $cut->branch->name ?? 'Sucursal' }}
+                                    </td>
+                                    <td class="align-middle font-size-12">
+                                        <div class="font-weight-bold text-dark">{{ $cut->user->name ?? 'Automático' }}</div>
+                                        @if($cut->notes)
+                                            <small class="text-muted d-block font-italic"><i class="las la-comment-alt mr-1"></i>{{ $cut->notes }}</small>
+                                        @endif
+                                    </td>
+                                    <td class="text-right align-middle text-muted">
+                                        ${{ number_format($cut->opening_balance ?? 0, 2) }}
+                                    </td>
+                                    <td class="text-right align-middle font-weight-bold text-success">
+                                        ${{ number_format($cut->total_income ?? 0, 2) }}
+                                        <div class="font-size-10 text-muted font-weight-normal">
+                                            Efec: ${{ number_format($cut->cash_income ?? 0, 2) }}
+                                        </div>
+                                    </td>
+                                    <td class="text-right align-middle text-danger font-weight-bold">
+                                        ${{ number_format($cut->total_expense ?? 0, 2) }}
+                                    </td>
+                                    <td class="text-right align-middle font-weight-bold text-dark font-size-14">
+                                        @if($cut->declared_cash !== null)
+                                            ${{ number_format($cut->declared_cash, 2) }}
+                                        @else
+                                            <span class="text-muted font-size-11">N/D</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        @if($cut->declared_cash !== null)
+                                            @if(round($diff, 2) == 0.0)
+                                                <span class="badge badge-success font-size-11">Cuadrado ($0.00)</span>
+                                            @elseif($diff < 0)
+                                                <span class="badge badge-danger font-size-11">-${{ number_format(abs($diff), 2) }}</span>
+                                            @else
+                                                <span class="badge badge-warning font-size-11">+${{ number_format($diff, 2) }}</span>
+                                            @endif
+                                        @else
+                                            <span class="badge badge-secondary font-size-11">Parcial</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <span class="badge badge-light border text-uppercase font-size-10">
+                                            {{ $cut->cut_mode ?? 'manual' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <a href="{{ route('cash.printCut', ['cut_id' => $cut->id, 'branch_id' => $branchId]) }}"
+                                           target="_blank"
+                                           class="btn btn-xs btn-outline-dark font-weight-bold px-2 py-1 shadow-sm"
+                                           title="Imprimir ticket individual de este corte">
+                                            <i class="las la-print mr-1"></i>Imprimir
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="text-center py-4 text-muted">
+                    <i class="las la-inbox fa-2x mb-2 d-block text-secondary" style="opacity: 0.4;"></i>
+                    No se encontraron cortes de caja registrados para este filtro.
+                </div>
+            @endif
+        </div>
+    </div>
 
     {{-- Resumen por Módulo Operativo del Día --}}
     @if(isset($moduleBreakdown) && $moduleBreakdown->count())
@@ -676,6 +994,48 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+// Alternar visualización de inputs según tipo de filtro (Día específico, Rango de fechas, Todos)
+document.addEventListener('DOMContentLoaded', function () {
+    const filterTypeSelect = document.getElementById('filterTypeSelect');
+    const singleDateContainer = document.getElementById('singleDateContainer');
+    const singleDateInput = document.getElementById('singleDateInput');
+    const dateRangeContainer = document.getElementById('dateRangeContainer');
+    const startDateInput = document.getElementById('startDateInput');
+    const endDateInput = document.getElementById('endDateInput');
+    const allRecordsContainer = document.getElementById('allRecordsContainer');
+
+    function updateFilterTypeView() {
+        if (!filterTypeSelect) return;
+        const val = filterTypeSelect.value;
+        if (val === 'dia') {
+            if (singleDateContainer) singleDateContainer.style.display = '';
+            if (singleDateInput) singleDateInput.disabled = false;
+            if (dateRangeContainer) dateRangeContainer.style.display = 'none';
+            if (startDateInput) startDateInput.disabled = true;
+            if (endDateInput) endDateInput.disabled = true;
+            if (allRecordsContainer) allRecordsContainer.style.display = 'none';
+        } else if (val === 'rango') {
+            if (singleDateContainer) singleDateContainer.style.display = 'none';
+            if (singleDateInput) singleDateInput.disabled = true;
+            if (dateRangeContainer) dateRangeContainer.style.display = '';
+            if (startDateInput) startDateInput.disabled = false;
+            if (endDateInput) endDateInput.disabled = false;
+            if (allRecordsContainer) allRecordsContainer.style.display = 'none';
+        } else if (val === 'todos') {
+            if (singleDateContainer) singleDateContainer.style.display = 'none';
+            if (singleDateInput) singleDateInput.disabled = true;
+            if (dateRangeContainer) dateRangeContainer.style.display = 'none';
+            if (startDateInput) startDateInput.disabled = true;
+            if (endDateInput) endDateInput.disabled = true;
+            if (allRecordsContainer) allRecordsContainer.style.display = '';
+        }
+    }
+
+    if (filterTypeSelect) {
+        filterTypeSelect.addEventListener('change', updateFilterTypeView);
+    }
+});
+
 // Apertura AUTOMÁTICA del cajón USB al enfocar el conteo de efectivo o al registrar corte
 document.addEventListener('DOMContentLoaded', function () {
     @if(session('success'))

@@ -6,6 +6,233 @@
         window.onload = () => window.print();
     </script>
 
+    @if($isMultiCutReport ?? false)
+        {{-- ========================================================= --}}
+        {{-- REPORTE CONSOLIDADO DE CORTES (RANGO O TODOS LOS REGISTROS) --}}
+        {{-- ========================================================= --}}
+        <div class="card shadow-sm border-dark mb-4">
+            <div class="card-header bg-dark text-white text-center py-3">
+                <h3 class="mb-1 font-weight-bold tracking-wide">
+                    @if($filterType === 'rango')
+                        REPORTE CONSOLIDADO DE CORTES DE CAJA
+                    @else
+                        REPORTE HISTÓRICO GENERAL DE CORTES DE CAJA
+                    @endif
+                </h3>
+                <div class="font-size-13 text-light">
+                    @if($filterType === 'rango')
+                        <span><strong>Período:</strong> Del {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}</span>
+                    @else
+                        <span><strong>Alcance:</strong> Todos los registros históricos</span>
+                    @endif
+                    <span class="mx-2">|</span>
+                    <span><strong>Sucursal:</strong> {{ $branch->name ?? 'Principal' }}</span>
+                    <span class="mx-2">|</span>
+                    <span><strong>Total Cortes:</strong> {{ $cutsCount }}</span>
+                    <span class="mx-2">|</span>
+                    <span><strong>Generado:</strong> {{ now()->format('d/m/Y H:i') }}</span>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                {{-- 1) RESUMEN FINANCIERO DEL PERIODO --}}
+                <div class="d-flex align-items-center mb-2 pb-1 border-bottom">
+                    <span class="badge badge-dark font-size-13 px-2 py-1 mr-2">1</span>
+                    <h5 class="mb-0 font-weight-bold text-dark text-uppercase">Resumen Financiero del Período</h5>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-2">
+                        <div class="p-3 border rounded bg-light text-center h-100">
+                            <small class="text-muted text-uppercase d-block font-weight-bold">Total Ingresos</small>
+                            <h4 class="font-weight-bold text-success mb-1">${{ number_format($totalIncome, 2) }}</h4>
+                            <div class="font-size-11 text-muted">
+                                Efec: ${{ number_format($cashIncome, 2) }}<br>
+                                Tarj: ${{ number_format($cardIncome, 2) }} | Trans: ${{ number_format($transferIncome, 2) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-2">
+                        <div class="p-3 border rounded bg-light text-center h-100">
+                            <small class="text-muted text-uppercase d-block font-weight-bold">Total Egresos Efec.</small>
+                            <h4 class="font-weight-bold text-danger mb-1">${{ number_format($totalExpense, 2) }}</h4>
+                            <small class="text-muted font-size-11">Salidas en efectivo</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-2">
+                        <div class="p-3 border rounded bg-light text-center h-100">
+                            <small class="text-muted text-uppercase d-block font-weight-bold">Efectivo Físico Declarado</small>
+                            <h4 class="font-weight-bold text-dark mb-1">${{ number_format($totalDeclaredCash, 2) }}</h4>
+                            <small class="text-muted font-size-11">En Cortes Z cerrados</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-2">
+                        <div class="p-3 border rounded bg-light text-center h-100">
+                            <small class="text-muted text-uppercase d-block font-weight-bold">Diferencia Acumulada</small>
+                            @if(round($totalDifference, 2) == 0.0)
+                                <h4 class="font-weight-bold text-success mb-1">$0.00</h4>
+                                <span class="badge badge-success font-size-11">Cuadre Exacto</span>
+                            @elseif($totalDifference < 0)
+                                <h4 class="font-weight-bold text-danger mb-1">-${{ number_format(abs($totalDifference), 2) }}</h4>
+                                <span class="badge badge-danger font-size-11">Faltante Neto</span>
+                            @else
+                                <h4 class="font-weight-bold text-warning mb-1">+${{ number_format($totalDifference, 2) }}</h4>
+                                <span class="badge badge-warning font-size-11">Sobrante Neto</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                {{-- 2) RELACIÓN DETALLADA DE CORTES REGISTRADOS --}}
+                <div class="d-flex align-items-center mb-2 pb-1 border-bottom">
+                    <span class="badge badge-dark font-size-13 px-2 py-1 mr-2">2</span>
+                    <h5 class="mb-0 font-weight-bold text-dark text-uppercase">Relación Detallada de Cortes (Z y X)</h5>
+                </div>
+
+                @if($cutsHistory->count() > 0)
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm table-bordered table-striped font-size-12 mb-0">
+                            <thead class="thead-dark text-center font-size-11">
+                                <tr>
+                                    <th style="width: 50px;">Folio</th>
+                                    <th style="width: 100px;">Tipo</th>
+                                    <th style="width: 80px;">Fecha</th>
+                                    <th style="width: 70px;">Hora</th>
+                                    <th>Cajero</th>
+                                    <th class="text-right">Fondo Ini.</th>
+                                    <th class="text-right">Total Ing.</th>
+                                    <th class="text-right">Ing. Efec.</th>
+                                    <th class="text-right">Egr. Efec.</th>
+                                    <th class="text-right">Efec. Declarado</th>
+                                    <th class="text-center">Diferencia</th>
+                                    <th style="width: 70px;" class="text-center">Modo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($cutsHistory as $cut)
+                                    @php
+                                        $diff = (float)($cut->difference_amount ?? 0);
+                                        $isZ = $cut->cut_type === 'corte_z';
+                                    @endphp
+                                    <tr>
+                                        <td class="text-center font-weight-bold">#{{ $cut->id }}</td>
+                                        <td class="text-center">
+                                            @if($isZ)
+                                                <span class="badge badge-success font-size-10">Corte Z</span>
+                                            @else
+                                                <span class="badge badge-info font-size-10">Pre-Corte X</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">{{ $cut->date ? \Carbon\Carbon::parse($cut->date)->format('d/m/Y') : '-' }}</td>
+                                        <td class="text-center text-muted">{{ optional($cut->closed_at ?? $cut->created_at)->format('H:i') }}</td>
+                                        <td>{{ $cut->user->name ?? 'Automático' }}</td>
+                                        <td class="text-right">${{ number_format($cut->opening_balance ?? 0, 2) }}</td>
+                                        <td class="text-right font-weight-bold">${{ number_format($cut->total_income ?? 0, 2) }}</td>
+                                        <td class="text-right text-success">${{ number_format($cut->cash_income ?? 0, 2) }}</td>
+                                        <td class="text-right text-danger">${{ number_format($cut->total_expense ?? 0, 2) }}</td>
+                                        <td class="text-right font-weight-bold">
+                                            {{ $cut->declared_cash !== null ? '$' . number_format($cut->declared_cash, 2) : '-' }}
+                                        </td>
+                                        <td class="text-center">
+                                            @if($cut->declared_cash !== null)
+                                                @if(round($diff, 2) == 0.0)
+                                                    <span class="text-success font-weight-bold">$0.00</span>
+                                                @elseif($diff < 0)
+                                                    <span class="text-danger font-weight-bold">-${{ number_format(abs($diff), 2) }}</span>
+                                                @else
+                                                    <span class="text-warning font-weight-bold">+${{ number_format($diff, 2) }}</span>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center text-uppercase font-size-10">{{ $cut->cut_mode ?? 'manual' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="thead-light font-weight-bold">
+                                <tr>
+                                    <th colspan="6" class="text-right">TOTALES ACUMULADOS:</th>
+                                    <th class="text-right">${{ number_format($cutsHistory->sum('total_income'), 2) }}</th>
+                                    <th class="text-right text-success">${{ number_format($cutsHistory->sum('cash_income'), 2) }}</th>
+                                    <th class="text-right text-danger">${{ number_format($cutsHistory->sum('total_expense'), 2) }}</th>
+                                    <th class="text-right">${{ number_format($totalDeclaredCash, 2) }}</th>
+                                    <th class="text-center {{ $totalDifference < 0 ? 'text-danger' : ($totalDifference > 0 ? 'text-warning' : 'text-success') }}">
+                                        ${{ number_format($totalDifference, 2) }}
+                                    </th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                @else
+                    <div class="alert alert-light border text-center py-4 text-muted mb-4">
+                        No se registraron cortes en el período seleccionado.
+                    </div>
+                @endif
+
+                {{-- 3) OPERACIONES Y MOVIMIENTOS REGISTRADOS EN EL PERIODO --}}
+                @if(count($chronologicalOperations) > 0)
+                    <div class="d-flex align-items-center mb-2 pb-1 border-bottom">
+                        <span class="badge badge-dark font-size-13 px-2 py-1 mr-2">3</span>
+                        <h5 class="mb-0 font-weight-bold text-dark text-uppercase">Bitácora de Operaciones del Período ({{ count($chronologicalOperations) }})</h5>
+                    </div>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-bordered table-hover mb-0 font-size-11">
+                            <thead class="thead-light text-uppercase">
+                                <tr>
+                                    <th style="width: 75px;" class="text-center">Hora</th>
+                                    <th style="width: 180px;">Cliente / Operación</th>
+                                    <th style="width: 70px;" class="text-center">Tipo</th>
+                                    <th style="width: 90px;" class="text-center">Método</th>
+                                    <th style="width: 100px;" class="text-right">Monto ($)</th>
+                                    <th>Detalle de Conceptos</th>
+                                    <th style="width: 100px;">Módulo</th>
+                                    <th style="width: 90px;">Cajero</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($chronologicalOperations as $op)
+                                    <tr>
+                                        <td class="text-center align-middle">{{ $op['time'] }}</td>
+                                        <td class="align-middle font-weight-bold">{{ $op['customer_name'] }}</td>
+                                        <td class="text-center align-middle">
+                                            <span class="badge badge-pill badge-{{ $op['type'] === 'income' ? 'success' : 'danger' }}">
+                                                {{ $op['type'] === 'income' ? 'Ingreso' : 'Egreso' }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center align-middle text-uppercase">{{ $op['payment_method'] }}</td>
+                                        <td class="text-right align-middle font-weight-bold text-{{ $op['type'] === 'income' ? 'success' : 'danger' }}">
+                                            ${{ number_format($op['total_amount'], 2) }}
+                                        </td>
+                                        <td class="align-middle">
+                                            <ul class="mb-0 pl-3 list-unstyled">
+                                                @foreach($op['concepts'] as $c)
+                                                    <li>
+                                                        <i class="fa-solid fa-circle text-primary font-size-7 mr-1" style="font-size: 7px; vertical-align: middle;"></i>
+                                                        {{ $c['title'] }} — <strong>${{ number_format($c['amount'], 2) }}</strong>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </td>
+                                        <td class="align-middle text-muted">{{ $op['module'] }}</td>
+                                        <td class="align-middle text-muted">{{ $op['user_name'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+
+            <div class="card-footer text-muted text-center small py-2 bg-light font-size-11">
+                <strong>ZYA Celulares</strong> | Reporte Consolidado de Cortes de Caja | Impreso por: <strong>{{ auth()->user()->name ?? 'Sistema' }}</strong> el {{ now()->format('d/m/Y H:i:s') }}
+            </div>
+        </div>
+    @else
     @php
         $isPreCut = ($dailyCut->cut_type ?? 'corte_z') === 'pre_corte';
         $reportTitle = $isPreCut ? 'REPORTE DE PRE-CORTE (CORTE X)' : 'REPORTE DE CORTE FINAL DIARIO (CORTE Z)';
@@ -305,5 +532,6 @@
             <strong>ZYA Celulares</strong> | Reporte Z Oficial de Conciliación Diaria | Impreso por: <strong>{{ auth()->user()->name ?? 'Sistema' }}</strong> el {{ now()->format('d/m/Y H:i:s') }}
         </div>
     </div>
+    @endif
 </div>
 @endsection
