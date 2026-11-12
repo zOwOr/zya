@@ -239,6 +239,46 @@ class TicketPrintAndDirectPrintTest extends TestCase
     }
 
     /**
+     * Verificar que el botón de Ticket en la tabla de movimientos del Dashboard
+     * NO abre una nueva pestaña (no usa target="_blank"), sino que invoca printTicketDirectly.
+     */
+    public function test_dashboard_ticket_button_does_not_open_new_tab(): void
+    {
+        $this->actingAs($this->userAllende);
+
+        $tx = PosTransaction::create([
+            'transaction_code' => 'MOV-' . date('Ymd') . '-TEST1',
+            'branch_id' => $this->branchAllende->id,
+            'user_id' => $this->userAllende->id,
+            'customer_name' => 'Cliente Prueba Dashboard',
+            'subtotal' => 150.00,
+            'commission_total' => 0.00,
+            'total_amount' => 150.00,
+            'paid_amount' => 150.00,
+            'change_amount' => 0.00,
+            'payment_method' => 'efectivo',
+            'cash_amount' => 150.00,
+            'card_amount' => 0.00,
+            'transfer_amount' => 0.00,
+            'status' => 'completado',
+            'created_at' => now(),
+        ]);
+
+        $response = $this->get(route('dashboard'));
+        $response->assertStatus(200);
+
+        $content = $response->getContent();
+
+        // 1. Debe contener el botón de Ticket
+        $this->assertStringContainsString('Ticket', $content);
+        $this->assertStringContainsString('printTicketDirectly', $content);
+        $this->assertStringContainsString(route('central-pos.receipt', $tx->id), $content);
+
+        // 2. NO debe tener target="_blank" en el botón de ticket de movimientos
+        $this->assertStringNotContainsString(route('central-pos.receipt', $tx->id) . '" target="_blank"', $content);
+    }
+
+    /**
      * P9: Verificar que las vistas de documentos/facturas/contratos/pagarés cuentan con
      * botones visibles de retorno al punto de venta y al menú principal.
      */

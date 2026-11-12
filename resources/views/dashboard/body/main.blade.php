@@ -743,6 +743,50 @@
                 window.resetSubmitButtons($(this));
             });
         });
+
+        // Impresión directa de tickets en segundo plano sin abrir nueva pestaña del navegador
+        window.printTicketDirectly = function(url) {
+            if (!url) return;
+            var oldFrame = document.getElementById('posDirectPrintFrame');
+            if (oldFrame) {
+                oldFrame.remove();
+            }
+            var frame = document.createElement('iframe');
+            frame.id = 'posDirectPrintFrame';
+            frame.name = 'posDirectPrintFrame';
+            frame.style.position = 'fixed';
+            frame.style.right = '0';
+            frame.style.bottom = '0';
+            frame.style.width = '1px';
+            frame.style.height = '1px';
+            frame.style.border = '0';
+            frame.style.opacity = '0.01';
+            frame.style.pointerEvents = 'none';
+
+            frame.onload = function() {
+                try {
+                    if (frame.contentWindow && frame.contentWindow.location.href !== 'about:blank') {
+                        setTimeout(function() {
+                            frame.contentWindow.focus();
+                            frame.contentWindow.print();
+                        }, 250);
+                    }
+                } catch (e) {
+                    console.error('Error al imprimir ticket directo:', e);
+                }
+            };
+
+            document.body.appendChild(frame);
+            frame.src = url;
+        };
+
+        $(document).on('click', '.btn-direct-print, [data-direct-print]', function(e) {
+            e.preventDefault();
+            var url = $(this).data('direct-print') || $(this).attr('href');
+            if (url && url !== '#') {
+                window.printTicketDirectly(url);
+            }
+        });
     </script>
 </body>
 

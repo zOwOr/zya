@@ -9,9 +9,9 @@
                     <div class="iq-alert-text">
                         <i class="fa-solid fa-circle-check mr-2"></i>{{ session('success') }}
                         @if (session('print_ticket_url'))
-                            <a href="{{ session('print_ticket_url') }}" target="_blank" class="btn btn-sm btn-light text-dark font-weight-bold ml-3">
+                            <button type="button" onclick="window.printTicketDirectly('{{ session('print_ticket_url') }}')" class="btn btn-sm btn-light text-dark font-weight-bold ml-3">
                                 <i class="fa-solid fa-print mr-1"></i>Imprimir Ticket (Sin Saldo Pendiente)
-                            </a>
+                            </button>
                         @endif
                     </div>
                     <button type="button" class="close text-white" data-dismiss="alert" aria-label="Close">
@@ -212,9 +212,9 @@
                                                 <td class="font-weight-bold text-success">${{ number_format($pmt->amount, 2) }}</td>
                                                 <td>{{ $pmt->user?->name ?? 'Sistema' }}</td>
                                                 <td class="text-right">
-                                                    <a href="{{ route('loans.ticket', $pmt->id) }}" target="_blank" class="btn btn-xs btn-outline-dark" title="Imprimir ticket sin saldo pendiente">
+                                                    <button type="button" onclick="window.printTicketDirectly('{{ route('loans.ticket', $pmt->id) }}')" class="btn btn-xs btn-outline-dark" title="Imprimir ticket sin saldo pendiente">
                                                         <i class="fa-solid fa-print mr-1"></i>Ticket
-                                                    </a>
+                                                    </button>
                                                 </td>
                                             </tr>
                                         @empty

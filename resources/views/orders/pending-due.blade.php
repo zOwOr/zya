@@ -983,9 +983,9 @@
                                 <td class="font-size-12">${h.branch_name}</td>
                                 <td class="font-size-11 text-muted">${h.note || '-'}</td>
                                 <td class="text-center">
-                                    <a href="${h.ticket_url}" target="_blank" class="btn btn-xs btn-outline-primary" title="Imprimir Ticket">
+                                    <button type="button" onclick="window.printTicketDirectly('${h.ticket_url}')" class="btn btn-xs btn-outline-primary" title="Imprimir Ticket">
                                         <i class="fa-solid fa-print"></i>
-                                    </a>
+                                    </button>
                                 </td>
                             </tr>
                         `;

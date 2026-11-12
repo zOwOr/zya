@@ -354,9 +354,9 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="d-flex justify-content-center gap-1">
-                                        <a href="{{ route('central-pos.receipt', $tx->id) }}" target="_blank" class="btn btn-xs btn-outline-dark mr-1" title="Reimprimir Ticket">
+                                        <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $tx->id) }}')" class="btn btn-xs btn-outline-dark mr-1" title="Imprimir Ticket">
                                             <i class="las la-print"></i> Ticket
-                                        </a>
+                                        </button>
                                         @if($tx->status === 'completado' && (auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.cancel_transaction') || auth()->user()->can('cobros.cancel_transaction')))
                                             <form method="POST" action="{{ route('dashboard.transactions.cancel', $tx->id) }}" onsubmit="return confirm('¿Seguro que deseas cancelar este movimiento?')">
                                                 @csrf
