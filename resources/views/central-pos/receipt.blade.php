@@ -37,6 +37,38 @@
             font-size: 11px;
             padding: 3px 4mm 3px 1mm;
         }
+        body.paper-letter {
+            width: 100%;
+            max-width: 580px;
+            margin: 14px auto;
+            padding: 20px 26px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13.5px;
+            line-height: 1.45;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+        body.capture-clean .toolbar {
+            display: none !important;
+        }
+        .capture-restore-chip {
+            display: none;
+            position: fixed;
+            top: 8px;
+            right: 8px;
+            z-index: 9999;
+            background: rgba(15, 23, 42, 0.78);
+            color: #fff !important;
+            border: none;
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        body.capture-clean .capture-restore-chip {
+            display: inline-block;
+        }
         .center { text-align: center; }
         .bold, b, strong { font-weight: 900 !important; }
         .divider { border-top: 1.5px dashed #000 !important; margin: 5px 0; }
@@ -120,10 +152,26 @@
                 box-sizing: border-box !important;
                 overflow: hidden !important;
             }
+            body.paper-letter {
+                width: 185mm !important;
+                max-width: 185mm !important;
+                margin: 8mm auto !important;
+                padding: 10mm 14mm !important;
+                border: none !important;
+                box-shadow: none !important;
+                font-size: 13px !important;
+                line-height: 1.45 !important;
+                overflow: visible !important;
+            }
         }
     </style>
+    <style id="dynamicPageRule"></style>
 </head>
 <body id="ticketBody">
+
+    <button type="button" class="no-print capture-restore-chip" onclick="toggleCaptureMode(false)">
+        👁️ Mostrar controles
+    </button>
 
     <div class="no-print toolbar">
         <a href="{{ route('central-pos.index') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
@@ -132,12 +180,22 @@
         <a href="{{ route('dashboard') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
             🏠 Menú Principal
         </a>
-        <button class="btn-tool btn-primary-tool" onclick="window.print()">
-            🖨️ Imprimir Ticket
+        <button type="button" class="btn-tool btn-primary-tool" onclick="window.print()">
+            🖨️ Imprimir
         </button>
-        <button class="btn-tool" onclick="togglePaperWidth()">
-            📄 <span id="paperLabel">Modo: 80mm</span>
+        <button type="button" class="btn-tool" id="btnMode80" onclick="setPaperMode('80')">
+            🧾 XP 80mm
         </button>
+        <button type="button" class="btn-tool" id="btnMode58" onclick="setPaperMode('58')">
+            🧾 XP 58mm
+        </button>
+        <button type="button" class="btn-tool" id="btnModeLetter" onclick="setPaperMode('letter')">
+            📄 Epson Carta
+        </button>
+        <button type="button" class="btn-tool btn-success-tool" onclick="toggleCaptureMode(true)" title="Ocultar botones para tomar captura y enviar por WhatsApp">
+            📸 Captura WhatsApp
+        </button>
+        <span style="display:none;" id="paperLabel">Modo: 80mm</span>
     </div>
 
     {{-- Secuencia ESC/POS invisible en caso de driver con modo texto --}}
@@ -213,16 +271,17 @@
     <div class="bold" style="margin-bottom: 3px; font-size: 11px;">CONCEPTOS DEL MOVIMIENTO:</div>
     @foreach ($transaction->items_payload ?? [] as $item)
         @php
+            $sec = $item['section'] ?? '';
             $qty = max(1, (int) ($item['quantity'] ?? 1));
-            $amt = ($item['section'] ?? '') === 'prestamo_apertura' ? 0 : ((float) ($item['amount'] ?? 0) * $qty);
+            $amt = in_array($sec, ['prestamo_apertura', 'gift'], true) ? 0 : ((float) ($item['amount'] ?? 0) * $qty);
             $comm = (float) ($item['commission'] ?? 0);
         @endphp
         <div style="margin-bottom: 5px;">
-            <div class="bold">{{ $qty }}x {{ $item['title'] ?? 'Concepto' }}</div>
+            <div class="bold">{{ $qty }}x {{ $item['title'] ?? 'Concepto' }}@if($sec === 'gift') <span style="font-size:10px;">(REGALO)</span>@endif</div>
             @if (!empty($item['subtitle']))
                 <div style="font-size: 10px; color: #222;">{{ $item['subtitle'] }}</div>
             @endif
-            @if (($item['section'] ?? '') !== 'prestamo_apertura')
+            @if ($sec !== 'prestamo_apertura')
                 <div class="row-flex">
                     <span class="bold">Importe:</span>
                     <span class="bold" style="font-size: 13px;">${{ number_format($amt, 2) }}</span>
@@ -342,41 +401,88 @@
             }
         };
 
-        let is58mm = localStorage.getItem('zya_ticket_width') === '58';
+        let paperMode = (function () {
+            const urlPaper = new URLSearchParams(window.location.search).get('paper');
+            if (urlPaper && ['80', '58', 'letter'].includes(urlPaper)) {
+                return urlPaper;
+            }
+            const stored = localStorage.getItem('zya_ticket_paper_mode');
+            if (stored && ['80', '58', 'letter'].includes(stored)) {
+                return stored;
+            }
+            return localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80';
+        })();
+
         function applyPaperWidth() {
             const body = document.getElementById('ticketBody');
             const lbl = document.getElementById('paperLabel');
-            if (is58mm) {
+            const pageRuleEl = document.getElementById('dynamicPageRule');
+            body.classList.remove('paper-58mm', 'paper-letter');
+
+            if (paperMode === '58') {
                 body.classList.add('paper-58mm');
-                lbl.textContent = 'Modo: 58mm';
+                if (lbl) lbl.textContent = 'Modo: 58mm';
+                if (pageRuleEl) pageRuleEl.textContent = '';
+            } else if (paperMode === 'letter') {
+                body.classList.add('paper-letter');
+                if (lbl) lbl.textContent = 'Modo: Carta (Epson)';
+                if (pageRuleEl) pageRuleEl.textContent = '@media print { @page { size: letter portrait; margin: 10mm; } }';
             } else {
-                body.classList.remove('paper-58mm');
-                lbl.textContent = 'Modo: 80mm';
+                if (lbl) lbl.textContent = 'Modo: 80mm';
+                if (pageRuleEl) pageRuleEl.textContent = '';
             }
+
+            ['btnMode80', 'btnMode58', 'btnModeLetter'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('btn-primary-tool');
+            });
+            const activeBtnId = paperMode === '58' ? 'btnMode58' : (paperMode === 'letter' ? 'btnModeLetter' : 'btnMode80');
+            const activeEl = document.getElementById(activeBtnId);
+            if (activeEl) activeEl.classList.add('btn-primary-tool');
         }
-        function togglePaperWidth() {
-            is58mm = !is58mm;
-            localStorage.setItem('zya_ticket_width', is58mm ? '58' : '80');
+
+        function setPaperMode(mode) {
+            if (!['80', '58', 'letter'].includes(mode)) return;
+            paperMode = mode;
+            localStorage.setItem('zya_ticket_paper_mode', mode);
+            localStorage.setItem('zya_ticket_width', mode === '58' ? '58' : '80');
             applyPaperWidth();
+        }
+
+        function togglePaperWidth() {
+            const order = ['80', '58', 'letter'];
+            const next = order[(order.indexOf(paperMode) + 1) % order.length];
+            setPaperMode(next);
+        }
+
+        function toggleCaptureMode(enable) {
+            const body = document.getElementById('ticketBody');
+            if (!body) return;
+            if (enable) body.classList.add('capture-clean');
+            else body.classList.remove('capture-clean');
         }
 
         window.addEventListener('load', async function () {
             applyPaperWidth();
 
+            const queryParams = new URLSearchParams(window.location.search);
+            const skipDrawerParam = queryParams.get('skip_drawer') === '1';
+            const isPreviewMode = queryParams.get('preview') === '1';
+
             @php
-                $isCash = ($transaction->payment_method === 'efectivo' || $transaction->cash_amount > 0 || (bool) $transaction->drawer_opened);
+                $isCash = ($transaction->payment_method === 'efectivo' || (float) $transaction->cash_amount > 0);
             @endphp
             @if($isCash)
-                // Disparo AUTOMÁTICO del cajón físico USB en ventas y cobros
-                if (window.ZyaPosHardware) {
+                // Disparo AUTOMÁTICO del cajón físico USB solo cuando el cobro involucra efectivo (evita doble disparo o disparo en vista previa)
+                if (!skipDrawerParam && !isPreviewMode && window.ZyaPosHardware) {
                     try {
                         await ZyaPosHardware.autoOpenUsbDrawer();
                     } catch (e) {}
                 }
             @endif
 
-            // Disparar diálogo de impresión solo si la ventana es independiente (evita doble impresión cuando se carga en iframe)
-            if (window.self === window.top) {
+            // Disparar diálogo de impresión solo si la ventana es independiente y no está en vista previa de captura
+            if (window.self === window.top && !isPreviewMode) {
                 try {
                     window.focus();
                     window.print();

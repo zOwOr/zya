@@ -800,7 +800,77 @@
                 window.printTicketDirectly(url);
             }
         });
+
+        window.openTicketPreviewModal = function(receiptUrl, titleText) {
+            if (!receiptUrl) return;
+            var baseUrl = receiptUrl.split('?')[0];
+            var mode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
+            var frameEl = document.getElementById('globalTicketPreviewIframe');
+            var titleEl = document.getElementById('globalTicketPreviewTitle');
+            var fullBtn = document.getElementById('globalTicketOpenFullBtn');
+            var printBtn = document.getElementById('globalTicketPrintBtn');
+
+            if (titleEl) titleEl.textContent = titleText || 'Vista Previa de Ticket';
+            if (fullBtn) fullBtn.href = baseUrl + '?preview=1&paper=' + mode;
+            if (printBtn) {
+                printBtn.onclick = function() {
+                    window.printTicketDirectly(baseUrl + '?skip_drawer=1&paper=' + (localStorage.getItem('zya_ticket_paper_mode') || '80'));
+                };
+            }
+            if (frameEl) {
+                frameEl.src = baseUrl + '?preview=1&paper=' + mode;
+            }
+            if (window.jQuery) {
+                $('#globalTicketPreviewModal').modal('show');
+            }
+        };
+
+        window.setGlobalTicketPreviewMode = function(mode) {
+            localStorage.setItem('zya_ticket_paper_mode', mode);
+            localStorage.setItem('zya_ticket_width', mode === '58' ? '58' : '80');
+            var frameEl = document.getElementById('globalTicketPreviewIframe');
+            var fullBtn = document.getElementById('globalTicketOpenFullBtn');
+            if (frameEl && frameEl.src) {
+                var baseUrl = frameEl.src.split('?')[0];
+                frameEl.src = baseUrl + '?preview=1&paper=' + mode;
+                if (fullBtn) fullBtn.href = baseUrl + '?preview=1&paper=' + mode;
+            }
+        };
     </script>
+
+    <!-- Modal Global de Vista Previa de Tickets (WhatsApp / Impresión XP o Epson) -->
+    <div class="modal fade" id="globalTicketPreviewModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white py-2">
+                    <h6 class="modal-title font-weight-bold text-white mb-0">
+                        <i class="fa-solid fa-receipt mr-2"></i><span id="globalTicketPreviewTitle">Vista Previa de Ticket</span>
+                    </h6>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-2 bg-light">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 px-1">
+                        <div class="btn-group btn-group-sm mb-1" role="group">
+                            <button type="button" class="btn btn-outline-secondary font-weight-bold" onclick="window.setGlobalTicketPreviewMode('80')">XP 80mm</button>
+                            <button type="button" class="btn btn-outline-secondary font-weight-bold" onclick="window.setGlobalTicketPreviewMode('58')">XP 58mm</button>
+                            <button type="button" class="btn btn-outline-info font-weight-bold" onclick="window.setGlobalTicketPreviewMode('letter')">Epson Carta</button>
+                        </div>
+                        <div class="mb-1">
+                            <button type="button" id="globalTicketPrintBtn" class="btn btn-sm btn-primary font-weight-bold mr-1">
+                                <i class="fa-solid fa-print mr-1"></i>Imprimir
+                            </button>
+                            <a href="#" id="globalTicketOpenFullBtn" target="_blank" rel="noopener" class="btn btn-sm btn-success font-weight-bold">
+                                <i class="fa-brands fa-whatsapp mr-1"></i>Captura / Pantalla Completa
+                            </a>
+                        </div>
+                    </div>
+                    <iframe id="globalTicketPreviewIframe" src="about:blank" style="width:100%; height:520px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

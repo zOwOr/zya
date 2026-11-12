@@ -104,6 +104,9 @@
             <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId, 'date' => $date]) }}" class="btn btn-info mr-2">
                 <i class="las la-calculator"></i> Corte Diario (Pre-Corte X / Corte Z)
             </a>
+            <a href="{{ route('cash.expenses', ['branch_id' => $branchId, 'date' => $date]) }}" class="btn btn-outline-danger">
+                <i class="fa-solid fa-file-invoice-dollar"></i> Reporte de Gastos
+            </a>
         </div>
     </div>
 

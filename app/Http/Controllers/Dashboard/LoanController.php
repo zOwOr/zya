@@ -26,13 +26,17 @@ class LoanController extends Controller
 
     protected array $permissionMapping = [
         'index' => 'read',
+        'articleCreditsIndex' => 'read',
         'create' => 'create',
+        'articleCreditsCreate' => 'create',
         'store' => 'create',
         'show' => 'read',
         'checkCustomerAlerts' => 'read',
         'registerPayment' => 'abonar',
         'manualClose' => 'close_manual',
+        'cancel' => 'delete',
         'printPromissoryNote' => 'read',
+        'printDeliveryReceipt' => 'read',
         'uploadPromissoryNote' => 'edit',
         'downloadPromissoryNote' => 'read',
         'printTicket' => 'read',
@@ -70,16 +74,31 @@ class LoanController extends Controller
 
     public function index(Request $request)
     {
+        return $this->renderIndex($request, null);
+    }
+
+    public function articleCreditsIndex(Request $request)
+    {
+        return $this->renderIndex($request, 'credito_articulo');
+    }
+
+    protected function renderIndex(Request $request, ?string $forcedOperationType = null)
+    {
         $search = trim((string) $request->input('search', ''));
         $status = $request->input('status');
         $loanTypeId = $request->input('loan_type_id');
+        $operationType = $forcedOperationType ?: $request->input('operation_type', 'prestamo');
+        if (!in_array($operationType, ['prestamo', 'credito_articulo', 'all'], true)) {
+            $operationType = 'prestamo';
+        }
         $branchId = $this->canAccessAllBranches()
             ? $request->input('branch_id')
             : auth()->user()->branch_id;
 
-        // Actualizar automáticamente a estado 'mora' aquellos préstamos activos con cuotas vencidas
+        // Actualizar automáticamente a estado 'mora' aquellos préstamos/créditos activos con cuotas vencidas
         Loan::where('status', 'activo')
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->when($operationType !== 'all', fn($q) => $q->where('operation_type', $operationType))
             ->whereHas('installments', function ($q) {
                 $q->whereIn('status', ['pendiente', 'parcial'])
                   ->whereDate('scheduled_date', '<', Carbon::today());
@@ -88,11 +107,17 @@ class LoanController extends Controller
 
         $loans = Loan::with(['customer', 'loanType', 'branch', 'user', 'installments'])
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->when($operationType !== 'all', fn($q) => $q->where('operation_type', $operationType))
             ->when($status, fn($q) => $q->where('status', $status))
             ->when($loanTypeId, fn($q) => $q->where('loan_type_id', $loanTypeId))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('loan_code', 'like', "%{$search}%")
+                        ->orWhere('article_name', 'like', "%{$search}%")
+                        ->orWhere('article_brand', 'like', "%{$search}%")
+                        ->orWhere('article_model', 'like', "%{$search}%")
+                        ->orWhere('article_imei', 'like', "%{$search}%")
+                        ->orWhere('article_serial', 'like', "%{$search}%")
                         ->orWhereHas('customer', function ($c) use ($search) {
                             $c->where('tit_name', 'like', "%{$search}%")
                               ->orWhere('tit_phone', 'like', "%{$search}%");
@@ -106,14 +131,20 @@ class LoanController extends Controller
         $loanTypes = LoanType::orderBy('name')->get();
         $branches = Branch::orderBy('name')->get();
 
-        $statsQuery = Loan::when($branchId, fn($q) => $q->where('branch_id', $branchId));
+        $statsQuery = Loan::when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->when($operationType !== 'all', fn($q) => $q->where('operation_type', $operationType));
         $stats = [
             'active_count' => (clone $statsQuery)->whereIn('status', ['activo', 'mora'])->count(),
             'mora_count' => (clone $statsQuery)->where('status', 'mora')->count(),
             'total_lent' => (clone $statsQuery)->where('status', '!=', 'cancelado')->sum('principal_amount'),
-            'total_collected' => (clone $statsQuery)->sum('paid_amount'),
+            'total_price' => (clone $statsQuery)->where('status', '!=', 'cancelado')->sum('article_price'),
+            'total_down_payment' => (clone $statsQuery)->where('status', '!=', 'cancelado')->sum('down_payment'),
+            'total_collected' => (clone $statsQuery)->where('status', '!=', 'cancelado')->sum('paid_amount'),
+            'total_balance' => (clone $statsQuery)->where('status', '!=', 'cancelado')->sum('balance_amount'),
             'total_commissions' => (clone $statsQuery)->where('status', '!=', 'cancelado')->sum('opening_commission'),
         ];
+
+        $isArticleCreditView = ($operationType === 'credito_articulo');
 
         return view('loans.index', compact(
             'loans',
@@ -123,18 +154,31 @@ class LoanController extends Controller
             'search',
             'status',
             'loanTypeId',
-            'branchId'
+            'branchId',
+            'operationType',
+            'isArticleCreditView'
         ));
     }
 
     public function create(Request $request)
+    {
+        $operationType = $request->input('operation_type') === 'credito_articulo' ? 'credito_articulo' : 'prestamo';
+        return $this->renderCreate($request, $operationType);
+    }
+
+    public function articleCreditsCreate(Request $request)
+    {
+        return $this->renderCreate($request, 'credito_articulo');
+    }
+
+    protected function renderCreate(Request $request, string $operationType = 'prestamo')
     {
         $customers = Customer::orderBy('tit_name')->get();
         $loanTypes = LoanType::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::orderBy('name')->get();
         $selectedCustomerId = $request->input('customer_id');
 
-        return view('loans.create', compact('customers', 'loanTypes', 'branches', 'selectedCustomerId'));
+        return view('loans.create', compact('customers', 'loanTypes', 'branches', 'selectedCustomerId', 'operationType'));
     }
 
     /**
@@ -195,13 +239,62 @@ class LoanController extends Controller
         ]);
     }
 
+    /**
+     * Resuelve método de pago y montos desglosados (efectivo/tarjeta/transferencia) sin duplicar lógica.
+     *
+     * @return array{method: string, cash: float, card: float, transfer: float}
+     */
+    protected function resolvePaymentBreakdown(Request $request, float $amount, string $methodField, string $cashField, string $cardField, string $transferField): array
+    {
+        $method = (string) $request->input($methodField, 'efectivo');
+        if (!in_array($method, ['efectivo', 'tarjeta', 'transferencia', 'mixto'], true)) {
+            $method = 'efectivo';
+        }
+
+        $cash = $method === 'mixto' ? round((float) $request->input($cashField, 0), 2) : ($method === 'efectivo' ? $amount : 0);
+        $card = $method === 'mixto' ? round((float) $request->input($cardField, 0), 2) : ($method === 'tarjeta' ? $amount : 0);
+        $transfer = $method === 'mixto' ? round((float) $request->input($transferField, 0), 2) : ($method === 'transferencia' ? $amount : 0);
+
+        if (($cash + $card + $transfer) <= 0 && $amount > 0) {
+            $cash = $amount;
+            $method = 'efectivo';
+        }
+
+        return [
+            'method' => $method,
+            'cash' => $cash,
+            'card' => $card,
+            'transfer' => $transfer,
+        ];
+    }
+
     public function store(Request $request)
     {
+        $operationType = $request->input('operation_type') === 'credito_articulo' ? 'credito_articulo' : 'prestamo';
+
         $validated = $request->validate([
+            'operation_type' => 'nullable|in:prestamo,credito_articulo',
+            'delivery_method' => 'nullable|in:efectivo,transferencia,mercancia',
             'customer_id' => 'required|exists:customers,id',
             'loan_type_id' => 'nullable|exists:loan_types,id',
             'branch_id' => 'nullable|exists:branches,id',
-            'principal_amount' => 'required|numeric|min:1',
+            'principal_amount' => ($operationType === 'credito_articulo' ? 'nullable' : 'required') . '|numeric|min:1',
+            'article_price' => ($operationType === 'credito_articulo' ? 'required' : 'nullable') . '|numeric|min:1',
+            'down_payment' => 'nullable|numeric|min:0',
+            'down_payment_method' => 'nullable|in:efectivo,tarjeta,transferencia,mixto',
+            'down_payment_cash' => 'nullable|numeric|min:0',
+            'down_payment_card' => 'nullable|numeric|min:0',
+            'down_payment_transfer' => 'nullable|numeric|min:0',
+            'article_status' => 'nullable|in:nuevo,seminuevo,servicio',
+            'article_name' => 'nullable|string|max:200',
+            'article_brand' => 'nullable|string|max:120',
+            'article_model' => 'nullable|string|max:120',
+            'article_color' => 'nullable|string|max:80',
+            'article_capacity' => 'nullable|string|max:80',
+            'article_imei' => 'nullable|string|max:80',
+            'article_serial' => 'nullable|string|max:120',
+            'article_warranty' => 'nullable|string|max:150',
+            'article_observations' => 'nullable|string|max:2000',
             'installment_amount' => 'nullable|numeric|min:0.01',
             'interest_rate' => 'nullable|numeric|min:0',
             'opening_commission' => 'nullable|numeric|min:0',
@@ -216,6 +309,8 @@ class LoanController extends Controller
             'commission_card' => 'nullable|numeric|min:0',
             'commission_transfer' => 'nullable|numeric|min:0',
             'aval_name' => 'nullable|string|max:150',
+            'aval_phone' => 'nullable|string|max:50',
+            'aval_address' => 'nullable|string|max:255',
             'type_specific_data' => 'nullable|array',
             'video_evidence' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-msvideo|max:102400',
             'promissory_note_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:15360',
@@ -223,7 +318,22 @@ class LoanController extends Controller
         ]);
 
         $branchId = $this->resolveBranchId($request->input('branch_id'));
-        $principal = round((float) $validated['principal_amount'], 2);
+        $articlePrice = null;
+        $downPayment = 0.0;
+
+        if ($operationType === 'credito_articulo') {
+            $articlePrice = round((float) $validated['article_price'], 2);
+            $downPayment = round((float) ($validated['down_payment'] ?? 0), 2);
+            if ($downPayment >= $articlePrice) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['down_payment' => 'El enganche no puede ser mayor o igual al precio del artículo; debe existir un monto financiado mayor a $0.00.']);
+            }
+            $principal = round($articlePrice - $downPayment, 2);
+        } else {
+            $principal = round((float) $validated['principal_amount'], 2);
+        }
+
         $periods = (int) $validated['term_periods'];
 
         // Si se captura el abono por cuota directamente, se calculan total, interés y tasa
@@ -240,6 +350,8 @@ class LoanController extends Controller
         }
 
         $openingCommission = round((float) ($validated['opening_commission'] ?? 0), 2);
+        $deliveryMethod = $validated['delivery_method']
+            ?? ($operationType === 'credito_articulo' ? 'mercancia' : null);
 
         $videoPath = null;
         if ($request->hasFile('video_evidence')) {
@@ -254,7 +366,11 @@ class LoanController extends Controller
         $loan = DB::transaction(function () use (
             $request,
             $validated,
+            $operationType,
+            $deliveryMethod,
             $branchId,
+            $articlePrice,
+            $downPayment,
             $principal,
             $rate,
             $interestAmount,
@@ -265,7 +381,8 @@ class LoanController extends Controller
             $videoPath,
             $promissoryPath
         ) {
-            $loanCode = 'PREST-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+            $prefix = $operationType === 'credito_articulo' ? 'CRED-' : 'PREST-';
+            $loanCode = $prefix . date('Ymd') . '-' . strtoupper(Str::random(4));
             $startDate = Carbon::parse($validated['start_date']);
             $firstPaymentDate = !empty($validated['first_payment_date']) ? Carbon::parse($validated['first_payment_date']) : null;
             $dayOfWeek = !empty($validated['payment_day_of_week']) ? (int) $validated['payment_day_of_week'] : null;
@@ -283,21 +400,51 @@ class LoanController extends Controller
             $dueDate = Carbon::parse(end($installmentDates));
 
             $typeSpecificData = $validated['type_specific_data'] ?? [];
-            if ($request->filled('aval_name')) {
-                $avalName = trim($request->input('aval_name'));
-                $typeSpecificData['aval_nombre'] = $avalName;
-                $cust = Customer::find($validated['customer_id']);
-                if ($cust && (empty($cust->aval_name) || $cust->aval_name !== $avalName)) {
-                    $cust->update(['aval_name' => $avalName]);
+            $cust = Customer::find($validated['customer_id']);
+            $custUpdates = [];
+
+            foreach ([
+                'aval_name' => ['key' => 'aval_nombre', 'col' => 'aval_name'],
+                'aval_phone' => ['key' => 'aval_telefono', 'col' => 'aval_phone'],
+                'aval_address' => ['key' => 'aval_domicilio', 'col' => 'aval_address'],
+            ] as $inputField => $map) {
+                if ($request->filled($inputField)) {
+                    $val = trim((string) $request->input($inputField));
+                    $typeSpecificData[$map['key']] = $val;
+                    if ($cust && ($cust->{$map['col']} !== $val)) {
+                        $custUpdates[$map['col']] = $val;
+                    }
                 }
             }
+            if ($cust && !empty($custUpdates)) {
+                $cust->update($custUpdates);
+            }
+
+            $downBreak = $downPayment > 0
+                ? $this->resolvePaymentBreakdown($request, $downPayment, 'down_payment_method', 'down_payment_cash', 'down_payment_card', 'down_payment_transfer')
+                : null;
 
             $loan = Loan::create([
                 'loan_code' => $loanCode,
+                'operation_type' => $operationType,
+                'delivery_method' => $deliveryMethod,
                 'branch_id' => $branchId,
                 'customer_id' => $validated['customer_id'],
                 'user_id' => auth()->id(),
                 'loan_type_id' => $validated['loan_type_id'] ?? null,
+                'article_price' => $articlePrice,
+                'down_payment' => $downPayment,
+                'down_payment_method' => $downBreak['method'] ?? null,
+                'article_status' => $validated['article_status'] ?? null,
+                'article_name' => $validated['article_name'] ?? null,
+                'article_brand' => $validated['article_brand'] ?? null,
+                'article_model' => $validated['article_model'] ?? null,
+                'article_color' => $validated['article_color'] ?? null,
+                'article_capacity' => $validated['article_capacity'] ?? null,
+                'article_imei' => $validated['article_imei'] ?? null,
+                'article_serial' => $validated['article_serial'] ?? null,
+                'article_warranty' => $validated['article_warranty'] ?? null,
+                'article_observations' => $validated['article_observations'] ?? null,
                 'principal_amount' => $principal,
                 'interest_rate' => $rate,
                 'interest_amount' => $interestAmount,
@@ -336,21 +483,49 @@ class LoanController extends Controller
                 ]);
             }
 
+            // En venta a crédito de artículos: si hay enganche > 0, sí ingresa a Caja hoy
+            if ($operationType === 'credito_articulo' && $downPayment > 0 && $downBreak) {
+                $engancheCode = 'ENG-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+                LoanPayment::create([
+                    'loan_id' => $loan->id,
+                    'branch_id' => $branchId,
+                    'user_id' => auth()->id(),
+                    'payment_code' => $engancheCode,
+                    'payment_type' => 'enganche',
+                    'amount' => $downPayment,
+                    'payment_method' => $downBreak['method'],
+                    'payment_breakdown' => [
+                        'efectivo' => $downBreak['cash'],
+                        'tarjeta' => $downBreak['card'],
+                        'transferencia' => $downBreak['transfer'],
+                    ],
+                    'paid_at' => now(),
+                    'notes' => "Enganche inicial de venta a crédito {$loan->loan_code} ({$loan->article_summary_label})",
+                ]);
+
+                CashFlowService::register(
+                    'income',
+                    $downPayment,
+                    "Enganche Crédito Artículo {$loan->loan_code} ({$loan->article_summary_label})",
+                    $loan->loan_code,
+                    'Crédito de Artículos (Enganche)',
+                    $branchId,
+                    [
+                        'customer_id' => $cust?->id,
+                        'customer_name' => $cust?->tit_name,
+                        'payment_method' => $downBreak['method'],
+                        'cash_amount' => $downBreak['cash'],
+                        'card_amount' => $downBreak['card'],
+                        'transfer_amount' => $downBreak['transfer'],
+                    ]
+                );
+            }
+
             // REGLA CONTABLE CRÍTICA:
             // El desembolso del préstamo NO tiene impacto de egreso en caja.
             // ÚNICAMENTE se refleja en caja la "Comisión por apertura" si es > 0.
             if ($openingCommission > 0) {
-                $customer = Customer::find($validated['customer_id']);
-                $method = $request->input('commission_payment_method', 'efectivo');
-                $cashPart = $method === 'mixto' ? (float) $request->input('commission_cash', 0) : ($method === 'efectivo' ? $openingCommission : 0);
-                $cardPart = $method === 'mixto' ? (float) $request->input('commission_card', 0) : ($method === 'tarjeta' ? $openingCommission : 0);
-                $transferPart = $method === 'mixto' ? (float) $request->input('commission_transfer', 0) : ($method === 'transferencia' ? $openingCommission : 0);
-
-                if (($cashPart + $cardPart + $transferPart) <= 0) {
-                    $cashPart = $openingCommission;
-                    $method = 'efectivo';
-                }
-
+                $commBreak = $this->resolvePaymentBreakdown($request, $openingCommission, 'commission_payment_method', 'commission_cash', 'commission_card', 'commission_transfer');
                 $paymentCode = 'COM-' . date('Ymd') . '-' . strtoupper(Str::random(4));
 
                 LoanPayment::create([
@@ -360,30 +535,30 @@ class LoanController extends Controller
                     'payment_code' => $paymentCode,
                     'payment_type' => 'comision_apertura',
                     'amount' => $openingCommission,
-                    'payment_method' => $method,
+                    'payment_method' => $commBreak['method'],
                     'payment_breakdown' => [
-                        'efectivo' => $cashPart,
-                        'tarjeta' => $cardPart,
-                        'transferencia' => $transferPart,
+                        'efectivo' => $commBreak['cash'],
+                        'tarjeta' => $commBreak['card'],
+                        'transferencia' => $commBreak['transfer'],
                     ],
                     'paid_at' => now(),
-                    'notes' => 'Comisión por apertura de préstamo ' . $loan->loan_code,
+                    'notes' => ($operationType === 'credito_articulo' ? 'Comisión por apertura de crédito ' : 'Comisión por apertura de préstamo ') . $loan->loan_code,
                 ]);
 
                 CashFlowService::register(
                     'income',
                     $openingCommission,
-                    "Comisión por apertura de préstamo {$loan->loan_code}",
+                    ($operationType === 'credito_articulo' ? "Comisión por apertura de crédito {$loan->loan_code}" : "Comisión por apertura de préstamo {$loan->loan_code}"),
                     $loan->loan_code,
-                    'Préstamos (Comisión Apertura)',
+                    ($operationType === 'credito_articulo' ? 'Crédito de Artículos (Comisión Apertura)' : 'Préstamos (Comisión Apertura)'),
                     $branchId,
                     [
-                        'customer_id' => $customer?->id,
-                        'customer_name' => $customer?->tit_name,
-                        'payment_method' => $method,
-                        'cash_amount' => $cashPart,
-                        'card_amount' => $cardPart,
-                        'transfer_amount' => $transferPart,
+                        'customer_id' => $cust?->id,
+                        'customer_name' => $cust?->tit_name,
+                        'payment_method' => $commBreak['method'],
+                        'cash_amount' => $commBreak['cash'],
+                        'card_amount' => $commBreak['card'],
+                        'transfer_amount' => $commBreak['transfer'],
                         'commission_amount' => $openingCommission,
                     ]
                 );
@@ -392,15 +567,19 @@ class LoanController extends Controller
             return $loan;
         });
 
+        $successMsg = $loan->isArticleCredit()
+            ? "Venta a crédito {$loan->loan_code} registrada correctamente. Ya puedes imprimir el Pagaré y el Recibo de Entrega de Mercancía."
+            : "Préstamo {$loan->loan_code} creado correctamente. Puedes imprimir el Pagaré y el Recibo de Entrega para firma del cliente.";
+
         return redirect()
             ->route('loans.show', $loan->id)
-            ->with('success', "Préstamo {$loan->loan_code} creado correctamente. Puedes imprimir el Pagaré para firma del cliente.");
+            ->with('success', $successMsg);
     }
 
     public function show(Loan $loan)
     {
         $this->authorizeBranch($loan);
-        $loan->load(['customer', 'loanType', 'branch', 'user', 'closer', 'installments', 'payments.user', 'payments.installment']);
+        $loan->load(['customer', 'loanType', 'branch', 'user', 'closer', 'canceller', 'installments', 'payments.user', 'payments.installment']);
 
         // Detectar otros préstamos abiertos del mismo cliente
         $otherOpenLoans = Loan::where('customer_id', $loan->customer_id)
@@ -551,9 +730,13 @@ class LoanController extends Controller
             CashFlowService::register(
                 'income',
                 $amount,
-                "Abono a préstamo {$lockedLoan->loan_code}",
+                $lockedLoan->isArticleCredit()
+                    ? "Abono a crédito de artículo {$lockedLoan->loan_code}"
+                    : "Abono a préstamo {$lockedLoan->loan_code}",
                 $paymentCode,
-                'Préstamos (Abono)',
+                $lockedLoan->isArticleCredit()
+                    ? 'Crédito de Artículos (Abono)'
+                    : 'Préstamos (Abono)',
                 $branchId,
                 [
                     'customer_id' => $lockedLoan->customer_id,
@@ -661,19 +844,78 @@ class LoanController extends Controller
     }
 
     /**
-     * Impresión de Pagaré para firma del cliente.
+     * Cancelar un préstamo por error de captura o desistimiento sin generar movimientos de caja ni alterar cortes.
      */
-    public function printPromissoryNote(Loan $loan)
+    public function cancel(Request $request, Loan $loan)
+    {
+        $this->authorizeBranch($loan);
+
+        $validated = $request->validate([
+            'cancellation_reason' => 'required|string|max:1000',
+        ]);
+
+        if ($loan->status === 'cancelado') {
+            return back()->with('warning', "El préstamo {$loan->loan_code} ya se encuentra cancelado.");
+        }
+
+        DB::transaction(function () use ($loan, $validated) {
+            $lockedLoan = Loan::lockForUpdate()->findOrFail($loan->id);
+
+            if ($lockedLoan->status === 'cancelado') {
+                return;
+            }
+
+            LoanInstallment::where('loan_id', $lockedLoan->id)
+                ->where('status', '!=', 'cancelado')
+                ->update([
+                    'status' => 'cancelado',
+                    'notes' => 'Préstamo cancelado: ' . Str::limit($validated['cancellation_reason'], 120),
+                ]);
+
+            $lockedLoan->status = 'cancelado';
+            $lockedLoan->cancelled_at = now();
+            $lockedLoan->cancelled_by = auth()->id();
+            $lockedLoan->cancellation_reason = $validated['cancellation_reason'];
+            $lockedLoan->balance_amount = 0;
+            $lockedLoan->save();
+        });
+
+        return redirect()
+            ->route('loans.show', $loan->id)
+            ->with('success', "El préstamo {$loan->loan_code} fue cancelado correctamente sin afectar caja ni cortes anteriores.");
+    }
+
+    /**
+     * Renderiza documentos legales del préstamo o venta a crédito (vista imprimible o PDF).
+     */
+    protected function renderLegalDocument(Loan $loan, string $viewName, string $filePrefix)
     {
         $this->authorizeBranch($loan);
         $loan->load(['customer', 'loanType', 'branch', 'installments']);
 
         if (request()->boolean('pdf')) {
-            $pdf = Pdf::loadView('loans.pagare-pdf', compact('loan'));
-            return $pdf->stream("Pagare_{$loan->loan_code}.pdf");
+            $pdf = Pdf::loadView($viewName, compact('loan'))->setPaper('letter', 'portrait');
+            return $pdf->stream("{$filePrefix}_{$loan->loan_code}.pdf");
         }
 
-        return view('loans.pagare-pdf', compact('loan'));
+        return view($viewName, compact('loan'));
+    }
+
+    /**
+     * Impresión de Pagaré Mercantil para firma del cliente y aval.
+     */
+    public function printPromissoryNote(Loan $loan)
+    {
+        return $this->renderLegalDocument($loan, 'loans.pagare-pdf', 'Pagare');
+    }
+
+    /**
+     * Impresión de Recibo de Entrega de Préstamo / Recibo de Entrega de Mercancía por separado.
+     */
+    public function printDeliveryReceipt(Loan $loan)
+    {
+        $prefix = $loan->isArticleCredit() ? 'Recibo_Entrega_Mercancia' : 'Recibo_Entrega_Prestamo';
+        return $this->renderLegalDocument($loan, 'loans.delivery-receipt-pdf', $prefix);
     }
 
     /**

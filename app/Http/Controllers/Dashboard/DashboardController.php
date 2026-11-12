@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
+use App\Models\DailyCut;
 use App\Models\FinFinanciera;
 use App\Models\FinSalePayment;
 use App\Models\Order;
 use App\Models\PosTransaction;
 use App\Models\Product;
+use App\Services\CashFlowService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -26,7 +29,6 @@ class DashboardController extends Controller
         'index' => 'read',
         'exportFinancieraPaymentsPdf' => 'export',
         'exportFinancieraPaymentsExcel' => 'export',
-        'cancelTransaction' => 'cancel_transaction',
     ];
 
     public function __construct()
@@ -54,13 +56,18 @@ class DashboardController extends Controller
 
     protected function buildFinancieraPaymentsQuery(Request $request)
     {
-        $startDate = $request->input('fin_start_date', Carbon::today()->toDateString());
-        $endDate = $request->input('fin_end_date', Carbon::today()->toDateString());
+        $singleDate = $request->input('date');
+        $startDate = $singleDate ?: $request->input('fin_start_date', Carbon::today()->toDateString());
+        $endDate = $singleDate ?: $request->input('fin_end_date', Carbon::today()->toDateString());
         $financieraId = $request->input('financiera_id');
         $branchId = $this->resolveBranchFilter($request);
         $search = $request->input('fin_search');
 
-        return FinSalePayment::with(['sale', 'financiera', 'branch', 'user'])
+        return FinSalePayment::with(['sale', 'financiera', 'branch', 'user', 'posTransaction'])
+            ->where(function ($q) {
+                $q->whereNull('pos_transaction_id')
+                    ->orWhereHas('posTransaction', fn($pt) => $pt->where('status', '!=', 'cancelado'));
+            })
             ->when($startDate, fn($q) => $q->whereDate('payment_date', '>=', $startDate))
             ->when($endDate, fn($q) => $q->whereDate('payment_date', '<=', $endDate))
             ->when($financieraId, fn($q) => $q->where('financiera_id', $financieraId))
@@ -120,6 +127,7 @@ class DashboardController extends Controller
             $financieras = FinFinanciera::orderBy('name')->get(['id', 'name']);
         }
         $branches = Branch::orderBy('name')->get(['id', 'name']);
+        $todayClosedBranchIds = DailyCut::todayClosedBranchIds();
 
         return view('dashboard.index', [
             'total_paid' => Order::sum('pay'),
@@ -137,6 +145,7 @@ class DashboardController extends Controller
             'financieras' => $financieras,
             'branches' => $branches,
             'branchId' => $branchId,
+            'todayClosedBranchIds' => $todayClosedBranchIds,
         ]);
     }
 
@@ -145,9 +154,31 @@ class DashboardController extends Controller
      */
     public function exportFinancieraPaymentsPdf(Request $request)
     {
-        $payments = $this->buildFinancieraPaymentsQuery($request)->get();
-        $finStartDate = $request->input('fin_start_date', Carbon::today()->toDateString());
-        $finEndDate = $request->input('fin_end_date', Carbon::today()->toDateString());
+        $payments = $this->buildFinancieraPaymentsQuery($request)
+            ->reorder('payment_date')
+            ->orderBy('id')
+            ->get();
+
+        $singleDate = $request->input('date');
+        $finStartDate = $singleDate ?: $request->input('fin_start_date', Carbon::today()->toDateString());
+        $finEndDate = $singleDate ?: $request->input('fin_end_date', Carbon::today()->toDateString());
+        $branchId = $this->resolveBranchFilter($request);
+        $branchName = $branchId ? (Branch::find($branchId)?->name ?? 'Sucursal') : 'Todas las Sucursales';
+
+        $groupedPayments = $payments
+            ->groupBy(fn($p) => $p->financiera?->name ?? ($p->sale?->financiera ?? 'Sin Financiera'))
+            ->sortKeys()
+            ->map(function ($items, $name) {
+                return [
+                    'name' => $name,
+                    'payments' => $items,
+                    'count' => $items->count(),
+                    'amount' => round((float) $items->sum('amount'), 2),
+                    'commission' => round((float) $items->sum('commission_amount'), 2),
+                    'total' => round((float) $items->sum('total_amount'), 2),
+                ];
+            })
+            ->values();
 
         $totals = [
             'count' => $payments->count(),
@@ -156,10 +187,13 @@ class DashboardController extends Controller
             'total_paid' => round((float) $payments->sum('total_amount'), 2),
         ];
 
-        $pdf = Pdf::loadView('dashboard.financiera-payments-pdf', compact('payments', 'totals', 'finStartDate', 'finEndDate'))
-            ->setPaper('a4', 'landscape');
+        $pdf = Pdf::loadView(
+            'dashboard.financiera-payments-pdf',
+            compact('payments', 'groupedPayments', 'totals', 'finStartDate', 'finEndDate', 'branchName')
+        )->setPaper('letter', 'portrait');
 
-        return $pdf->download("Pagos_Financieras_{$finStartDate}_a_{$finEndDate}.pdf");
+        $fileSuffix = ($finStartDate === $finEndDate) ? $finStartDate : "{$finStartDate}_a_{$finEndDate}";
+        return $pdf->download("Abonos_Financieras_{$fileSuffix}.pdf");
     }
 
     /**
@@ -238,17 +272,73 @@ class DashboardController extends Controller
             abort(403, 'No tienes permisos para cancelar movimientos de cobro centralizado.');
         }
 
-        if ($transaction->status === 'cancelado') {
+        $result = DB::transaction(function () use ($request, $transaction) {
+            $lockedTx = PosTransaction::where('id', $transaction->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedTx->status === 'cancelado') {
+                return [
+                    'already_cancelled' => true,
+                    'blocked_by_corte_z' => false,
+                    'tx' => $lockedTx,
+                    'cash_reversal' => null,
+                ];
+            }
+
+            $txBranchId = (int) ($lockedTx->branch_id ?: (auth()->user()->branch_id ?? 1));
+            if (DailyCut::hasTodayCorteZ($txBranchId, true)) {
+                return [
+                    'already_cancelled' => false,
+                    'blocked_by_corte_z' => true,
+                    'tx' => $lockedTx,
+                    'cash_reversal' => null,
+                ];
+            }
+
+            $reason = trim((string) $request->input('cancellation_reason', $request->input('reason', '')));
+
+            $lockedTx->update([
+                'status' => 'cancelado',
+                'cancelled_at' => now(),
+                'cancelled_by' => auth()->id(),
+                'cancellation_reason' => $reason !== '' ? $reason : $lockedTx->cancellation_reason,
+                'notes' => trim(($lockedTx->notes ? $lockedTx->notes . ' | ' : '') . 'Cancelado por ' . auth()->user()->name . ' el ' . now()->format('d/m/Y H:i')),
+            ]);
+
+            if ($lockedTx->order_id) {
+                Order::where('id', $lockedTx->order_id)
+                    ->where('order_status', '!=', 'cancelado')
+                    ->update(['order_status' => 'cancelado']);
+            }
+
+            $cashReversal = CashFlowService::revertPosTransactionCash($lockedTx, $reason !== '' ? $reason : null);
+
+            return [
+                'already_cancelled' => false,
+                'blocked_by_corte_z' => false,
+                'tx' => $lockedTx,
+                'cash_reversal' => $cashReversal,
+            ];
+        });
+
+        if ($result['blocked_by_corte_z']) {
+            $blockedMsg = "No es posible cancelar el movimiento {$result['tx']->folio} porque el Corte Final (Corte Z) del día de hoy ya fue aplicado en esta sucursal.";
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $blockedMsg], 422);
+            }
+            return back()->with('error', $blockedMsg);
+        }
+
+        if ($result['already_cancelled']) {
             return back()->with('info', 'Este movimiento ya se encuentra cancelado.');
         }
 
-        $transaction->update([
-            'status' => 'cancelado',
-            'cancelled_at' => now(),
-            'cancelled_by' => auth()->id(),
-            'notes' => trim(($transaction->notes ? $transaction->notes . ' | ' : '') . 'Cancelado por ' . auth()->user()->name . ' el ' . now()->format('d/m/Y H:i')),
-        ]);
+        $tx = $result['tx'];
+        $cashReversal = $result['cash_reversal'];
 
-        return back()->with('success', "Movimiento {$transaction->folio} marcado como cancelado.");
+        $message = $cashReversal
+            ? "Movimiento {$tx->folio} cancelado. Se registró devolución en efectivo de $" . number_format((float) $cashReversal->amount, 2) . ' en caja física.'
+            : "Movimiento {$tx->folio} marcado como cancelado (sin impacto en caja física porque no incluyó pago en efectivo).";
+
+        return back()->with('success', $message);
     }
 }

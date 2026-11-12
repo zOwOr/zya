@@ -75,36 +75,68 @@ class OrderController extends Controller
 
     public function destroy($id)
     {
-        // Buscar la orden
-        $order = Order::findOrFail($id);
-        
-        // Obtener los detalles de la orden
-        $orderDetails = OrderDetails::where('order_id', $id)->get();
-    
-        // Recorrer cada detalle de la orden y devolver el stock de los productos reales
-        foreach ($orderDetails as $detail) {
-            // Los productos dinámicos no afectaron el stock, no hay nada que restaurar
-            if ($detail->is_dynamic) {
-                continue;
+        $result = DB::transaction(function () use ($id) {
+            $order = Order::with(['customer', 'posTransaction', 'branch', 'paymentHistories.branch'])
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $orderBranchId = (int) (
+                $order->resolved_branch?->id
+                ?? $order->branch_id
+                ?? $order->posTransaction?->branch_id
+                ?? (auth()->user()->branch_id ?? 1)
+            );
+
+            if (DailyCut::hasTodayCorteZ($orderBranchId, true)) {
+                return [
+                    'blocked_by_corte_z' => true,
+                    'invoice_no' => $order->invoice_no ?: ('#' . $order->id),
+                    'reverted_cash' => 0.0,
+                ];
             }
 
-            $product = Product::find($detail->product_id);
-            
-            if ($product) {
-                // Incrementar el stock del producto según la cantidad de la orden
-                $product->stock_quantity += $detail->quantity;
-                $product->save();
+            // Reflejar la cancelación en la caja física únicamente por los montos recibidos en efectivo
+            $revertedCash = CashFlowService::revertOrderCash($order);
+
+            // Devolver el stock de los productos reales
+            $orderDetails = OrderDetails::where('order_id', $order->id)->get();
+            foreach ($orderDetails as $detail) {
+                if ($detail->is_dynamic) {
+                    continue;
+                }
+
+                $product = Product::where('id', $detail->product_id)->lockForUpdate()->first();
+                if ($product) {
+                    $product->stock_quantity += $detail->quantity;
+                    $product->save();
+                }
             }
+
+            OrderDetails::where('order_id', $order->id)->delete();
+            PaymentHistory::where('order_id', $order->id)->delete();
+            $order->delete();
+
+            return [
+                'blocked_by_corte_z' => false,
+                'invoice_no' => null,
+                'reverted_cash' => $revertedCash,
+            ];
+        });
+
+        if ($result['blocked_by_corte_z']) {
+            return back()->with(
+                'error',
+                "No es posible cancelar la orden {$result['invoice_no']} porque el Corte Final (Corte Z) del día de hoy ya fue aplicado en esta sucursal."
+            );
         }
-        
-        // Eliminar los detalles de la orden
-        OrderDetails::where('order_id', $id)->delete();
-        
-        // Eliminar la orden
-        $order->delete();
-    
-        // Redirigir con mensaje de éxito
-        return redirect()->route('order.pendingOrders')->with('success', 'La orden ha sido cancelada y el stock ha sido actualizado.');
+
+        $revertedCash = $result['reverted_cash'];
+        $message = $revertedCash > 0
+            ? 'La orden ha sido cancelada, el stock actualizado y se registró devolución en efectivo de $' . number_format($revertedCash, 2) . ' en caja física.'
+            : 'La orden ha sido cancelada y el stock ha sido actualizado.';
+
+        return redirect()->route('order.pendingOrders')->with('success', $message);
     }
     
 
@@ -184,6 +216,18 @@ class OrderController extends Controller
             }
         }
 
+        $branchId = $request->branch_id ?? auth()->user()->branch_id ?? null;
+        if (!$branchId) {
+            return redirect()->back()->with('error', 'No se especificó la sucursal.');
+        }
+
+        if (Schema::hasColumn('orders', 'branch_id')) {
+            $validatedData['branch_id'] = $branchId;
+        }
+        if (Schema::hasColumn('orders', 'user_id')) {
+            $validatedData['user_id'] = auth()->id();
+        }
+
         $order_id = Order::insertGetId($validatedData);
 
         // Create Order Details
@@ -231,20 +275,22 @@ class OrderController extends Controller
         // Delete Cart Shopping History
         Cart::instance('default')->destroy();
 
-        $branchId = $request->branch_id ?? auth()->user()->branch_id ?? null;
-
-        if (!$branchId) {
-            return redirect()->back()->with('error', 'No se especificó la sucursal.');
+        $payAmount = round((float) ($validatedData['pay'] ?? 0), 2);
+        if ($payAmount > 0) {
+            $paymentMethod = CashFlowService::normalizePaymentMethod($validatedData['payment_status'] ?? 'efectivo');
+            CashFlowService::register(
+                'income',
+                $payAmount,
+                'Pago inicial de la orden #' . $order_id,
+                $order_id,
+                'Orden',
+                $branchId,
+                [
+                    'customer_id' => $validatedData['customer_id'] ?? null,
+                    'payment_method' => $paymentMethod,
+                ]
+            );
         }
-
-        CashFlowService::register(
-            'income',
-            $validatedData['pay'],
-            'Pago inicial de la orden #' . $order_id,
-            $order_id,
-            'Orden',
-            $branchId
-        );
 
         return Redirect::route('dashboard')->with('success', 'El pedido se ha creado!');
     }
@@ -255,7 +301,7 @@ class OrderController extends Controller
      */
     public function orderDetails(Int $order_id)
     {
-        $order = Order::where('id', $order_id)->first();
+        $order = Order::with(['branch', 'posTransaction.branch', 'paymentHistories.branch'])->findOrFail($order_id);
         $orderDetails = OrderDetails::with('productRelation')
                         ->where('order_id', $order_id)
                         ->orderBy('id', 'DESC')
@@ -263,10 +309,19 @@ class OrderController extends Controller
 
         $orderDetailVideo = OrderDetailsVideo::where('order_id', $order->id)->first();
 
+        $orderBranchId = (int) (
+            $order->resolved_branch?->id
+            ?? $order->branch_id
+            ?? $order->posTransaction?->branch_id
+            ?? (auth()->user()->branch_id ?? 1)
+        );
+        $isTodayCorteZClosed = DailyCut::hasTodayCorteZ($orderBranchId);
+
         return view('orders.details-order', [
             'order' => $order,
             'orderDetails' => $orderDetails,
             'orderDetailVideo' => $orderDetailVideo,
+            'isTodayCorteZClosed' => $isTodayCorteZClosed,
         ]);
     }public function updateAmount(Request $request)
 {
@@ -426,8 +481,13 @@ class OrderController extends Controller
                 $q->where('invoice_no', 'like', "%{$search}%")
                   ->orWhereHas('customer', function ($q2) use ($search) {
                       $q2->where('tit_name', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%")
-                         ->orWhere('email', 'like', "%{$search}%");
+                         ->orWhere('tit_phone', 'like', "%{$search}%")
+                         ->orWhere('alternate_phone', 'like', "%{$search}%")
+                         ->orWhere('tit_email', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('posTransaction', function ($q3) use ($search) {
+                      $q3->where('customer_name', 'like', "%{$search}%")
+                         ->orWhere('customer_phone', 'like', "%{$search}%");
                   });
             });
         }
@@ -474,7 +534,8 @@ class OrderController extends Controller
                 $q->where('loan_code', 'like', "%{$search}%")
                   ->orWhereHas('customer', function ($q2) use ($search) {
                       $q2->where('tit_name', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%");
+                         ->orWhere('tit_phone', 'like', "%{$search}%")
+                         ->orWhere('alternate_phone', 'like', "%{$search}%");
                   });
             });
         }

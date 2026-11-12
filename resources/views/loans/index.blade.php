@@ -111,28 +111,47 @@
                 </div>
             @endif
 
+@php
+    $isArticleView = $isArticleCreditView ?? ($operationType === 'credito_articulo');
+    $currentIndexRoute = $isArticleView ? route('article-credits.index') : route('loans.index');
+    $currentCreateRoute = $isArticleView ? route('article-credits.create') : route('loans.create');
+@endphp
             <!-- Encabezado Estandarizado -->
             <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
                 <div>
                     <h3 class="mb-1 font-weight-bold">
-                        <i class="las la-hand-holding-usd text-primary"></i> Módulo de Préstamos
+                        <i class="{{ $isArticleView ? 'fa-solid fa-box-open text-info' : 'las la-hand-holding-usd text-primary' }}"></i>
+                        {{ $isArticleView ? 'Módulo de Venta a Crédito de Artículos' : 'Módulo de Préstamos' }}
                     </h3>
                     <p class="mb-0 text-muted font-size-13">
-                        Gestión de préstamos por cliente, amortizaciones (día programado vs. real), expedientes con pagarés y mora.
+                        @if ($isArticleView)
+                            Ventas a crédito de estufas, tablets, laptops, planchas y otros artículos con ficha técnica, pagaré y recibo de entrega de mercancía.
+                        @else
+                            Gestión de préstamos por cliente, amortizaciones (día programado vs. real), pagaré y recibo de entrega.
+                        @endif
                     </p>
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-md-0">
                     <a href="{{ route('central-pos.index') }}" class="btn btn-outline-info mr-2 shadow-sm font-weight-bold">
                         <i class="las la-cash-register mr-1"></i>Punto de Venta (4 en 1)
                     </a>
-                    @if (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.catalogs'))
+                    @if ($isArticleView)
+                        <a href="{{ route('loans.index') }}" class="btn btn-outline-secondary mr-2 shadow-sm font-weight-bold">
+                            <i class="fa-solid fa-hand-holding-dollar mr-1"></i>Ir a Préstamos
+                        </a>
+                    @else
+                        <a href="{{ route('article-credits.index') }}" class="btn btn-outline-info mr-2 shadow-sm font-weight-bold">
+                            <i class="fa-solid fa-box-open mr-1"></i>Crédito de Artículos
+                        </a>
+                    @endif
+                    @if (!$isArticleView && (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.catalogs')))
                         <a href="{{ route('loans.types.index') }}" class="btn btn-outline-primary mr-2 shadow-sm font-weight-bold">
                             <i class="las la-sliders-h mr-1"></i>Tipos de Préstamo
                         </a>
                     @endif
                     @if (auth()->user()->can('prestamos.create'))
-                        <a href="{{ route('loans.create') }}" class="btn btn-primary shadow-sm font-weight-bold">
-                            <i class="las la-plus mr-1"></i>Nuevo Préstamo
+                        <a href="{{ $currentCreateRoute }}" class="btn btn-primary shadow-sm font-weight-bold">
+                            <i class="las la-plus mr-1"></i>{{ $isArticleView ? 'Nueva Venta a Crédito' : 'Nuevo Préstamo' }}
                         </a>
                     @endif
                 </div>
@@ -144,13 +163,13 @@
                     <div class="card border-0 border-left-primary shadow-sm h-100">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">Préstamos Activos</span>
+                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">{{ $isArticleView ? 'Créditos Activos' : 'Préstamos Activos' }}</span>
                                 <h3 class="mb-0 font-weight-bold text-dark mt-1">{{ $stats['active_count'] }}</h3>
                                 <small class="text-danger font-weight-bold mt-1 d-block font-size-11">
                                     <i class="fa-solid fa-triangle-exclamation mr-1"></i>{{ $stats['mora_count'] }} en mora / vencidos
                                 </small>
                             </div>
-                            <i class="las la-hand-holding-usd text-primary" style="font-size: 2.2rem;"></i>
+                            <i class="{{ $isArticleView ? 'fa-solid fa-box-open text-info' : 'las la-hand-holding-usd text-primary' }}" style="font-size: 2.2rem;"></i>
                         </div>
                     </div>
                 </div>
@@ -158,9 +177,11 @@
                     <div class="card border-0 border-left-dark shadow-sm h-100">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">Capital Colocado</span>
+                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">{{ $isArticleView ? 'Monto Financiado' : 'Capital Colocado' }}</span>
                                 <h3 class="mb-0 font-weight-bold text-dark mt-1">${{ number_format($stats['total_lent'], 2) }}</h3>
-                                <small class="text-muted mt-1 d-block font-size-11">Sin impacto de egreso en caja</small>
+                                <small class="text-muted mt-1 d-block font-size-11">
+                                    {{ $isArticleView ? ('Valor mercancía: $' . number_format($stats['total_price'] ?? 0, 2)) : 'Sin impacto de egreso en caja' }}
+                                </small>
                             </div>
                             <i class="las la-wallet text-dark" style="font-size: 2.2rem;"></i>
                         </div>
@@ -170,9 +191,11 @@
                     <div class="card border-0 border-left-success shadow-sm h-100">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">Total Recaudado</span>
+                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">{{ $isArticleView ? 'Abonos Recibidos' : 'Total Recaudado' }}</span>
                                 <h3 class="mb-0 font-weight-bold text-success mt-1">${{ number_format($stats['total_collected'], 2) }}</h3>
-                                <small class="text-muted mt-1 d-block font-size-11">Reflejado en Caja y Cortes</small>
+                                <small class="text-muted mt-1 d-block font-size-11">
+                                    {{ $isArticleView ? ('Enganches (Caja): $' . number_format($stats['total_down_payment'] ?? 0, 2)) : 'Reflejado en Caja y Cortes' }}
+                                </small>
                             </div>
                             <i class="las la-coins text-success" style="font-size: 2.2rem;"></i>
                         </div>
@@ -182,9 +205,13 @@
                     <div class="card border-0 border-left-info shadow-sm h-100">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">Comisiones Apertura</span>
-                                <h3 class="mb-0 font-weight-bold text-info mt-1">${{ number_format($stats['total_commissions'], 2) }}</h3>
-                                <small class="text-muted mt-1 d-block font-size-11">Ingresos directos por apertura</small>
+                                <span class="text-muted font-size-11 text-uppercase font-weight-bold">{{ $isArticleView ? 'Saldo por Cobrar' : 'Comisiones Apertura' }}</span>
+                                <h3 class="mb-0 font-weight-bold text-info mt-1">
+                                    ${{ number_format($isArticleView ? ($stats['total_balance'] ?? 0) : $stats['total_commissions'], 2) }}
+                                </h3>
+                                <small class="text-muted mt-1 d-block font-size-11">
+                                    {{ $isArticleView ? 'Pendiente total financiado' : 'Ingresos directos por apertura' }}
+                                </small>
                             </div>
                             <i class="las la-receipt text-info" style="font-size: 2.2rem;"></i>
                         </div>
@@ -195,25 +222,30 @@
             <!-- Filtros Estandarizados -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body py-3">
-                    <form method="GET" action="{{ route('loans.index') }}" class="row align-items-end">
+                    <form method="GET" action="{{ $currentIndexRoute }}" class="row align-items-end">
+                        @if (!$isArticleView)
+                            <input type="hidden" name="operation_type" value="{{ $operationType }}">
+                        @endif
                         <div class="col-md-3 mb-2">
-                            <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Buscar Folio o Cliente</label>
+                            <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Buscar Folio, Cliente o Artículo</label>
                             <div class="input-group input-group-sm">
                                 <div class="input-group-prepend"><span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span></div>
-                                <input type="text" name="search" value="{{ $search }}" class="form-control form-control-sm" placeholder="Código PREST-, cliente o tel...">
+                                <input type="text" name="search" value="{{ $search }}" class="form-control form-control-sm" placeholder="{{ $isArticleView ? 'CRED-, cliente, marca, IMEI, serie...' : 'Código PREST-, cliente o tel...' }}">
                             </div>
                         </div>
-                        <div class="col-md-3 mb-2">
-                            <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Tipo de Préstamo</label>
-                            <select name="loan_type_id" class="form-control form-control-sm">
-                                <option value="">Todos los tipos</option>
-                                @foreach ($loanTypes as $type)
-                                    <option value="{{ $type->id }}" {{ (string)$loanTypeId === (string)$type->id ? 'selected' : '' }}>
-                                        {{ $type->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        @if (!$isArticleView)
+                            <div class="col-md-3 mb-2">
+                                <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Tipo de Préstamo</label>
+                                <select name="loan_type_id" class="form-control form-control-sm">
+                                    <option value="">Todos los tipos</option>
+                                    @foreach ($loanTypes as $type)
+                                        <option value="{{ $type->id }}" {{ (string)$loanTypeId === (string)$type->id ? 'selected' : '' }}>
+                                            {{ $type->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
                         <div class="col-md-2 mb-2">
                             <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Estado</label>
                             <select name="status" class="form-control form-control-sm">
@@ -222,6 +254,7 @@
                                 <option value="mora" {{ $status === 'mora' ? 'selected' : '' }}>En Mora (Pendiente)</option>
                                 <option value="liquidado" {{ $status === 'liquidado' ? 'selected' : '' }}>Liquidado</option>
                                 <option value="cerrado_manual" {{ $status === 'cerrado_manual' ? 'selected' : '' }}>Cerrado Manual</option>
+                                <option value="cancelado" {{ $status === 'cancelado' ? 'selected' : '' }}>Cancelado</option>
                             </select>
                         </div>
                         @if (auth()->user()->isSuperAdmin() || auth()->user()->can('prestamos.all_branches'))
@@ -241,7 +274,7 @@
                             <button type="submit" class="btn btn-primary btn-sm mr-1 flex-grow-1 font-weight-bold shadow-sm">
                                 <i class="fa-solid fa-filter mr-1"></i>Filtrar
                             </button>
-                            <a href="{{ route('loans.index') }}" class="btn btn-light btn-sm border" title="Limpiar filtros">
+                            <a href="{{ $currentIndexRoute }}" class="btn btn-light btn-sm border" title="Limpiar filtros">
                                 <i class="fa-solid fa-rotate-left"></i>
                             </a>
                         </div>
@@ -249,7 +282,7 @@
                 </div>
             </div>
 
-            <!-- Tabla de Préstamos Estandarizada -->
+            <!-- Tabla Estandarizada -->
             <div class="card border-0 shadow-sm loans-table-wrapper mb-4">
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -258,15 +291,15 @@
                                 <tr>
                                     <th style="min-width: 140px;">Folio / Fecha</th>
                                     <th style="min-width: 160px;">Cliente</th>
-                                    <th style="min-width: 150px;">Tipo de Préstamo</th>
+                                    <th style="min-width: 155px;">{{ $isArticleView ? 'Artículo / Modalidad' : 'Tipo de Préstamo' }}</th>
                                     <th style="min-width: 100px;">Sucursal</th>
-                                    <th style="min-width: 120px;">Capital / Total</th>
-                                    <th style="min-width: 90px;">Comisión</th>
+                                    <th style="min-width: 125px;">{{ $isArticleView ? 'Precio / Financiado' : 'Capital / Total' }}</th>
+                                    <th style="min-width: 90px;">{{ $isArticleView ? 'Enganche' : 'Comisión' }}</th>
                                     <th style="min-width: 145px;">Abonado / Saldo</th>
                                     <th style="min-width: 125px;">Cuotas</th>
                                     <th style="min-width: 105px;">Pagaré</th>
                                     <th style="min-width: 95px;">Estado</th>
-                                    <th class="text-right" style="min-width: 140px;">Acciones</th>
+                                    <th class="text-right" style="min-width: 170px;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -294,9 +327,18 @@
                                             </small>
                                         </td>
                                         <td>
-                                            <span class="badge badge-light border badge-pill-custom text-dark font-weight-bold">
-                                                {{ $loan->loanType?->name ?? 'General' }}
-                                            </span>
+                                            @if ($loan->isArticleCredit())
+                                                <span class="badge badge-info badge-pill-custom font-weight-bold">
+                                                    {{ $loan->article_summary_label }}
+                                                </span>
+                                                @if ($loan->article_status_label)
+                                                    <small class="d-block text-dark font-size-11 mt-1">Estado: {{ $loan->article_status_label }}</small>
+                                                @endif
+                                            @else
+                                                <span class="badge badge-light border badge-pill-custom text-dark font-weight-bold">
+                                                    {{ $loan->loanType?->name ?? 'General' }}
+                                                </span>
+                                            @endif
                                             <small class="d-block text-muted font-size-11 mt-1">
                                                 <i class="fa-solid fa-repeat font-size-10 mr-1"></i>{{ $loan->payment_frequency_label }} ({{ $loan->term_periods }} pagos)
                                             </small>
@@ -308,11 +350,18 @@
                                         </td>
                                         <td>
                                             <div class="font-weight-bold text-dark font-size-13">${{ number_format($loan->total_amount, 2) }}</div>
-                                            <small class="text-muted d-block font-size-11">Cap: ${{ number_format($loan->principal_amount, 2) }}</small>
+                                            <small class="text-muted d-block font-size-11">
+                                                {{ $loan->isArticleCredit() ? ('Fin: $' . number_format($loan->principal_amount, 2)) : ('Cap: $' . number_format($loan->principal_amount, 2)) }}
+                                            </small>
                                         </td>
                                         <td>
-                                            <span class="text-info font-weight-bold font-size-13">${{ number_format($loan->opening_commission, 2) }}</span>
-                                            <small class="text-muted d-block font-size-10 text-uppercase">Apertura</small>
+                                            @if ($loan->isArticleCredit())
+                                                <span class="text-success font-weight-bold font-size-13">${{ number_format($loan->down_payment ?? 0, 2) }}</span>
+                                                <small class="text-muted d-block font-size-10 text-uppercase">Precio: ${{ number_format($loan->article_price ?? 0, 2) }}</small>
+                                            @else
+                                                <span class="text-info font-weight-bold font-size-13">${{ number_format($loan->opening_commission, 2) }}</span>
+                                                <small class="text-muted d-block font-size-10 text-uppercase">Apertura</small>
+                                            @endif
                                         </td>
                                         <td>
                                             <div class="d-flex justify-content-between align-items-center font-size-12 mb-1">
@@ -368,6 +417,8 @@
                                                 <span class="badge badge-success badge-pill-custom">LIQUIDADO</span>
                                             @elseif ($loan->status === 'cerrado_manual')
                                                 <span class="badge badge-info badge-pill-custom">CERRADO</span>
+                                            @elseif ($loan->status === 'cancelado')
+                                                <span class="badge badge-dark badge-pill-custom"><i class="fa-solid fa-ban mr-1"></i>CANCELADO</span>
                                             @else
                                                 <span class="badge badge-secondary badge-pill-custom">{{ strtoupper($loan->status) }}</span>
                                             @endif
@@ -377,8 +428,11 @@
                                                 <a href="{{ route('loans.show', $loan->id) }}" class="btn btn-sm btn-primary btn-action-loan shadow-sm mr-1 font-weight-bold" title="Ver tabla de pagos y abonar">
                                                     <i class="fa-solid fa-eye mr-1"></i>Gestionar
                                                 </a>
-                                                <a href="{{ route('loans.pagare.print', $loan->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary btn-action-loan" title="Imprimir Formato Pagaré">
+                                                <a href="{{ route('loans.pagare.print', $loan->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary btn-action-loan mr-1" title="Imprimir Formato Pagaré">
                                                     <i class="fa-solid fa-print"></i>
+                                                </a>
+                                                <a href="{{ route('loans.delivery-receipt.print', $loan->id) }}" target="_blank" class="btn btn-sm btn-outline-info btn-action-loan" title="{{ $loan->isArticleCredit() ? 'Recibo de Entrega de Mercancía' : 'Recibo de Entrega de Préstamo' }}">
+                                                    <i class="fa-solid fa-receipt"></i>
                                                 </a>
                                             </div>
                                         </td>

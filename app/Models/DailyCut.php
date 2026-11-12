@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class DailyCut extends Model
@@ -91,5 +92,41 @@ class DailyCut extends Model
         }
 
         return round((float) $lastCut->balance, 2);
+    }
+
+    public static function hasTodayCorteZ(int $branchId, bool $forUpdate = false): bool
+    {
+        return self::hasCorteZOnDate($branchId, Carbon::today()->toDateString(), $forUpdate);
+    }
+
+    public static function hasCorteZOnDate(int $branchId, ?string $date = null, bool $forUpdate = false): bool
+    {
+        $targetDate = $date ? Carbon::parse($date)->toDateString() : Carbon::today()->toDateString();
+
+        $query = self::where('branch_id', $branchId)
+            ->whereDate('date', $targetDate)
+            ->where('cut_type', 'corte_z');
+
+        if ($forUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * IDs de sucursales que ya aplicaron Corte Z el día de hoy.
+     *
+     * @return int[]
+     */
+    public static function todayClosedBranchIds(): array
+    {
+        return self::whereDate('date', Carbon::today()->toDateString())
+            ->where('cut_type', 'corte_z')
+            ->pluck('branch_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }
