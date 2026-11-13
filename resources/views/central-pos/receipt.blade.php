@@ -78,6 +78,13 @@
             align-items: baseline;
             margin: 2px 0;
             gap: 4px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .concept-block {
+            margin-bottom: 5px;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
         .row-flex > :first-child {
             flex-shrink: 0;
@@ -110,6 +117,14 @@
             color: #1e293b;
             display: inline-flex;
             align-items: center;
+            -webkit-appearance: none;
+            appearance: none;
+            touch-action: manipulation;
+        }
+        .capture-restore-chip {
+            -webkit-appearance: none;
+            appearance: none;
+            touch-action: manipulation;
         }
         .btn-primary-tool {
             background: #2563eb;
@@ -142,7 +157,8 @@
                 background: #fff !important;
                 height: auto !important;
                 min-height: 0 !important;
-                overflow: hidden !important;
+                overflow-x: hidden !important;
+                overflow-y: visible !important;
             }
             body.paper-58mm {
                 width: 48mm !important;
@@ -150,7 +166,8 @@
                 margin: 0 !important;
                 padding: 0 4mm 0 1mm !important;
                 box-sizing: border-box !important;
-                overflow: hidden !important;
+                overflow-x: hidden !important;
+                overflow-y: visible !important;
             }
             body.paper-letter {
                 width: 185mm !important;
@@ -165,9 +182,13 @@
             }
         }
     </style>
-    <style id="dynamicPageRule"></style>
+    @php
+        $initialPaperMode = in_array(request('paper'), ['80', '58', 'letter'], true) ? request('paper') : '80';
+        $initialBodyClass = $initialPaperMode === '58' ? 'paper-58mm' : ($initialPaperMode === 'letter' ? 'paper-letter' : '');
+    @endphp
+    <style id="dynamicPageRule">@if($initialPaperMode === 'letter')@page { size: letter portrait; margin: 10mm; }@endif</style>
 </head>
-<body id="ticketBody">
+<body id="ticketBody" class="{{ $initialBodyClass }}">
 
     <button type="button" class="no-print capture-restore-chip" onclick="toggleCaptureMode(false)">
         👁️ Mostrar controles
@@ -282,7 +303,7 @@
                 ? \App\Models\PosTransaction::sanitizeGiftSubtitle($item['subtitle'] ?? null)
                 : ($item['subtitle'] ?? null);
         @endphp
-        <div style="margin-bottom: 5px;">
+        <div class="concept-block">
             <div class="bold">{{ $qty }}x {{ $item['title'] ?? 'Concepto' }}@if($sec === 'gift') <span style="font-size:10px;">(REGALO)</span>@endif</div>
             @if (!empty($itemSubtitle))
                 <div style="font-size: 10px; color: #222;">{{ $itemSubtitle }}</div>
@@ -407,16 +428,34 @@
             }
         };
 
-        let paperMode = (function () {
-            const urlPaper = new URLSearchParams(window.location.search).get('paper');
-            if (urlPaper && ['80', '58', 'letter'].includes(urlPaper)) {
-                return urlPaper;
+        function safeStorageGet(key) {
+            try {
+                return window.localStorage ? window.localStorage.getItem(key) : null;
+            } catch (e) {
+                return null;
             }
-            const stored = localStorage.getItem('zya_ticket_paper_mode');
+        }
+
+        function safeStorageSet(key, val) {
+            try {
+                if (window.localStorage) {
+                    window.localStorage.setItem(key, val);
+                }
+            } catch (e) {}
+        }
+
+        let paperMode = (function () {
+            try {
+                const urlPaper = new URLSearchParams(window.location.search).get('paper');
+                if (urlPaper && ['80', '58', 'letter'].includes(urlPaper)) {
+                    return urlPaper;
+                }
+            } catch (e) {}
+            const stored = safeStorageGet('zya_ticket_paper_mode');
             if (stored && ['80', '58', 'letter'].includes(stored)) {
                 return stored;
             }
-            return localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80';
+            return safeStorageGet('zya_ticket_width') === '58' ? '58' : '80';
         })();
 
         function applyPaperWidth() {
@@ -432,7 +471,7 @@
             } else if (paperMode === 'letter') {
                 body.classList.add('paper-letter');
                 if (lbl) lbl.textContent = 'Modo: Carta (Epson)';
-                if (pageRuleEl) pageRuleEl.textContent = '@media print { @page { size: letter portrait; margin: 10mm; } }';
+                if (pageRuleEl) pageRuleEl.textContent = '@page { size: letter portrait; margin: 10mm; }';
             } else {
                 if (lbl) lbl.textContent = 'Modo: 80mm';
                 if (pageRuleEl) pageRuleEl.textContent = '';
@@ -450,8 +489,8 @@
         function setPaperMode(mode) {
             if (!['80', '58', 'letter'].includes(mode)) return;
             paperMode = mode;
-            localStorage.setItem('zya_ticket_paper_mode', mode);
-            localStorage.setItem('zya_ticket_width', mode === '58' ? '58' : '80');
+            safeStorageSet('zya_ticket_paper_mode', mode);
+            safeStorageSet('zya_ticket_width', mode === '58' ? '58' : '80');
             applyPaperWidth();
         }
 
@@ -468,12 +507,31 @@
             else body.classList.remove('capture-clean');
         }
 
+        async function waitBeforeAutoPrint() {
+            try {
+                if (document.fonts && document.fonts.ready) {
+                    await Promise.race([
+                        document.fonts.ready,
+                        new Promise(r => setTimeout(r, 250))
+                    ]);
+                }
+            } catch (e) {}
+            await new Promise(r => {
+                const raf = window.requestAnimationFrame || (cb => setTimeout(cb, 16));
+                raf(() => raf(r));
+            });
+        }
+
         window.addEventListener('load', async function () {
             applyPaperWidth();
 
-            const queryParams = new URLSearchParams(window.location.search);
-            const skipDrawerParam = queryParams.get('skip_drawer') === '1';
-            const isPreviewMode = queryParams.get('preview') === '1';
+            let skipDrawerParam = false;
+            let isPreviewMode = false;
+            try {
+                const queryParams = new URLSearchParams(window.location.search);
+                skipDrawerParam = queryParams.get('skip_drawer') === '1';
+                isPreviewMode = queryParams.get('preview') === '1';
+            } catch (e) {}
 
             @php
                 $isCash = ($transaction->payment_method === 'efectivo' || (float) $transaction->cash_amount > 0);
@@ -489,6 +547,7 @@
 
             // Disparar diálogo de impresión solo si la ventana es independiente y no está en vista previa de captura
             if (window.self === window.top && !isPreviewMode) {
+                await waitBeforeAutoPrint();
                 try {
                     window.focus();
                     window.print();

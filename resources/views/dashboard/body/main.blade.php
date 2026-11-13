@@ -744,21 +744,204 @@
             });
         });
 
-        // Impresión directa de tickets en segundo plano sin abrir nueva pestaña del navegador
+        // Almacenamiento seguro (evita excepciones en modo privado o bloqueo de cookies de Safari/Firefox)
+        window.zyaTicketStorage = {
+            get: function(key, fallback) {
+                try {
+                    var val = window.localStorage ? window.localStorage.getItem(key) : null;
+                    return val !== null && val !== undefined ? val : fallback;
+                } catch (e) {
+                    return fallback;
+                }
+            },
+            set: function(key, value) {
+                try {
+                    if (window.localStorage) {
+                        window.localStorage.setItem(key, value);
+                    }
+                } catch (e) {}
+            },
+            getPaperMode: function() {
+                var mode = this.get('zya_ticket_paper_mode', '');
+                if (mode === '80' || mode === '58' || mode === 'letter') {
+                    return mode;
+                }
+                return this.get('zya_ticket_width', '') === '58' ? '58' : '80';
+            }
+        };
+
+        window.normalizeTicketUrl = function(rawUrl) {
+            if (!rawUrl || typeof rawUrl !== 'string') return '';
+            if (rawUrl.charAt(0) === '/') return rawUrl;
+            try {
+                var parsed = new URL(rawUrl, window.location.origin);
+                if (
+                    parsed.origin === window.location.origin ||
+                    parsed.hostname === window.location.hostname ||
+                    /^\/(central-pos|loans|orders|cash)\b/.test(parsed.pathname || '')
+                ) {
+                    return (parsed.pathname || '/') + (parsed.search || '') + (parsed.hash || '');
+                }
+            } catch (e) {}
+            return rawUrl;
+        };
+
+        window._zyaTicketBrowser = {
+            isTouchMobile: function() {
+                var ua = navigator.userAgent || '';
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)) {
+                    return true;
+                }
+                // iPadOS en modo escritorio reporta Macintosh con soporte multitouch
+                return /Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1;
+            },
+            isSafariDesktop: function() {
+                if (this.isTouchMobile()) return false;
+                var ua = navigator.userAgent || '';
+                return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|Firefox|FxiOS|Brave/i.test(ua);
+            }
+        };
+
+        function triggerFramePrint(win) {
+            if (!win) return false;
+            var modalPlugin = (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal && window.jQuery.fn.modal.Constructor)
+                ? window.jQuery.fn.modal.Constructor
+                : null;
+            var modalProto = modalPlugin && modalPlugin.prototype ? modalPlugin.prototype : null;
+            var origEnforceFocus = modalProto && modalProto._enforceFocus ? modalProto._enforceFocus : null;
+
+            // Evita que Bootstrap 4 modal.enforceFocus robe el foco al iframe durante la impresión (Firefox/Safari)
+            if (modalProto && origEnforceFocus) {
+                modalProto._enforceFocus = function() {};
+            }
+
+            try {
+                try {
+                    if (document.activeElement && document.activeElement.blur) {
+                        document.activeElement.blur();
+                    }
+                } catch (blurErr) {}
+
+                win.focus();
+
+                if (window._zyaTicketBrowser.isSafariDesktop()) {
+                    var safariHandled = false;
+                    try {
+                        safariHandled = !!(win.document && win.document.execCommand && win.document.execCommand('print', false, null));
+                    } catch (execErr) {}
+                    if (!safariHandled && typeof win.print === 'function') {
+                        win.print();
+                    }
+                } else if (typeof win.print === 'function') {
+                    win.print();
+                }
+                return true;
+            } finally {
+                if (modalProto && origEnforceFocus) {
+                    setTimeout(function() {
+                        modalProto._enforceFocus = origEnforceFocus;
+                    }, 350);
+                }
+            }
+        }
+
+        function waitTicketLayoutAndPrint(doc, win, onDone) {
+            var finish = function() {
+                var raf = window.requestAnimationFrame || function(cb) { return setTimeout(cb, 16); };
+                raf(function() {
+                    raf(function() {
+                        var ok = false;
+                        try {
+                            ok = triggerFramePrint(win);
+                        } catch (err) {
+                            console.warn('Error al invocar impresión del ticket:', err);
+                        }
+                        if (typeof onDone === 'function') onDone(ok);
+                    });
+                });
+            };
+
+            try {
+                if (doc && doc.fonts && doc.fonts.ready && typeof doc.fonts.ready.then === 'function') {
+                    var raced = false;
+                    var fontTimer = setTimeout(function() {
+                        if (!raced) {
+                            raced = true;
+                            finish();
+                        }
+                    }, 250);
+                    doc.fonts.ready.then(function() {
+                        if (!raced) {
+                            raced = true;
+                            clearTimeout(fontTimer);
+                            finish();
+                        }
+                    }, function() {
+                        if (!raced) {
+                            raced = true;
+                            clearTimeout(fontTimer);
+                            finish();
+                        }
+                    });
+                    return;
+                }
+            } catch (e) {}
+
+            finish();
+        }
+
+        function appendTicketParam(url, key, val) {
+            if (!url) return '';
+            var hashIdx = url.indexOf('#');
+            var hash = hashIdx >= 0 ? url.slice(hashIdx) : '';
+            var clean = hashIdx >= 0 ? url.slice(0, hashIdx) : url;
+            var qIdx = clean.indexOf('?');
+            var base = qIdx >= 0 ? clean.slice(0, qIdx) : clean;
+            var query = qIdx >= 0 ? clean.slice(qIdx + 1) : '';
+            try {
+                var params = new URLSearchParams(query);
+                params.set(key, val);
+                return base + '?' + params.toString() + hash;
+            } catch (e) {
+                var sep = clean.indexOf('?') >= 0 ? '&' : '?';
+                return clean + sep + encodeURIComponent(key) + '=' + encodeURIComponent(val) + hash;
+            }
+        }
+
+        // Impresión directa de tickets compatible con Chrome, Edge, Firefox, Safari (macOS/iOS) y Android
         window._posDirectPrintTimer = window._posDirectPrintTimer || null;
+        window._posDirectPrintCleanupTimer = window._posDirectPrintCleanupTimer || null;
         window._posDirectPrintLastUrl = window._posDirectPrintLastUrl || '';
         window._posDirectPrintLastAt = window._posDirectPrintLastAt || 0;
 
-        window.printTicketDirectly = function(url) {
+        window.printTicketDirectly = function(url, options) {
             if (!url) return;
-            // Normalizar URL a relativa si coincide con host para evitar bloqueos por Cross-Origin
-            if (url.startsWith('http://') || url.startsWith('https://')) {
-                try {
-                    var parsed = new URL(url);
-                    if (parsed.host === window.location.host) {
-                        url = parsed.pathname + parsed.search;
+            options = options || {};
+            url = window.normalizeTicketUrl(url);
+            if (!/[?&]paper=/.test(url)) {
+                url = appendTicketParam(url, 'paper', window.zyaTicketStorage.getPaperMode());
+            }
+
+            var isUserClick = typeof options.userInitiated === 'boolean'
+                ? options.userInitiated
+                : Boolean(typeof window.event !== 'undefined' && window.event && /click|pointerup|touchend/i.test(window.event.type || ''));
+
+            // En iOS/iPadOS/Android, los iframes ocultos no aíslan el área de impresión del documento padre.
+            // Si proviene de clic directo, abrir ventana limpia para disparo nativo; si es automático, mostrar vista previa.
+            if (window._zyaTicketBrowser.isTouchMobile()) {
+                if (isUserClick) {
+                    var popup = window.open(url, '_blank');
+                    if (popup && !popup.closed) {
+                        return;
                     }
-                } catch(e) {}
+                }
+                if (!options.skipModalFallback && typeof window.openTicketPreviewModal === 'function') {
+                    var modalOpen = window.jQuery && $('#globalTicketPreviewModal').hasClass('show');
+                    if (!modalOpen) {
+                        window.openTicketPreviewModal(url, options.title || 'Ticket listo para imprimir', { popupBlocked: true });
+                    }
+                }
+                return;
             }
 
             // Bloquear disparos duplicados inmediatos sobre la misma URL (doble click / propagación)
@@ -774,6 +957,10 @@
                 clearTimeout(window._posDirectPrintTimer);
                 window._posDirectPrintTimer = null;
             }
+            if (window._posDirectPrintCleanupTimer) {
+                clearTimeout(window._posDirectPrintCleanupTimer);
+                window._posDirectPrintCleanupTimer = null;
+            }
 
             var oldFrame = document.getElementById('posDirectPrintFrame');
             if (oldFrame) {
@@ -781,22 +968,37 @@
                 oldFrame.remove();
             }
 
+            // Mantener el iframe dentro del viewport (evita culling offscreen y recorte vertical en Safari/Firefox)
             var frame = document.createElement('iframe');
             frame.id = 'posDirectPrintFrame';
             frame.name = 'posDirectPrintFrame';
+            frame.setAttribute('aria-hidden', 'true');
+            frame.setAttribute('tabindex', '-1');
             frame.style.position = 'fixed';
-            frame.style.left = '-9999px';
-            frame.style.top = '-9999px';
-            frame.style.width = '300px';
-            frame.style.height = '300px';
+            frame.style.right = '0';
+            frame.style.bottom = '0';
+            frame.style.width = '210px';
+            frame.style.height = '210px';
+            frame.style.opacity = '0.001';
+            frame.style.pointerEvents = 'none';
             frame.style.border = '0';
-            frame.style.visibility = 'visible';
+            frame.style.zIndex = '-1';
 
             var hasPrinted = false;
+            var cleanupFrame = function() {
+                if (window._posDirectPrintCleanupTimer) {
+                    clearTimeout(window._posDirectPrintCleanupTimer);
+                    window._posDirectPrintCleanupTimer = null;
+                }
+                if (frame && frame.parentNode) {
+                    frame.onload = null;
+                    frame.remove();
+                }
+            };
+
             frame.onload = function() {
                 if (hasPrinted) return;
                 try {
-                    // Ignorar la carga inicial de about:blank para no disparar print() dos veces
                     var loadedHref = '';
                     try {
                         loadedHref = (frame.contentWindow && frame.contentWindow.location)
@@ -818,18 +1020,24 @@
                             window._posDirectPrintTimer = null;
                             if (!frame.isConnected || !frame.contentWindow) return;
                             try {
-                                try {
-                                    frame.contentWindow.addEventListener('afterprint', function() {
-                                        window._posDirectPrintLastAt = 0;
-                                    }, { once: true });
-                                } catch (apErr) {}
-                                frame.contentWindow.focus();
-                                frame.contentWindow.print();
-                            } catch (err) {
-                                window._posDirectPrintLastAt = 0;
-                                console.warn('Error al invocar frame.contentWindow.print():', err);
-                            }
-                        }, 300);
+                                frame.contentWindow.addEventListener('afterprint', function() {
+                                    window._posDirectPrintLastAt = 0;
+                                    setTimeout(cleanupFrame, 1500);
+                                }, { once: true });
+                            } catch (apErr) {}
+
+                            var doc = null;
+                            try {
+                                doc = frame.contentDocument || frame.contentWindow.document;
+                            } catch (docErr) {}
+
+                            waitTicketLayoutAndPrint(doc, frame.contentWindow, function(ok) {
+                                if (!ok) {
+                                    window._posDirectPrintLastAt = 0;
+                                }
+                                window._posDirectPrintCleanupTimer = setTimeout(cleanupFrame, 60000);
+                            });
+                        }, 150);
                     }
                 } catch (e) {
                     window._posDirectPrintLastAt = 0;
@@ -846,41 +1054,92 @@
             e.preventDefault();
             var url = $(this).data('direct-print') || $(this).attr('href');
             if (url && url !== '#') {
-                window.printTicketDirectly(url);
+                window.printTicketDirectly(url, { userInitiated: true });
             }
         });
 
-        window.openTicketPreviewModal = function(receiptUrl, titleText) {
+        function updateGlobalPreviewModeButtons(mode) {
+            var map = {
+                '80': 'globalTicketMode80Btn',
+                '58': 'globalTicketMode58Btn',
+                'letter': 'globalTicketModeLetterBtn'
+            };
+            Object.keys(map).forEach(function(k) {
+                var btn = document.getElementById(map[k]);
+                if (!btn) return;
+                btn.classList.remove('btn-dark', 'btn-info', 'active');
+                if (k === mode) {
+                    btn.classList.add(k === 'letter' ? 'btn-info' : 'btn-dark', 'active');
+                }
+            });
+        }
+
+        window.openTicketPreviewModal = function(receiptUrl, titleText, options) {
             if (!receiptUrl) return;
-            var baseUrl = receiptUrl.split('?')[0];
-            var mode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
+            options = options || {};
+            var baseUrl = window.normalizeTicketUrl(receiptUrl).split('?')[0];
+            var mode = window.zyaTicketStorage.getPaperMode();
             var frameEl = document.getElementById('globalTicketPreviewIframe');
             var titleEl = document.getElementById('globalTicketPreviewTitle');
             var fullBtn = document.getElementById('globalTicketOpenFullBtn');
             var printBtn = document.getElementById('globalTicketPrintBtn');
+            var hintEl = document.getElementById('globalTicketBrowserHint');
 
             if (titleEl) titleEl.textContent = titleText || 'Vista Previa de Ticket';
+            if (hintEl) {
+                var needsManualTap = Boolean(options.popupBlocked) || window._zyaTicketBrowser.isTouchMobile();
+                hintEl.classList.toggle('d-none', !needsManualTap);
+            }
+
+            updateGlobalPreviewModeButtons(mode);
+
             if (fullBtn) fullBtn.href = baseUrl + '?preview=1&paper=' + mode;
             if (printBtn) {
                 printBtn.onclick = function() {
-                    window.printTicketDirectly(baseUrl + '?skip_drawer=1&paper=' + (localStorage.getItem('zya_ticket_paper_mode') || '80'));
+                    var currentMode = window.zyaTicketStorage.getPaperMode();
+                    var printUrl = baseUrl + '?skip_drawer=1&paper=' + currentMode;
+
+                    if (window._zyaTicketBrowser.isTouchMobile() || window._zyaTicketBrowser.isSafariDesktop()) {
+                        var opened = window.open(printUrl, '_blank');
+                        if (opened && !opened.closed) {
+                            return;
+                        }
+                    }
+
+                    // Si el iframe visible del modal ya cargó el ticket actual, imprimirlo directo evita doble petición y bloqueos
+                    try {
+                        if (
+                            frameEl &&
+                            frameEl.contentWindow &&
+                            frameEl.contentDocument &&
+                            frameEl.contentDocument.readyState === 'complete' &&
+                            String(frameEl.src || '').indexOf('paper=' + currentMode) !== -1
+                        ) {
+                            waitTicketLayoutAndPrint(frameEl.contentDocument, frameEl.contentWindow);
+                            return;
+                        }
+                    } catch (e) {}
+
+                    window.printTicketDirectly(printUrl, { userInitiated: true });
                 };
             }
             if (frameEl) {
                 frameEl.src = baseUrl + '?preview=1&paper=' + mode;
             }
             if (window.jQuery) {
-                $('#globalTicketPreviewModal').modal('show');
+                // focus: false evita que Bootstrap 4 enforceFocus secuestre el foco del iframe de impresión en Firefox/Safari
+                $('#globalTicketPreviewModal').modal({ show: true, focus: false });
             }
         };
 
         window.setGlobalTicketPreviewMode = function(mode) {
-            localStorage.setItem('zya_ticket_paper_mode', mode);
-            localStorage.setItem('zya_ticket_width', mode === '58' ? '58' : '80');
+            window.zyaTicketStorage.set('zya_ticket_paper_mode', mode);
+            window.zyaTicketStorage.set('zya_ticket_width', mode === '58' ? '58' : '80');
+            updateGlobalPreviewModeButtons(mode);
             var frameEl = document.getElementById('globalTicketPreviewIframe');
             var fullBtn = document.getElementById('globalTicketOpenFullBtn');
             if (frameEl && frameEl.src) {
-                var baseUrl = frameEl.src.split('?')[0];
+                var baseUrl = window.normalizeTicketUrl(frameEl.src).split('?')[0];
                 frameEl.src = baseUrl + '?preview=1&paper=' + mode;
                 if (fullBtn) fullBtn.href = baseUrl + '?preview=1&paper=' + mode;
             }
@@ -900,11 +1159,15 @@
                     </button>
                 </div>
                 <div class="modal-body p-2 bg-light">
+                    <div id="globalTicketBrowserHint" class="alert alert-info py-1 px-2 mb-2 small d-none">
+                        <i class="fa-solid fa-mobile-screen-button mr-1"></i>
+                        En dispositivos móviles o Safari, toca <strong>Imprimir</strong> para abrir el ticket en pantalla completa e iniciar la impresión del sistema.
+                    </div>
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 px-1">
                         <div class="btn-group btn-group-sm mb-1" role="group">
-                            <button type="button" class="btn btn-outline-secondary font-weight-bold" onclick="window.setGlobalTicketPreviewMode('80')">XP 80mm</button>
-                            <button type="button" class="btn btn-outline-secondary font-weight-bold" onclick="window.setGlobalTicketPreviewMode('58')">XP 58mm</button>
-                            <button type="button" class="btn btn-outline-info font-weight-bold" onclick="window.setGlobalTicketPreviewMode('letter')">Epson Carta</button>
+                            <button type="button" id="globalTicketMode80Btn" class="btn btn-outline-secondary font-weight-bold" onclick="window.setGlobalTicketPreviewMode('80')">XP 80mm</button>
+                            <button type="button" id="globalTicketMode58Btn" class="btn btn-outline-secondary font-weight-bold" onclick="window.setGlobalTicketPreviewMode('58')">XP 58mm</button>
+                            <button type="button" id="globalTicketModeLetterBtn" class="btn btn-outline-info font-weight-bold" onclick="window.setGlobalTicketPreviewMode('letter')">Epson Carta</button>
                         </div>
                         <div class="mb-1">
                             <button type="button" id="globalTicketPrintBtn" class="btn btn-sm btn-primary font-weight-bold mr-1">

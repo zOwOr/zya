@@ -1493,11 +1493,24 @@ document.addEventListener('DOMContentLoaded', function () {
             if (parsed.pathname && parsed.pathname.startsWith('/central-pos')) {
                 return parsed.pathname + parsed.search + parsed.hash;
             }
-            if (parsed.origin === window.location.origin) {
+            if (parsed.origin === window.location.origin || parsed.hostname === window.location.hostname) {
                 return parsed.pathname + parsed.search + parsed.hash;
             }
         } catch (e) {}
         return rawUrl;
+    }
+
+    function getTicketPaperMode() {
+        if (window.zyaTicketStorage && typeof window.zyaTicketStorage.getPaperMode === 'function') {
+            return window.zyaTicketStorage.getPaperMode();
+        }
+        try {
+            const mode = localStorage.getItem('zya_ticket_paper_mode');
+            if (mode === '80' || mode === '58' || mode === 'letter') return mode;
+            return localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80';
+        } catch (e) {
+            return '80';
+        }
     }
 
     /**
@@ -3582,14 +3595,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const normalizedReceiptUrl = normalizePosUrl(res.receipt_url);
                 if (normalizedReceiptUrl) {
-                    if (shouldAutoPrint) {
-                        const sep = normalizedReceiptUrl.includes('?') ? '&' : '?';
-                        const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
-                        printTicketDirectly(normalizedReceiptUrl + sep + 'skip_drawer=1&paper=' + paperMode);
-                    }
                     showSaleSuccessBanner(res.transaction_code, normalizedReceiptUrl);
                     if (window.openTicketPreviewModal) {
-                        window.openTicketPreviewModal(normalizedReceiptUrl, 'Ticket ' + res.transaction_code);
+                        window.openTicketPreviewModal(
+                            normalizedReceiptUrl,
+                            'Ticket ' + res.transaction_code
+                        );
+                    }
+                    if (shouldAutoPrint) {
+                        const sep = normalizedReceiptUrl.includes('?') ? '&' : '?';
+                        printTicketDirectly(
+                            normalizedReceiptUrl + sep + 'skip_drawer=1&paper=' + getTicketPaperMode(),
+                            { userInitiated: false, skipModalFallback: true, title: 'Ticket ' + res.transaction_code }
+                        );
                     }
                 }
             })
@@ -3605,9 +3623,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function printTicketDirectly(url) {
+    function printTicketDirectly(url, options) {
         if (typeof window.printTicketDirectly === 'function') {
-            window.printTicketDirectly(url);
+            window.printTicketDirectly(url, options);
         }
     }
 
@@ -3620,9 +3638,12 @@ document.addEventListener('DOMContentLoaded', function () {
             codeEl.textContent = txCode;
             if (reBtn) {
                 reBtn.onclick = function() {
-                    const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
+                    const paperMode = getTicketPaperMode();
                     const sep = receiptUrl.includes('?') ? '&' : '?';
-                    printTicketDirectly(receiptUrl + sep + 'skip_drawer=1&paper=' + paperMode);
+                    printTicketDirectly(receiptUrl + sep + 'skip_drawer=1&paper=' + paperMode, {
+                        userInitiated: true,
+                        title: 'Ticket ' + txCode
+                    });
                 };
             }
             if (viewBtn) {
@@ -3684,9 +3705,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     tr.querySelector('.btn-hist-print').addEventListener('click', () => {
                         if (!txReceiptUrl) return;
-                        const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
+                        const paperMode = getTicketPaperMode();
                         const sep = txReceiptUrl.includes('?') ? '&' : '?';
-                        printTicketDirectly(txReceiptUrl + sep + 'skip_drawer=1&paper=' + paperMode);
+                        printTicketDirectly(txReceiptUrl + sep + 'skip_drawer=1&paper=' + paperMode, {
+                            userInitiated: true,
+                            title: 'Ticket ' + tx.transaction_code
+                        });
                     });
                     tbody.appendChild(tr);
                 });
