@@ -16,6 +16,9 @@
             <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId]) }}" class="btn btn-outline-secondary btn-sm mr-2 shadow-sm font-weight-bold">
                 <i class="las la-calculator mr-1"></i> Ir a Cortes X / Z
             </a>
+            <a href="{{ route('cash.expenseTypes.index') }}" class="btn btn-outline-dark btn-sm mr-2 shadow-sm font-weight-bold">
+                <i class="fa-solid fa-tags mr-1"></i> Tipos de Egreso
+            </a>
             @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.export') || auth()->user()->can('cash.read'))
                 <a href="{{ route('cash.expenses.pdf', request()->query()) }}" class="btn btn-danger btn-sm mr-2 shadow-sm font-weight-bold">
                     <i class="las la-file-pdf mr-1"></i> Descargar PDF
@@ -136,8 +139,8 @@
                         <tr>
                             <th>Fecha / Hora</th>
                             <th>Sucursal</th>
-                            <th>Módulo / Referencia</th>
-                            <th>Detalle / Concepto del Gasto</th>
+                            <th>Tipo de Egreso / Ref.</th>
+                            <th>Motivo / Detalle del Gasto</th>
                             <th>Usuario</th>
                             <th class="text-right">Monto ($)</th>
                         </tr>
@@ -148,12 +151,12 @@
                                 <td class="text-nowrap">{{ optional($exp->created_at)->format('d/m/Y H:i') }}</td>
                                 <td><span class="badge badge-light border">{{ $exp->branch?->name ?? 'General' }}</span></td>
                                 <td>
-                                    <span class="font-weight-bold">{{ $exp->module ?: 'Caja' }}</span>
+                                    <span class="font-weight-bold text-danger">{{ $exp->resolved_expense_type_label ?: ($exp->module ?: 'Caja') }}</span>
                                     @if($exp->reference)
                                         <small class="d-block text-muted"><code>{{ $exp->reference }}</code></small>
                                     @endif
                                 </td>
-                                <td class="font-weight-bold text-dark">{{ $exp->description ?: 'Salida / Gasto de caja' }}</td>
+                                <td class="font-weight-bold text-dark">{{ $exp->description ?: 'Sin motivo adicional' }}</td>
                                 <td>{{ $exp->user?->name ?? 'Sistema' }}</td>
                                 <td class="text-right font-weight-bold text-danger">${{ number_format((float) $exp->amount, 2) }}</td>
                             </tr>

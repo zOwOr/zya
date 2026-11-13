@@ -745,6 +745,10 @@
         });
 
         // Impresión directa de tickets en segundo plano sin abrir nueva pestaña del navegador
+        window._posDirectPrintTimer = window._posDirectPrintTimer || null;
+        window._posDirectPrintLastUrl = window._posDirectPrintLastUrl || '';
+        window._posDirectPrintLastAt = window._posDirectPrintLastAt || 0;
+
         window.printTicketDirectly = function(url) {
             if (!url) return;
             // Normalizar URL a relativa si coincide con host para evitar bloqueos por Cross-Origin
@@ -757,10 +761,26 @@
                 } catch(e) {}
             }
 
+            // Bloquear disparos duplicados inmediatos sobre la misma URL (doble click / propagación)
+            var now = Date.now();
+            if (window._posDirectPrintLastUrl === url && (now - window._posDirectPrintLastAt) < 1000) {
+                return;
+            }
+            window._posDirectPrintLastUrl = url;
+            window._posDirectPrintLastAt = now;
+
+            // Cancelar temporizador anterior e invalidar iframe previo para evitar múltiples diálogos de impresión
+            if (window._posDirectPrintTimer) {
+                clearTimeout(window._posDirectPrintTimer);
+                window._posDirectPrintTimer = null;
+            }
+
             var oldFrame = document.getElementById('posDirectPrintFrame');
             if (oldFrame) {
+                oldFrame.onload = null;
                 oldFrame.remove();
             }
+
             var frame = document.createElement('iframe');
             frame.id = 'posDirectPrintFrame';
             frame.name = 'posDirectPrintFrame';
@@ -772,25 +792,54 @@
             frame.style.border = '0';
             frame.style.visibility = 'visible';
 
+            var hasPrinted = false;
             frame.onload = function() {
+                if (hasPrinted) return;
                 try {
+                    // Ignorar la carga inicial de about:blank para no disparar print() dos veces
+                    var loadedHref = '';
+                    try {
+                        loadedHref = (frame.contentWindow && frame.contentWindow.location)
+                            ? String(frame.contentWindow.location.href || '')
+                            : '';
+                    } catch (locErr) {}
+                    if (loadedHref === 'about:blank') {
+                        return;
+                    }
+
+                    hasPrinted = true;
+                    frame.onload = null;
+
                     if (frame.contentWindow) {
-                        setTimeout(function() {
+                        if (window._posDirectPrintTimer) {
+                            clearTimeout(window._posDirectPrintTimer);
+                        }
+                        window._posDirectPrintTimer = setTimeout(function() {
+                            window._posDirectPrintTimer = null;
+                            if (!frame.isConnected || !frame.contentWindow) return;
                             try {
+                                try {
+                                    frame.contentWindow.addEventListener('afterprint', function() {
+                                        window._posDirectPrintLastAt = 0;
+                                    }, { once: true });
+                                } catch (apErr) {}
                                 frame.contentWindow.focus();
                                 frame.contentWindow.print();
                             } catch (err) {
+                                window._posDirectPrintLastAt = 0;
                                 console.warn('Error al invocar frame.contentWindow.print():', err);
                             }
                         }, 300);
                     }
                 } catch (e) {
+                    window._posDirectPrintLastAt = 0;
                     console.error('Error al imprimir ticket directo:', e);
                 }
             };
 
-            document.body.appendChild(frame);
+            // Asignar src ANTES de insertar el iframe en el DOM para evitar onload inicial de about:blank
             frame.src = url;
+            document.body.appendChild(frame);
         };
 
         $(document).on('click', '.btn-direct-print, [data-direct-print]', function(e) {

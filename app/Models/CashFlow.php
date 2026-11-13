@@ -17,6 +17,8 @@ class CashFlow extends Model
         'description',
         'reference',
         'module',
+        'expense_type_id',
+        'expense_type_name',
         'payment_method',
         'cash_amount',
         'card_amount',
@@ -51,6 +53,20 @@ class CashFlow extends Model
     public function posTransaction()
     {
         return $this->belongsTo(PosTransaction::class, 'pos_transaction_id');
+    }
+
+    public function expenseType()
+    {
+        return $this->belongsTo(ExpenseType::class, 'expense_type_id');
+    }
+
+    public function getResolvedExpenseTypeLabelAttribute(): ?string
+    {
+        if (!empty($this->expense_type_name)) {
+            return $this->expense_type_name;
+        }
+
+        return $this->expenseType?->name;
     }
 
     public function getCustomerDisplayNameAttribute(): string
