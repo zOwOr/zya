@@ -2788,7 +2788,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 section: 'gift',
                 gift_id: giftId,
                 title: `${btn.dataset.name} (Regalo)`,
-                subtitle: `Regalo de proveedor: ${btn.dataset.supplier || '-'} | Código: ${btn.dataset.code || '-'}`,
+                subtitle: btn.dataset.code ? `Código: ${btn.dataset.code}` : '',
                 quantity: 1,
                 amount: 0,
                 original_amount: 0,

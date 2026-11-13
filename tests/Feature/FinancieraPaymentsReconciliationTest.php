@@ -285,5 +285,54 @@ class FinancieraPaymentsReconciliationTest extends TestCase
         $this->assertTrue(FinSaleNote::where('sale_id', $sale->id)->where('note', 'like', '%Abono cancelado%')->exists());
         $this->assertEquals('cancelado', PosTransaction::findOrFail($txId)->status);
     }
+
+    public function test_gift_added_to_pos_ticket_hides_provider_information(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $gift = \App\Models\Gift::create([
+            'name' => 'Termo Metálico',
+            'code' => 'GFT-PROV-01',
+            'branch_id' => $this->branchAllende->id,
+            'supplier_name' => 'Proveedor Secreto SA',
+            'stock_quantity' => 5,
+            'status' => 'activo',
+        ]);
+
+        $resp = $this->postJson(route('central-pos.checkout'), [
+            'branch_id' => $this->branchAllende->id,
+            'customer_name' => 'Cliente Regalo',
+            'payment_method' => 'efectivo',
+            'cash_amount' => 100.00,
+            'items' => [
+                [
+                    'section' => 'producto_dinamico',
+                    'name' => 'Funda Silicone',
+                    'title' => 'Funda Silicone',
+                    'quantity' => 1,
+                    'amount' => 100.00,
+                    'commission' => 0.00,
+                ],
+                [
+                    'section' => 'gift',
+                    'gift_id' => $gift->id,
+                    'title' => 'Termo Metálico (Regalo)',
+                    'subtitle' => 'Regalo de proveedor: Proveedor Secreto SA | Código: GFT-PROV-01',
+                    'quantity' => 1,
+                    'amount' => 0.00,
+                    'commission' => 0.00,
+                ],
+            ],
+        ]);
+        $resp->assertStatus(200)->assertJson(['success' => true]);
+
+        $tx = PosTransaction::findOrFail($resp->json('transaction_id'));
+        $receiptHtml = $this->get(route('central-pos.receipt', $tx->id));
+        $receiptHtml->assertStatus(200)
+            ->assertSee('Termo Metálico')
+            ->assertSee('Código: GFT-PROV-01')
+            ->assertDontSee('Proveedor Secreto SA')
+            ->assertDontSee('Regalo de proveedor');
+    }
 }
 

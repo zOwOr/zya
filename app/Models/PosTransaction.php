@@ -88,6 +88,22 @@ class PosTransaction extends Model
             ->implode(', ');
     }
 
+    /**
+     * Elimina la referencia al proveedor del gift en subtítulos guardados para no mostrarla en tickets.
+     */
+    public static function sanitizeGiftSubtitle(?string $subtitle): ?string
+    {
+        if ($subtitle === null) {
+            return null;
+        }
+
+        $cleaned = preg_replace('/\bRegalo de proveedor:\s*[^|]*(\|\s*)?/iu', '', trim($subtitle));
+        $cleaned = preg_replace('/\bProv(?:eedor)?:\s*[^|]*(\|\s*)?/iu', '', (string) $cleaned);
+        $cleaned = trim((string) $cleaned, " \t\n\r\0\x0B|•-");
+
+        return $cleaned !== '' ? $cleaned : null;
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');

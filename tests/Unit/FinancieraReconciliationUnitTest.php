@@ -173,5 +173,20 @@ class FinancieraReconciliationUnitTest extends TestCase
         $this->assertEquals('Abono Credimás #2', $ops[0]['concepts'][0]['title']);
         $this->assertEquals('Cable USB-C', $ops[0]['concepts'][1]['title']);
     }
+
+    public function test_sanitize_gift_subtitle_strips_provider_metadata(): void
+    {
+        $this->assertEquals(
+            'Código: GFT-101',
+            PosTransaction::sanitizeGiftSubtitle('Regalo de proveedor: PayJoy | Código: GFT-101')
+        );
+        $this->assertNull(
+            PosTransaction::sanitizeGiftSubtitle('Regalo de proveedor: Samsung')
+        );
+        $this->assertEquals(
+            'Código: GFT-202',
+            PosTransaction::sanitizeGiftSubtitle('Código: GFT-202')
+        );
+    }
 }
 

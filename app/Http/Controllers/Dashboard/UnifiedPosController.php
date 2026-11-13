@@ -742,9 +742,15 @@ class UnifiedPosController extends Controller
                 // En apertura de préstamo, el capital prestado NO entra ni sale de caja; SOLO se cobra la comisión por apertura
                 $commissionTotal += $comm;
             } elseif ($section === 'gift') {
-                // Los regalos/promocionales siempre salen en $0.00 en ticket y sin cargo al total
+                // Los regalos/promocionales siempre salen en $0.00 en ticket y sin cargo al total ni proveedor visible
                 $items[$idx]['amount'] = 0;
                 $items[$idx]['commission'] = 0;
+                $sanitizedSub = PosTransaction::sanitizeGiftSubtitle($item['subtitle'] ?? null);
+                if ($sanitizedSub !== null) {
+                    $items[$idx]['subtitle'] = $sanitizedSub;
+                } else {
+                    unset($items[$idx]['subtitle']);
+                }
             } else {
                 $subtotal += ($unitAmount * $qty);
                 $commissionTotal += $comm;
