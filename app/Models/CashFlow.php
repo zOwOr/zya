@@ -2,10 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StripsMissingSchemaColumns;
 use Illuminate\Database\Eloquent\Model;
 
 class CashFlow extends Model
 {
+    use StripsMissingSchemaColumns;
+
+    protected static function optionalSchemaColumns(): array
+    {
+        return [
+            'external_customer_id' => true,
+            'expense_type_id' => true,
+            'expense_type_name' => true,
+        ];
+    }
+
     protected $fillable = [
         'branch_id',
         'user_id',

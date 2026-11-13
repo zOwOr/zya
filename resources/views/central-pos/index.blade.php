@@ -1314,10 +1314,10 @@
                                     <td>{{ strtoupper((string) $rTx->payment_method) }}</td>
                                     <td class="text-right font-weight-bold">${{ number_format((float) $rTx->total_amount, 2) }}</td>
                                     <td class="text-right text-nowrap">
-                                        <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1" onclick="window.openTicketPreviewModal('{{ route('central-pos.receipt', $rTx->id) }}', 'Ticket {{ $rTx->transaction_code }}')">
+                                        <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1" onclick="window.openTicketPreviewModal('{{ route('central-pos.receipt', $rTx->id, false) }}', 'Ticket {{ $rTx->transaction_code }}')">
                                             <i class="fa-solid fa-eye mr-1"></i>Ver
                                         </button>
-                                        <button type="button" class="btn btn-xs btn-dark font-weight-bold" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $rTx->id) }}')">
+                                        <button type="button" class="btn btn-xs btn-dark font-weight-bold" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $rTx->id, false) }}')">
                                             <i class="fa-solid fa-print"></i>
                                         </button>
                                     </td>
@@ -1478,6 +1478,119 @@ window.triggerPhysicalCashDrawer = async function () {
 
 document.addEventListener('DOMContentLoaded', function () {
     const STORAGE_KEY = 'zya_central_pos_tabs_v1_{{ auth()->id() ?? 0 }}_{{ $branchId ?? 0 }}';
+    const CAN_POS_EXTERNAL_CUSTOMERS = @json((bool) $canPosExternalCustomers);
+
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return (meta && meta.getAttribute('content')) ? meta.getAttribute('content') : '{{ csrf_token() }}';
+    }
+
+    function normalizePosUrl(rawUrl) {
+        if (!rawUrl || typeof rawUrl !== 'string') return '';
+        if (rawUrl.startsWith('/')) return rawUrl;
+        try {
+            const parsed = new URL(rawUrl, window.location.origin);
+            if (parsed.pathname && parsed.pathname.startsWith('/central-pos')) {
+                return parsed.pathname + parsed.search + parsed.hash;
+            }
+            if (parsed.origin === window.location.origin) {
+                return parsed.pathname + parsed.search + parsed.hash;
+            }
+        } catch (e) {}
+        return rawUrl;
+    }
+
+    /**
+     * Ejecuta peticiones JSON en el POS sobre el mismo origen con timeout y parseo seguro de errores HTTP/HTML.
+     */
+    function posFetchJson(rawUrl, options = {}) {
+        const method = options.method || 'GET';
+        const timeoutMs = options.timeoutMs || 20000;
+        const headers = Object.assign({
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        }, options.headers || {});
+
+        if (method !== 'GET' && method !== 'HEAD') {
+            headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+            headers['X-CSRF-TOKEN'] = headers['X-CSRF-TOKEN'] || getCsrfToken();
+        }
+
+        const hasAbort = typeof AbortController !== 'undefined';
+        const controller = hasAbort ? new AbortController() : null;
+        const timerId = (controller && timeoutMs > 0)
+            ? setTimeout(() => controller.abort(), timeoutMs)
+            : null;
+
+        const fetchOpts = {
+            method,
+            headers,
+            credentials: 'same-origin',
+        };
+        if (options.json !== undefined) {
+            fetchOpts.body = JSON.stringify(options.json);
+        } else if (options.body !== undefined) {
+            fetchOpts.body = options.body;
+        }
+        if (controller) {
+            fetchOpts.signal = controller.signal;
+        }
+
+        return fetch(normalizePosUrl(rawUrl), fetchOpts)
+            .then(async (r) => {
+                if (r.redirected && r.url && r.url.includes('/login')) {
+                    throw new Error('Tu sesión expiró. Recarga la página e inicia sesión nuevamente.');
+                }
+
+                let data = null;
+                if (typeof r.text === 'function') {
+                    const rawText = await r.text();
+                    try {
+                        data = rawText ? JSON.parse(rawText) : null;
+                    } catch (_) {
+                        data = null;
+                    }
+                } else if (typeof r.json === 'function') {
+                    data = await r.json().catch(() => null);
+                }
+
+                if (!r.ok || !data) {
+                    if (r.status === 419) {
+                        throw new Error('La sesión o token de seguridad expiró (419). Recarga la página e intenta nuevamente.');
+                    }
+                    const validationList = (data && data.errors && typeof data.errors === 'object')
+                        ? Object.values(data.errors).flat().filter(Boolean)
+                        : [];
+                    if (validationList.length) {
+                        const err = new Error(validationList[0]);
+                        err.validationMessages = validationList;
+                        throw err;
+                    }
+                    if (r.ok && !data) {
+                        throw new Error('El servidor devolvió una respuesta inesperada (no JSON). Si tu sesión expiró, recarga la página e intenta de nuevo.');
+                    }
+                    throw new Error(
+                        (data && data.message)
+                        || (r.status >= 500
+                            ? 'Error interno del servidor al procesar la solicitud (' + r.status + '). Revisa el registro de errores o ejecuta las migraciones pendientes.'
+                            : 'Error al comunicarse con el servidor (' + r.status + ').')
+                    );
+                }
+
+                return data;
+            })
+            .catch((err) => {
+                if (err && err.name === 'AbortError') {
+                    throw new Error('La solicitud tardó demasiado tiempo en responder. Verifica la conexión o consulta "Tickets Recientes" antes de reintentar.');
+                }
+                throw err;
+            })
+            .finally(() => {
+                if (timerId !== null) {
+                    clearTimeout(timerId);
+                }
+            });
+    }
 
     let state = {
         activeTabId: 'tab-1',
@@ -1505,6 +1618,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (saved) {
             const parsed = JSON.parse(saved);
             if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length > 0) {
+                parsed.tabs.forEach(t => {
+                    if (!Array.isArray(t.items)) t.items = [];
+                    if (!t.paymentMethod) t.paymentMethod = 'efectivo';
+                    if (t.externalCustomerId === undefined) t.externalCustomerId = '';
+                });
                 state = parsed;
             }
         }
@@ -1517,7 +1635,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getActiveTab() {
-        return state.tabs.find(t => t.id === state.activeTabId) || state.tabs[0];
+        const tab = state.tabs.find(t => t.id === state.activeTabId) || state.tabs[0];
+        if (tab) {
+            if (!Array.isArray(tab.items)) tab.items = [];
+            if (!tab.paymentMethod) tab.paymentMethod = 'efectivo';
+            if (tab.externalCustomerId === undefined) tab.externalCustomerId = '';
+        }
+        return tab;
     }
 
     function tabHasFinancieraConcept(tab) {
@@ -1767,11 +1891,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (cname !== '') params.set('customer_name', cname);
         if (cphone !== '') params.set('customer_phone', cphone);
 
-        fetch(`{{ route('central-pos.lookup-pending-notes') }}?${params.toString()}`)
-            .then(r => {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
+        posFetchJson(`{{ route('central-pos.lookup-pending-notes', [], false) }}?${params.toString()}`, { timeoutMs: 12000 })
             .then(data => {
                 if (mySeq !== pendingNotesRequestSeq) return;
                 renderCustomerPendingNotesBox(data);
@@ -1808,10 +1928,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const tab = getActiveTab();
         const hasFinItem = tabHasFinancieraConcept(tab);
 
-        if (!hasFinItem && tab.externalCustomerId) {
+        if ((!hasFinItem || !CAN_POS_EXTERNAL_CUSTOMERS) && tab.externalCustomerId) {
             tab.externalCustomerId = '';
-            tab.customerName = '';
-            tab.customerPhone = '';
+            if (!hasFinItem) {
+                tab.customerName = '';
+                tab.customerPhone = '';
+            }
             saveState();
         }
 
@@ -2457,8 +2579,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const container = document.getElementById('finSearchResults');
         container.innerHTML = '<div class="text-muted font-size-12"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Buscando contratos por Device ID / TAG...</div>';
 
-        fetch(`{{ route('central-pos.lookup-financiera') }}?q=${encodeURIComponent(q)}&financiera_id=${encodeURIComponent(finId)}`)
-            .then(r => r.json())
+        posFetchJson(`{{ route('central-pos.lookup-financiera', [], false) }}?q=${encodeURIComponent(q)}&financiera_id=${encodeURIComponent(finId)}`, { timeoutMs: 15000 })
             .then(data => {
                 if (!data.results || data.results.length === 0) {
                     container.innerHTML = '<div class="alert alert-light border py-2 font-size-12 mb-0">No se encontraron equipos con ese TAG / Device ID / IMEI.</div>';
@@ -2502,6 +2623,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         </table>
                     </div>
                 `;
+            })
+            .catch(err => {
+                container.innerHTML = `<div class="alert alert-danger py-2 font-size-12 mb-0">${err.message || 'No se pudo consultar el catálogo de financieras.'}</div>`;
             });
     }
 
@@ -2726,24 +2850,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const payload = Object.fromEntries(new FormData(extCustomerForm).entries());
             payload.branch_id = '{{ $branchId }}';
 
-            fetch("{{ route('central-pos.external-customers.store') }}", {
+            posFetchJson("{{ route('central-pos.external-customers.store', [], false) }}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(async (r) => {
-                const data = await r.json().catch(() => ({}));
-                if (!r.ok || !data.success) {
-                    const errors = data.errors ? Object.values(data.errors).flat() : [];
-                    throw new Error(errors.length ? errors.join('<br>') : (data.message || 'No se pudo guardar el cliente externo.'));
-                }
-                return data;
+                json: payload,
+                timeoutMs: 20000
             })
             .then(data => {
+                if (!data.success) {
+                    throw new Error(data.message || 'No se pudo guardar el cliente externo.');
+                }
                 const ext = data.external_customer;
                 const sel = document.getElementById('posModalExtCustomerSelect');
                 if (sel && ext) {
@@ -2766,7 +2881,9 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(err => {
                 if (errBox) {
-                    errBox.innerHTML = err.message || 'Error al registrar cliente externo.';
+                    errBox.innerHTML = err.validationMessages
+                        ? err.validationMessages.join('<br>')
+                        : (err.message || 'Error al registrar cliente externo.');
                     errBox.classList.remove('d-none');
                 }
             })
@@ -2888,11 +3005,16 @@ document.addEventListener('DOMContentLoaded', function () {
         saveState();
         renderActiveCart();
 
-        fetch(`{{ route('central-pos.lookup-loans') }}?customer_id=${encodeURIComponent(customerId)}`)
-            .then(r => r.json())
+        posFetchJson(`{{ route('central-pos.lookup-loans', [], false) }}?customer_id=${encodeURIComponent(customerId)}`, { timeoutMs: 15000 })
             .then(data => {
                 currentCustomerLoansData = data;
                 renderOpenLoansList();
+            })
+            .catch(() => {
+                currentCustomerLoansData = null;
+                if (posOpenLoansContainer) {
+                    posOpenLoansContainer.innerHTML = '<div class="alert alert-danger py-2 font-size-12 mb-0">No se pudieron cargar los préstamos del cliente.</div>';
+                }
             });
     });
 
@@ -3258,9 +3380,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function searchPosGifts(query) {
         if (!posGiftsBody) return;
-        const url = `{{ route('central-pos.lookup-gifts') }}?branch_id={{ $branchId }}&q=${encodeURIComponent(query || '')}`;
-        fetch(url)
-            .then(r => r.json())
+        const url = `{{ route('central-pos.lookup-gifts', [], false) }}?branch_id={{ $branchId }}&q=${encodeURIComponent(query || '')}`;
+        posFetchJson(url, { timeoutMs: 15000 })
             .then(data => {
                 const gifts = data.gifts || [];
                 posGiftsBody.innerHTML = '';
@@ -3313,8 +3434,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const btnCompleteSaleEl = document.getElementById('btnCompleteUnifiedSale');
+    let isCheckoutInFlight = false;
     if (btnCompleteSaleEl) {
         btnCompleteSaleEl.addEventListener('click', function () {
+            if (isCheckoutInFlight || this.disabled) {
+                return;
+            }
+
             const tab = getActiveTab();
 
             // Si el usuario capturó un Producto Libre pero olvidó dar click en "Añadir", agregarlo automáticamente
@@ -3396,19 +3522,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const shouldAutoPrint = !!document.getElementById('posAutoPrintCheck')?.checked;
 
             const btn = this;
+            isCheckoutInFlight = true;
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Procesando Cobro...';
 
-            fetch("{{ route('central-pos.checkout') }}", {
+            posFetchJson("{{ route('central-pos.checkout', [], false) }}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
+                timeoutMs: 30000,
+                json: {
                     branch_id: '{{ $branchId }}',
-                    customer_id: tab.externalCustomerId ? null : (tab.customerId || null),
-                    external_customer_id: (tabHasFinancieraConcept(tab) && tab.externalCustomerId) ? tab.externalCustomerId : null,
+                    customer_id: (CAN_POS_EXTERNAL_CUSTOMERS && tab.externalCustomerId) ? null : (tab.customerId || null),
+                    external_customer_id: (CAN_POS_EXTERNAL_CUSTOMERS && tabHasFinancieraConcept(tab) && tab.externalCustomerId) ? tab.externalCustomerId : null,
                     customer_name: tab.customerName || 'Cliente Mostrador',
                     customer_phone: tab.customerPhone || null,
                     payment_method: tab.paymentMethod,
@@ -3420,14 +3544,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     paid_amount: tab.isPartial ? effectivePaidAmount : null,
                     open_drawer: document.getElementById('posOpenDrawerCheck')?.checked ? 1 : 0,
                     items: tab.items
-                })
-            })
-            .then(async (r) => {
-                const data = await r.json().catch(() => null);
-                if (!r.ok || !data) {
-                    throw new Error(data?.message || 'Error en el servidor al procesar el cobro (' + r.status + ')');
                 }
-                return data;
             })
             .then(res => {
                 if (!res.success) {
@@ -3457,19 +3574,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderAll();
 
                 // Apertura AUTOMÁTICA del cajón por USB únicamente cuando el cobro involucra efectivo
-                if (shouldAutoOpenDrawer && window.ZyaPosHardware) {
-                    ZyaPosHardware.autoOpenUsbDrawer();
+                if (shouldAutoOpenDrawer && window.ZyaPosHardware && typeof window.ZyaPosHardware.autoOpenUsbDrawer === 'function') {
+                    Promise.resolve(window.ZyaPosHardware.autoOpenUsbDrawer()).catch((hwErr) => {
+                        console.warn('Error al abrir cajón USB:', hwErr);
+                    });
                 }
 
-                if (res.receipt_url) {
+                const normalizedReceiptUrl = normalizePosUrl(res.receipt_url);
+                if (normalizedReceiptUrl) {
                     if (shouldAutoPrint) {
-                        const sep = res.receipt_url.includes('?') ? '&' : '?';
+                        const sep = normalizedReceiptUrl.includes('?') ? '&' : '?';
                         const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
-                        printTicketDirectly(res.receipt_url + sep + 'skip_drawer=1&paper=' + paperMode);
+                        printTicketDirectly(normalizedReceiptUrl + sep + 'skip_drawer=1&paper=' + paperMode);
                     }
-                    showSaleSuccessBanner(res.transaction_code, res.receipt_url);
+                    showSaleSuccessBanner(res.transaction_code, normalizedReceiptUrl);
                     if (window.openTicketPreviewModal) {
-                        window.openTicketPreviewModal(res.receipt_url, 'Ticket ' + res.transaction_code);
+                        window.openTicketPreviewModal(normalizedReceiptUrl, 'Ticket ' + res.transaction_code);
                     }
                 }
             })
@@ -3478,6 +3598,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert(err.message || 'Error de red o comunicación al procesar el movimiento.');
             })
             .finally(() => {
+                isCheckoutInFlight = false;
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket';
             });
@@ -3521,10 +3642,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!tbody) return;
         const dateVal = document.getElementById('posHistoryDateInput')?.value || '';
         const searchVal = document.getElementById('posHistorySearchInput')?.value.trim() || '';
-        const url = `{{ route('central-pos.recent-transactions') }}?branch_id={{ $branchId }}&date=${encodeURIComponent(dateVal)}&search=${encodeURIComponent(searchVal)}`;
+        const url = `{{ route('central-pos.recent-transactions', [], false) }}?branch_id={{ $branchId }}&date=${encodeURIComponent(dateVal)}&search=${encodeURIComponent(searchVal)}`;
 
-        fetch(url)
-            .then(r => r.json())
+        posFetchJson(url, { timeoutMs: 15000 })
             .then(data => {
                 const list = data.transactions || [];
                 tbody.innerHTML = '';
@@ -3556,20 +3676,24 @@ document.addEventListener('DOMContentLoaded', function () {
                             </button>
                         </td>
                     `;
+                    const txReceiptUrl = normalizePosUrl(tx.receipt_url);
                     tr.querySelector('.btn-hist-preview').addEventListener('click', () => {
-                        if (window.openTicketPreviewModal) {
-                            window.openTicketPreviewModal(tx.receipt_url, 'Ticket ' + tx.transaction_code);
+                        if (window.openTicketPreviewModal && txReceiptUrl) {
+                            window.openTicketPreviewModal(txReceiptUrl, 'Ticket ' + tx.transaction_code);
                         }
                     });
                     tr.querySelector('.btn-hist-print').addEventListener('click', () => {
+                        if (!txReceiptUrl) return;
                         const paperMode = localStorage.getItem('zya_ticket_paper_mode') || (localStorage.getItem('zya_ticket_width') === '58' ? '58' : '80');
-                        const sep = tx.receipt_url.includes('?') ? '&' : '?';
-                        printTicketDirectly(tx.receipt_url + sep + 'skip_drawer=1&paper=' + paperMode);
+                        const sep = txReceiptUrl.includes('?') ? '&' : '?';
+                        printTicketDirectly(txReceiptUrl + sep + 'skip_drawer=1&paper=' + paperMode);
                     });
                     tbody.appendChild(tr);
                 });
             })
-            .catch(() => {});
+            .catch(err => {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">${err?.message || 'No se pudo cargar el historial de tickets.'}</td></tr>`;
+            });
     }
 
     const btnFilterHistory = document.getElementById('btnFilterPosHistory');

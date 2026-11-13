@@ -2,14 +2,23 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StripsMissingSchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class PosTransaction extends Model
 {
     use HasFactory;
+    use StripsMissingSchemaColumns;
 
     protected $table = 'pos_transactions';
+
+    protected static function optionalSchemaColumns(): array
+    {
+        return [
+            'external_customer_id' => true,
+        ];
+    }
 
     protected $fillable = [
         'transaction_code',

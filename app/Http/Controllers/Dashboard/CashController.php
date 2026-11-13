@@ -15,6 +15,7 @@ use App\Models\OrderDetails;
 use App\Models\PaymentHistory;
 use App\Models\PosTransaction;
 use App\Services\CashFlowService;
+use App\Services\DateFilterService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -38,11 +39,11 @@ class CashController extends Controller
         'updateAutoCutConfig' => 'edit',
         'filterByDate' => 'read',
         'printCut' => 'read',
-        'exportCutsPdf' => 'export',
-        'exportCutsExcel' => 'export',
+        'exportCutsPdf' => 'cortes.export_pdf',
+        'exportCutsExcel' => 'cortes.export_excel',
         'expensesReport' => 'read',
-        'exportExpensesPdf' => 'export',
-        'exportExpensesExcel' => 'export',
+        'exportExpensesPdf' => 'gastos.export_pdf',
+        'exportExpensesExcel' => 'gastos.export_excel',
         'expenseTypesIndex' => 'read',
         'storeExpenseType' => 'edit',
         'updateExpenseType' => 'edit',
@@ -53,6 +54,20 @@ class CashController extends Controller
     public function __construct()
     {
         $this->initializeModulePermission();
+    }
+
+    protected function resolveCashDateFilter(
+        Request $request,
+        string $defaultType = 'dia',
+        ?string $defaultStart = null,
+        bool $allowPeriodAliases = false
+    ): array {
+        return DateFilterService::resolve($request, [
+            'default_type' => $defaultType,
+            'default_start_date' => $defaultStart ?? Carbon::today()->toDateString(),
+            'allow_period_aliases' => $allowPeriodAliases,
+            'history_permissions' => ['cash.filter_all_dates'],
+        ]);
     }
 
     protected function canAccessAllBranches(): bool
@@ -160,7 +175,21 @@ class CashController extends Controller
     public function index(Request $request)
     {
         $perPage = 15;
-        $date = $request->input('date');
+        $canHistoryDefault = DateFilterService::userCanFilterAllDates(auth()->user(), ['cash.filter_all_dates']);
+        $dateFilter = $this->resolveCashDateFilter(
+            $request,
+            $canHistoryDefault ? 'todos' : 'rango',
+            Carbon::today()->subDays(DateFilterService::MAX_RESTRICTED_DAYS)->toDateString()
+        );
+        $filterType = $dateFilter['filter_type'];
+        $selectedDate = $dateFilter['date'];
+        $startDate = $dateFilter['start_date'];
+        $endDate = $dateFilter['end_date'];
+        $canAllDates = $dateFilter['can_all_dates'];
+        $minAllowedDate = $dateFilter['min_allowed_date'];
+        $wasRestricted = $dateFilter['was_restricted'];
+        $date = $filterType === 'dia' ? $selectedDate : null;
+
         $branchScope = $this->resolveBranchScope($request, false);
         $isAllBranches = $branchScope['is_all'];
         $branchIds = $branchScope['branch_ids'];
@@ -170,17 +199,16 @@ class CashController extends Controller
             $this->ensurePastDaysAutoClosed((int) $branchId);
         }
 
-        $cashFlows = CashFlow::with(['user', 'branch', 'expenseType', 'externalCustomer'])
-            ->where('branch_id', $branchId)
-            ->when($date, fn($q) => $q->whereDate('created_at', $date))
+        $cashFlowsQuery = CashFlow::with(['user', 'branch', 'expenseType', 'externalCustomer'])
+            ->where('branch_id', $branchId);
+        DateFilterService::apply($cashFlowsQuery, 'created_at', $dateFilter);
+
+        $cashFlows = (clone $cashFlowsQuery)
             ->orderByDesc('created_at')
             ->paginate($perPage)
             ->withQueryString();
 
-        $allForPeriod = CashFlow::with('externalCustomer')
-            ->where('branch_id', $branchId)
-            ->when($date, fn($q) => $q->whereDate('created_at', $date))
-            ->get();
+        $allForPeriod = (clone $cashFlowsQuery)->get();
 
         $totalIncome = (float) $allForPeriod->where('type', 'income')->sum('amount');
         $totalExpense = (float) $allForPeriod->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount);
@@ -219,6 +247,14 @@ class CashController extends Controller
         return view('cash.index', compact(
             'cashFlows',
             'date',
+            'dateFilter',
+            'filterType',
+            'selectedDate',
+            'startDate',
+            'endDate',
+            'canAllDates',
+            'minAllowedDate',
+            'wasRestricted',
             'totalIncome',
             'totalExpense',
             'cashIncome',
@@ -237,29 +273,18 @@ class CashController extends Controller
 
     public function dailyCut(Request $request)
     {
-        $filterType = $request->input('filter_type');
-        if (!$filterType) {
-            if ($request->filled('start_date') || $request->filled('end_date')) {
-                $filterType = 'rango';
-            } elseif ($request->filled('date')) {
-                $filterType = 'dia';
-            } else {
-                $filterType = 'dia';
-            }
-        }
-        if (!in_array($filterType, ['dia', 'rango', 'todos'])) {
-            $filterType = 'dia';
-        }
-
-        $selectedDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
-        $startDate = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->subDays(7)->toDateString();
-        $endDate = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString();
-
-        if ($startDate > $endDate) {
-            $tmp = $startDate;
-            $startDate = $endDate;
-            $endDate = $tmp;
-        }
+        $dateFilter = $this->resolveCashDateFilter(
+            $request,
+            'dia',
+            Carbon::today()->subDays(7)->toDateString()
+        );
+        $filterType = $dateFilter['filter_type'];
+        $selectedDate = $dateFilter['date'];
+        $startDate = $dateFilter['start_date'];
+        $endDate = $dateFilter['end_date'];
+        $canAllDates = $dateFilter['can_all_dates'];
+        $minAllowedDate = $dateFilter['min_allowed_date'];
+        $wasRestricted = $dateFilter['was_restricted'];
 
         $branchScope = $this->resolveBranchScope($request, false);
         $isAllBranches = $branchScope['is_all'];
@@ -288,23 +313,12 @@ class CashController extends Controller
             $q->whereIn('name', ['Payjoy', 'KrediYa']);
         })->pluck('order_id')->unique()->toArray();
 
-        $dateScope = function ($q) use ($filterType, $selectedDate, $startDate, $endDate) {
-            if ($filterType === 'dia') {
-                $q->whereDate('created_at', $selectedDate);
-            } elseif ($filterType === 'rango') {
-                $q->whereBetween('created_at', [
-                    Carbon::parse($startDate)->startOfDay(),
-                    Carbon::parse($endDate)->endOfDay()
-                ]);
-            }
+        $dateScope = function ($q) use ($dateFilter) {
+            DateFilterService::apply($q, 'created_at', $dateFilter);
         };
 
-        $cutDateScope = function ($q) use ($filterType, $selectedDate, $startDate, $endDate) {
-            if ($filterType === 'dia') {
-                $q->whereDate('date', $selectedDate);
-            } elseif ($filterType === 'rango') {
-                $q->whereBetween('date', [$startDate, $endDate]);
-            }
+        $cutDateScope = function ($q) use ($dateFilter) {
+            DateFilterService::apply($q, 'date', $dateFilter, true);
         };
 
         $specialProviderPayments = PaymentHistory::with('user')
@@ -499,7 +513,11 @@ class CashController extends Controller
             'chronologicalOperations',
             'isChronologicalPaginated',
             'expenseDetails',
-            'financieraSummary'
+            'financieraSummary',
+            'dateFilter',
+            'canAllDates',
+            'minAllowedDate',
+            'wasRestricted'
         ));
     }
 
@@ -857,6 +875,12 @@ class CashController extends Controller
             $cutBranchId = (int) $dailyCut->branch_id;
             $date = $dailyCut->date ? $dailyCut->date->toDateString() : Carbon::parse($dailyCut->created_at)->toDateString();
 
+            $canAllDates = DateFilterService::userCanFilterAllDates(auth()->user(), ['cash.filter_all_dates']);
+            $minAllowedDate = Carbon::today()->subDays(DateFilterService::MAX_RESTRICTED_DAYS)->toDateString();
+            if (!$canAllDates && $date < $minAllowedDate) {
+                abort(403, 'No tienes permisos para consultar cortes con más de 2 días de anterioridad.');
+            }
+
             $cashFlows = CashFlow::with(['user', 'posTransaction', 'expenseType', 'externalCustomer'])
                 ->where('branch_id', $cutBranchId)
                 ->whereDate('created_at', $date)
@@ -883,49 +907,26 @@ class CashController extends Controller
             ));
         }
 
-        // Si no hay cut_id, determinar si se solicita imprimir reporte del rango o todos los registros
-        if (!$filterType) {
-            if ($request->filled('start_date') || $request->filled('end_date')) {
-                $filterType = 'rango';
-            } elseif ($request->filled('date')) {
-                $filterType = 'dia';
-            } else {
-                $filterType = 'dia';
-            }
-        }
+        $dateFilter = $this->resolveCashDateFilter(
+            $request,
+            'dia',
+            Carbon::today()->subDays(7)->toDateString()
+        );
+        $filterType = $dateFilter['filter_type'];
+        $selectedDate = $dateFilter['date'];
+        $startDate = $dateFilter['start_date'];
+        $endDate = $dateFilter['end_date'];
 
         $branch = $isAllBranches
             ? (object) ['name' => 'Todas las Sucursales']
             : Branch::find($branchId);
 
         if ($filterType === 'rango' || $filterType === 'todos' || $isAllBranches) {
-            if (!$filterType || ($filterType === 'dia' && $isAllBranches)) {
-                $filterType = $request->filled('start_date') || $request->filled('end_date') ? 'rango' : 'dia';
-            }
-            $selectedDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
-            $startDate = $filterType === 'dia'
-                ? $selectedDate
-                : ($request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->subDays(7)->toDateString());
-            $endDate = $filterType === 'dia'
-                ? $selectedDate
-                : ($request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString());
-
-            if ($startDate > $endDate) {
-                $tmp = $startDate;
-                $startDate = $endDate;
-                $endDate = $tmp;
-            }
-
             $cutsQuery = DailyCut::with(['branch', 'user'])->whereIn('branch_id', $branchIds);
             $flowsQuery = CashFlow::with(['user', 'posTransaction', 'expenseType', 'externalCustomer'])->whereIn('branch_id', $branchIds);
 
-            if ($filterType === 'rango' || $filterType === 'dia') {
-                $cutsQuery->whereBetween('date', [$startDate, $endDate]);
-                $flowsQuery->whereBetween('created_at', [
-                    Carbon::parse($startDate)->startOfDay(),
-                    Carbon::parse($endDate)->endOfDay()
-                ]);
-            }
+            DateFilterService::apply($cutsQuery, 'date', $dateFilter, true);
+            DateFilterService::apply($flowsQuery, 'created_at', $dateFilter);
 
             $cutsHistory = $cutsQuery->orderByDesc('date')->orderByDesc('id')->get();
             $cashFlows = $flowsQuery->orderBy('created_at')->get();
@@ -979,7 +980,7 @@ class CashController extends Controller
         }
 
         // Modo 'dia' sin cut_id (comportamiento original para corte de un día específico)
-        $date = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+        $date = $selectedDate;
         $dailyCut = DailyCut::with(['branch', 'user'])
             ->where('branch_id', $branchId)
             ->whereDate('date', $date)
@@ -1052,42 +1053,37 @@ class CashController extends Controller
         $branchScope = $this->resolveBranchScope($request, true);
         $branchIds = $branchScope['branch_ids'];
 
-        $filterType = $request->input('filter_type');
-        if (!$filterType) {
-            if ($request->filled('start_date') || $request->filled('end_date')) {
-                $filterType = 'rango';
-            } elseif ($request->filled('date')) {
-                $filterType = 'dia';
-            } else {
-                $filterType = 'rango';
-            }
-        }
-        if (!in_array($filterType, ['dia', 'rango', 'todos'], true)) {
-            $filterType = 'rango';
-        }
-
-        $selectedDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
-        $startDate = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->startOfMonth()->toDateString();
-        $endDate = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString();
-
-        if ($startDate > $endDate) {
-            $tmp = $startDate;
-            $startDate = $endDate;
-            $endDate = $tmp;
-        }
+        $dateFilter = $this->resolveCashDateFilter(
+            $request,
+            'rango',
+            Carbon::today()->startOfMonth()->toDateString()
+        );
+        $filterType = $dateFilter['filter_type'];
+        $selectedDate = $dateFilter['date'];
+        $startDate = $dateFilter['start_date'];
+        $endDate = $dateFilter['end_date'];
 
         $onlyZ = $request->has('only_z') ? $request->boolean('only_z') : true;
+        $search = trim((string) $request->input('search', ''));
 
         $cutsQuery = DailyCut::with(['branch', 'user'])
             ->whereIn('branch_id', $branchIds)
-            ->when($onlyZ, fn($q) => $q->where('cut_type', 'corte_z'));
+            ->when($onlyZ, fn($q) => $q->where('cut_type', 'corte_z'))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('notes', 'like', "%{$search}%")
+                        ->orWhere('cut_mode', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('branch', fn($b) => $b->where('name', 'like', "%{$search}%"));
+                });
+            });
+
+        DateFilterService::apply($cutsQuery, 'date', $dateFilter, true);
 
         if ($filterType === 'dia') {
-            $cutsQuery->whereDate('date', $selectedDate);
             $finStart = $selectedDate;
             $finEnd = $selectedDate;
         } elseif ($filterType === 'rango') {
-            $cutsQuery->whereBetween('date', [$startDate, $endDate]);
             $finStart = $startDate;
             $finEnd = $endDate;
         } else {
@@ -1116,6 +1112,8 @@ class CashController extends Controller
             'selectedDate' => $selectedDate,
             'startDate' => $startDate,
             'endDate' => $endDate,
+            'periodLabel' => DateFilterService::periodLabel($dateFilter),
+            'fileSuffix' => DateFilterService::fileSuffix($dateFilter),
             'onlyZ' => $onlyZ,
             'branchScope' => $branchScope,
             'branchLabel' => $branchScope['label'],
@@ -1129,11 +1127,7 @@ class CashController extends Controller
     {
         $data = $this->buildCutsReportData($request);
         $pdf = Pdf::loadView('cash.cuts-pdf', $data)->setPaper('letter', 'landscape');
-        $suffix = $data['filterType'] === 'dia'
-            ? $data['selectedDate']
-            : ($data['filterType'] === 'rango' ? "{$data['startDate']}_a_{$data['endDate']}" : 'historico');
-
-        return $pdf->download("Cortes_Z_{$suffix}.pdf");
+        return $pdf->download("Cortes_Z_{$data['fileSuffix']}.pdf");
     }
 
     /**
@@ -1218,64 +1212,41 @@ class CashController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $suffix = $data['filterType'] === 'dia'
-            ? $data['selectedDate']
-            : ($data['filterType'] === 'rango' ? "{$data['startDate']}_a_{$data['endDate']}" : 'historico');
-
         $tempFile = tempnam(sys_get_temp_dir(), 'cuts_xlsx_');
         (new Xlsx($spreadsheet))->save($tempFile);
 
-        return response()->download($tempFile, "Cortes_Z_{$suffix}.xlsx")->deleteFileAfterSend(true);
+        return response()->download($tempFile, "Cortes_Z_{$data['fileSuffix']}.xlsx")->deleteFileAfterSend(true);
     }
 
     /**
-     * Construye datos compartidos para el Reporte de Gastos por día, semana, mes o rango personalizado.
+     * Construye datos compartidos para el Reporte de Gastos por día, semana, mes, rango o todos los registros.
      */
     protected function buildExpensesReportData(Request $request): array
     {
         $branchScope = $this->resolveBranchScope($request, true);
         $branchIds = $branchScope['branch_ids'];
 
-        $period = $request->input('period', 'dia');
-        if (!in_array($period, ['dia', 'semana', 'mes', 'rango'], true)) {
-            $period = 'dia';
-        }
-
-        $refDate = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
-        $refCarbon = Carbon::parse($refDate);
-
-        if ($period === 'semana') {
-            $startDate = $refCarbon->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
-            $endDate = $refCarbon->copy()->endOfWeek(Carbon::SUNDAY)->toDateString();
-            $periodLabel = 'Semana';
-        } elseif ($period === 'mes') {
-            $startDate = $refCarbon->copy()->startOfMonth()->toDateString();
-            $endDate = $refCarbon->copy()->endOfMonth()->toDateString();
-            $periodLabel = 'Mes (' . ucfirst($refCarbon->locale('es')->monthName) . ' ' . $refCarbon->year . ')';
-        } elseif ($period === 'rango') {
-            $startDate = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : Carbon::today()->startOfMonth()->toDateString();
-            $endDate = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : Carbon::today()->toDateString();
-            if ($startDate > $endDate) {
-                $tmp = $startDate;
-                $startDate = $endDate;
-                $endDate = $tmp;
-            }
-            $periodLabel = 'Rango personalizado';
-        } else {
-            $startDate = $refDate;
-            $endDate = $refDate;
-            $periodLabel = 'Día';
-        }
+        $dateFilter = $this->resolveCashDateFilter(
+            $request,
+            'dia',
+            Carbon::today()->startOfMonth()->toDateString(),
+            true
+        );
+        $period = $dateFilter['filter_type'];
+        $refDate = $dateFilter['date'];
+        $startDate = $dateFilter['start_date'];
+        $endDate = $dateFilter['end_date'];
+        $periodLabel = DateFilterService::periodLabel($dateFilter);
 
         $search = trim((string) $request->input('search', ''));
 
-        $expenses = CashFlow::with(['branch', 'user', 'expenseType'])
+        $expensesQuery = CashFlow::with(['branch', 'user', 'expenseType'])
             ->where('type', 'expense')
-            ->whereIn('branch_id', $branchIds)
-            ->whereBetween('created_at', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay(),
-            ])
+            ->whereIn('branch_id', $branchIds);
+
+        DateFilterService::apply($expensesQuery, 'created_at', $dateFilter);
+
+        $expenses = $expensesQuery
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('description', 'like', "%{$search}%")
@@ -1310,10 +1281,15 @@ class CashController extends Controller
             'totalExpense' => $totalExpense,
             'byBranch' => $byBranch,
             'period' => $period,
+            'filterType' => $period,
             'periodLabel' => $periodLabel,
+            'fileSuffix' => DateFilterService::fileSuffix($dateFilter),
             'refDate' => $refDate,
             'startDate' => $startDate,
             'endDate' => $endDate,
+            'canAllDates' => $dateFilter['can_all_dates'],
+            'minAllowedDate' => $dateFilter['min_allowed_date'],
+            'wasRestricted' => $dateFilter['was_restricted'],
             'search' => $search,
             'branches' => $branches,
             'branchId' => $branchScope['branch_id'],
@@ -1323,7 +1299,7 @@ class CashController extends Controller
     }
 
     /**
-     * Reporte de gastos por día, semana, mes o rango de fechas personalizado.
+     * Reporte de gastos por día, semana, mes, rango o todos los registros.
      */
     public function expensesReport(Request $request)
     {
@@ -1337,7 +1313,7 @@ class CashController extends Controller
     {
         $data = $this->buildExpensesReportData($request);
         $pdf = Pdf::loadView('cash.expenses-pdf', $data)->setPaper('letter', 'portrait');
-        return $pdf->download("Gastos_{$data['startDate']}_a_{$data['endDate']}.pdf");
+        return $pdf->download("Gastos_{$data['fileSuffix']}.pdf");
     }
 
     /**
@@ -1377,7 +1353,7 @@ class CashController extends Controller
         $tempFile = tempnam(sys_get_temp_dir(), 'expenses_xlsx_');
         (new Xlsx($spreadsheet))->save($tempFile);
 
-        return response()->download($tempFile, "Gastos_{$data['startDate']}_a_{$data['endDate']}.xlsx")->deleteFileAfterSend(true);
+        return response()->download($tempFile, "Gastos_{$data['fileSuffix']}.xlsx")->deleteFileAfterSend(true);
     }
 
     /**

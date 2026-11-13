@@ -23,6 +23,7 @@ use App\Http\Controllers\Dashboard\TandaPeriodController;
 use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\BranchController;
 use App\Http\Controllers\Dashboard\FinancierasController;
+use App\Http\Controllers\Dashboard\FinBitacoraController;
 use App\Http\Controllers\Dashboard\FinSaleController;
 use App\Http\Controllers\Dashboard\FinDeviceController;
 use App\Http\Controllers\Dashboard\FinWarrantyController;
@@ -47,11 +48,17 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['permission:dashboard.menu|dashboard.read'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/financieras/export-pdf', [DashboardController::class, 'exportFinancieraPaymentsPdf'])
-            ->middleware('permission:dashboard.export|financieras.dashboard_payments|financieras.export')
+            ->middleware('permission:dashboard.financieras.export_pdf')
             ->name('dashboard.financieras.pdf');
         Route::get('/dashboard/financieras/export-excel', [DashboardController::class, 'exportFinancieraPaymentsExcel'])
-            ->middleware('permission:dashboard.export|financieras.dashboard_payments|financieras.export')
+            ->middleware('permission:dashboard.financieras.export_excel')
             ->name('dashboard.financieras.excel');
+        Route::get('/dashboard/ventas/export-pdf', [DashboardController::class, 'exportVentasPdf'])
+            ->middleware('permission:dashboard.ventas.export_pdf')
+            ->name('dashboard.ventas.pdf');
+        Route::get('/dashboard/ventas/export-excel', [DashboardController::class, 'exportVentasExcel'])
+            ->middleware('permission:dashboard.ventas.export_excel')
+            ->name('dashboard.ventas.excel');
         Route::post('/dashboard/transactions/{transaction}/cancel', [DashboardController::class, 'cancelTransaction'])
             ->middleware('permission:dashboard.cancel_transaction|cobros.cancel_transaction')
             ->name('dashboard.transactions.cancel');
@@ -234,11 +241,19 @@ Route::middleware(['permission:cash.menu|cash.read'])->group(function () {
     Route::post('/cash/auto-cut-config', [CashController::class, 'updateAutoCutConfig'])->name('cash.autoCutConfig');
     Route::get('/cash/filter-by-date', [CashController::class, 'filterByDate'])->name('cash.filterByDate');
     Route::get('/cash/print', [CashController::class, 'printCut'])->name('cash.printCut');
-    Route::get('/cash/export-pdf', [CashController::class, 'exportCutsPdf'])->name('cash.exportPdf');
-    Route::get('/cash/export-excel', [CashController::class, 'exportCutsExcel'])->name('cash.exportExcel');
+    Route::get('/cash/export-pdf', [CashController::class, 'exportCutsPdf'])
+        ->middleware('permission:cash.cortes.export_pdf')
+        ->name('cash.exportPdf');
+    Route::get('/cash/export-excel', [CashController::class, 'exportCutsExcel'])
+        ->middleware('permission:cash.cortes.export_excel')
+        ->name('cash.exportExcel');
     Route::get('/cash/expenses', [CashController::class, 'expensesReport'])->name('cash.expenses');
-    Route::get('/cash/expenses/pdf', [CashController::class, 'exportExpensesPdf'])->name('cash.expenses.pdf');
-    Route::get('/cash/expenses/excel', [CashController::class, 'exportExpensesExcel'])->name('cash.expenses.excel');
+    Route::get('/cash/expenses/pdf', [CashController::class, 'exportExpensesPdf'])
+        ->middleware('permission:cash.gastos.export_pdf')
+        ->name('cash.expenses.pdf');
+    Route::get('/cash/expenses/excel', [CashController::class, 'exportExpensesExcel'])
+        ->middleware('permission:cash.gastos.export_excel')
+        ->name('cash.expenses.excel');
     Route::get('/cash/expense-types', [CashController::class, 'expenseTypesIndex'])->name('cash.expenseTypes.index');
     Route::post('/cash/expense-types', [CashController::class, 'storeExpenseType'])->name('cash.expenseTypes.store');
     Route::put('/cash/expense-types/{expenseType}', [CashController::class, 'updateExpenseType'])->name('cash.expenseTypes.update');
@@ -250,6 +265,12 @@ Route::middleware(['permission:cash.menu|cash.read'])->group(function () {
 Route::middleware(['permission:orders.menu|orders.read'])->group(function () {
     Route::get('/orders/pending', [OrderController::class, 'pendingOrders'])->name('order.pendingOrders');
     Route::get('/orders/complete', [OrderController::class, 'completeOrders'])->name('order.completeOrders');
+    Route::get('/orders/export-pdf', [OrderController::class, 'exportOrdersPdf'])
+        ->middleware('permission:orders.export_pdf')
+        ->name('order.exportPdf');
+    Route::get('/orders/export-excel', [OrderController::class, 'exportOrdersExcel'])
+        ->middleware('permission:orders.export_excel')
+        ->name('order.exportExcel');
     Route::get('/orders/details/{order_id}', [OrderController::class, 'orderDetails'])->name('order.orderDetails');
     Route::put('/orders/update/status', [OrderController::class, 'updateStatus'])->name('order.updateStatus');
     Route::get('/orders/invoice/download/{order_id}', [OrderController::class, 'invoiceDownload'])->name('order.invoiceDownload');
@@ -306,8 +327,18 @@ Route::middleware(['permission:roles.menu|roles.read|roles.edit|permissions.menu
 });
 
 // ====== FINANCIERAS ======
-Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financieras.ventas.menu|financieras.inventario.menu|financieras.garantias.menu|financieras.robos.menu|financieras.catalogos.menu'])->prefix('financieras')->name('financieras.')->group(function () {
+Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financieras.ventas.menu|financieras.bitacora.read|financieras.inventario.menu|financieras.garantias.menu|financieras.robos.menu|financieras.catalogos.menu'])->prefix('financieras')->name('financieras.')->group(function () {
     Route::get('/', [FinancierasController::class, 'index'])->name('index');
+
+    Route::prefix('bitacora')->name('bitacora.')->group(function () {
+        Route::get('/', [FinBitacoraController::class, 'index'])->name('index');
+        Route::get('/export-pdf', [FinBitacoraController::class, 'exportPdf'])
+            ->middleware('permission:financieras.bitacora.export_pdf')
+            ->name('export.pdf');
+        Route::get('/export-excel', [FinBitacoraController::class, 'exportExcel'])
+            ->middleware('permission:financieras.bitacora.export_excel')
+            ->name('export.excel');
+    });
     Route::get('/brands/autocomplete', [FinancierasController::class, 'autocompleteBrands'])->name('brands.autocomplete');
     Route::get('/devices/autocomplete-imei', [FinancierasController::class, 'autocompleteImeis'])->name('devices.autocomplete-imei');
     Route::get('/devices/lookup-imei', [FinancierasController::class, 'lookupImei'])->name('devices.lookup-imei');
@@ -319,7 +350,12 @@ Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financi
         Route::get('/create-contado', [FinSaleController::class, 'createContado'])->name('create-contado');
         Route::post('/', [FinSaleController::class, 'store'])->name('store');
         Route::post('/store-contado', [FinSaleController::class, 'storeContado'])->name('store-contado');
-        Route::get('/export/excel', [FinSaleController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/export/pdf', [FinSaleController::class, 'exportListPdf'])
+            ->middleware('permission:financieras.ventas.export_pdf')
+            ->name('export.pdf');
+        Route::get('/export/excel', [FinSaleController::class, 'exportExcel'])
+            ->middleware('permission:financieras.ventas.export_excel')
+            ->name('export.excel');
         Route::get('/template/excel', [FinSaleController::class, 'downloadTemplate'])->name('template.excel');
         Route::post('/import/excel', [FinSaleController::class, 'importExcel'])->name('import.excel');
         Route::get('/check-tag', [FinSaleController::class, 'checkTag'])->name('check-tag');

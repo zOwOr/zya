@@ -66,7 +66,7 @@
                                     <img src="{{ asset('assets/images/product/3.png') }}" class="img-fluid" alt="image">
                                 </div>
                                 <div>
-                                    <p class="mb-1 small text-muted">Movimientos POS ({{ \Carbon\Carbon::parse($movDate)->format('d/m/Y') }})</p>
+                                    <p class="mb-1 small text-muted">Movimientos POS ({{ $movPeriodLabel }})</p>
                                     <h4>${{ number_format($movTotals['total'] ?? 0, 2) }}</h4>
                                 </div>
                             </div>
@@ -105,10 +105,20 @@
                 </h5>
                 <small class="text-light">Filtra por rango de fechas, catálogo de financiera o sucursal y descarga en PDF o Excel</small>
             </div>
-            <div class="d-flex gap-2 mt-2 mt-md-0">
-                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.export') || auth()->user()->can('financieras.dashboard_payments') || auth()->user()->can('financieras.export'))
+            <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.financieras.export_pdf'))
                     <form method="GET" action="{{ route('dashboard.financieras.pdf') }}" class="d-inline-flex align-items-center mr-2 bg-white rounded px-2 py-1">
-                        <input type="date" name="date" value="{{ $finStartDate }}" class="form-control form-control-sm border-0 p-0 mr-1" style="height:22px; width:125px; font-size:12px;" title="Fecha para PDF diario de todas las financieras">
+                        <input type="hidden" name="fin_filter_type" value="dia">
+                        @if($branchId)
+                            <input type="hidden" name="branch_id" value="{{ $branchId }}">
+                        @endif
+                        <input type="date"
+                               name="fin_date"
+                               value="{{ $finDate }}"
+                               @if(!$canDashboardAllDates) min="{{ $minAllowedDate }}" @endif
+                               class="form-control form-control-sm border-0 p-0 mr-1"
+                               style="height:22px; width:125px; font-size:12px;"
+                               title="Fecha para PDF diario de todas las financieras">
                         <button type="submit" class="btn btn-xs btn-danger font-weight-bold text-nowrap" title="Descargar PDF del día con todas las financieras agrupadas">
                             <i class="las la-file-pdf"></i> PDF Diario Todas
                         </button>
@@ -116,6 +126,8 @@
                     <a href="{{ route('dashboard.financieras.pdf', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-danger mr-2">
                         <i class="las la-file-pdf"></i> PDF Filtro
                     </a>
+                @endif
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.financieras.export_excel'))
                     <a href="{{ route('dashboard.financieras.excel', request()->query()) }}" class="btn btn-light btn-sm font-weight-bold text-success">
                         <i class="las la-file-excel"></i> Exportar Excel
                     </a>
@@ -123,15 +135,57 @@
             </div>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('dashboard') }}" class="row align-items-end mb-3">
-                <input type="hidden" name="mov_date" value="{{ $movDate }}">
-                <div class="col-md-2 mb-2">
-                    <label class="small font-weight-bold mb-1">Fecha Inicio:</label>
-                    <input type="date" name="fin_start_date" value="{{ $finStartDate }}" class="form-control form-control-sm">
+            @if(!empty($dateRestrictionTriggered))
+                <div class="alert alert-warning py-2 px-3 small mb-3">
+                    <i class="las la-exclamation-triangle mr-1"></i>
+                    Tu rol permite consultar o exportar únicamente fechas de hasta <strong>2 días de anterioridad</strong>
+                    (desde el <strong>{{ \Carbon\Carbon::parse($minAllowedDate)->format('d/m/Y') }}</strong>).
                 </div>
+            @endif
+            <form method="GET" action="{{ route('dashboard') }}" class="row align-items-end mb-3" id="dashFinFilterForm">
+                @foreach(request()->query() as $qk => $qv)
+                    @if(!is_array($qv) && !str_starts_with($qk, 'fin_') && !in_array($qk, ['date', 'start_date', 'end_date', 'filter_type', 'fin_page'], true))
+                        <input type="hidden" name="{{ $qk }}" value="{{ $qv }}">
+                    @endif
+                @endforeach
                 <div class="col-md-2 mb-2">
-                    <label class="small font-weight-bold mb-1">Fecha Fin:</label>
-                    <input type="date" name="fin_end_date" value="{{ $finEndDate }}" class="form-control form-control-sm">
+                    <label class="small font-weight-bold mb-1">Modo Fecha:</label>
+                    <select name="fin_filter_type" id="dashFinFilterType" class="form-control form-control-sm font-weight-bold">
+                        <option value="dia" {{ $finFilterType === 'dia' ? 'selected' : '' }}>Día en específico</option>
+                        <option value="rango" {{ $finFilterType === 'rango' ? 'selected' : '' }}>Entre fechas</option>
+                        @if($canDashboardAllDates)
+                            <option value="todos" {{ $finFilterType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                        @endif
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2" id="dashFinDiaBox" style="{{ $finFilterType === 'dia' ? '' : 'display:none;' }}">
+                    <label class="small font-weight-bold mb-1">Fecha:</label>
+                    <input type="date"
+                           name="fin_date"
+                           value="{{ $finDate }}"
+                           @if(!$canDashboardAllDates) min="{{ $minAllowedDate }}" @endif
+                           class="form-control form-control-sm"
+                           {{ $finFilterType === 'dia' ? '' : 'disabled' }}>
+                </div>
+                <div class="col-md-3 mb-2" id="dashFinRangoBox" style="{{ $finFilterType === 'rango' ? '' : 'display:none;' }}">
+                    <label class="small font-weight-bold mb-1">Entre Fechas:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="date"
+                               name="fin_start_date"
+                               value="{{ $finStartDate }}"
+                               @if(!$canDashboardAllDates) min="{{ $minAllowedDate }}" @endif
+                               class="form-control"
+                               {{ $finFilterType === 'rango' ? '' : 'disabled' }}>
+                        <div class="input-group-prepend input-group-append">
+                            <span class="input-group-text">a</span>
+                        </div>
+                        <input type="date"
+                               name="fin_end_date"
+                               value="{{ $finEndDate }}"
+                               @if(!$canDashboardAllDates) min="{{ $minAllowedDate }}" @endif
+                               class="form-control"
+                               {{ $finFilterType === 'rango' ? '' : 'disabled' }}>
+                    </div>
                 </div>
                 <div class="col-md-3 mb-2">
                     <label class="small font-weight-bold mb-1">Catálogo Financiera:</label>
@@ -268,27 +322,126 @@
     {{-- ========================================================================= --}}
     {{-- SECCIÓN 2: GESTIÓN DE MOVIMIENTOS (PROCESOS DE VENTA CON VARIOS PAGOS)    --}}
     {{-- ========================================================================= --}}
+    @if(auth()->user()->isSuperAdmin() || auth()->user()->canAny(['financieras.bitacora.read', 'financieras.read', 'financieras.ventas.read', 'dashboard.read']))
+        @include('financieras.bitacora.partial', [
+            'bitacora' => $bitacora,
+            'formAction' => route('dashboard'),
+            'preserveParams' => collect(request()->query())
+                ->reject(fn ($v, $k) => is_array($v) || str_starts_with($k, 'bit_') || in_array($k, ['page', 'bit_page'], true))
+                ->toArray(),
+        ])
+    @endif
+
     <div class="card shadow-sm mb-4 border-dark">
         <div class="card-header bg-dark text-white d-flex flex-wrap justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0 text-white font-weight-bold">
-                    <i class="las la-layer-group mr-1"></i> Gestión de Movimientos Diarios (Procesos de Venta / Cobros Multipago por Día)
+                    <i class="las la-layer-group mr-1"></i> Gestión de Movimientos Diarios / Ventas POS
                 </h5>
-                <small class="text-light">Consulta y gestiona procesos de venta con múltiples conceptos y pagos mixtos en la fecha seleccionada</small>
+                <small class="text-light">Período: <strong>{{ $movPeriodLabel }}</strong> &bull; Procesos de venta con múltiples conceptos y pagos mixtos</small>
             </div>
-            <form method="GET" action="{{ route('dashboard') }}" class="d-flex align-items-center gap-2 mt-2 mt-md-0">
-                <input type="hidden" name="fin_start_date" value="{{ $finStartDate }}">
-                <input type="hidden" name="fin_end_date" value="{{ $finEndDate }}">
-                @if($branchId)
-                    <input type="hidden" name="branch_id" value="{{ $branchId }}">
+            <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.ventas.export_pdf'))
+                    <a href="{{ route('dashboard.ventas.pdf', request()->query()) }}" class="btn btn-danger btn-sm font-weight-bold mr-2 shadow-sm">
+                        <i class="las la-file-pdf"></i> Exportar PDF
+                    </a>
                 @endif
-                <label class="small text-white mb-0 mr-2">Fecha Operativa:</label>
-                <input type="date" name="mov_date" value="{{ $movDate }}" class="form-control form-control-sm mr-2" style="width: 155px;">
-                <button type="submit" class="btn btn-warning btn-sm font-weight-bold">
-                    <i class="las la-calendar-check"></i> Ver Día
-                </button>
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.ventas.export_excel'))
+                    <a href="{{ route('dashboard.ventas.excel', request()->query()) }}" class="btn btn-success btn-sm font-weight-bold shadow-sm">
+                        <i class="las la-file-excel"></i> Exportar Excel
+                    </a>
+                @endif
+            </div>
+        </div>
+        <div class="card-body pb-0">
+            <form method="GET" action="{{ route('dashboard') }}" class="row align-items-end mb-2" id="dashMovFilterForm">
+                @foreach(request()->query() as $qk => $qv)
+                    @if(!is_array($qv) && !str_starts_with($qk, 'mov_') && $qk !== 'mov_page')
+                        <input type="hidden" name="{{ $qk }}" value="{{ $qv }}">
+                    @endif
+                @endforeach
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold mb-1">Modo Fecha:</label>
+                    <select name="mov_filter_type" id="dashMovFilterType" class="form-control form-control-sm font-weight-bold">
+                        <option value="dia" {{ $movFilterType === 'dia' ? 'selected' : '' }}>Día en específico</option>
+                        <option value="rango" {{ $movFilterType === 'rango' ? 'selected' : '' }}>Entre fechas</option>
+                        @if($canDashboardAllDates)
+                            <option value="todos" {{ $movFilterType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                        @endif
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2" id="dashMovDiaBox" style="{{ $movFilterType === 'dia' ? '' : 'display:none;' }}">
+                    <label class="small font-weight-bold mb-1">Fecha:</label>
+                    <input type="date"
+                           name="mov_date"
+                           value="{{ $movDate }}"
+                           @if(!$canDashboardAllDates) min="{{ $minAllowedDate }}" @endif
+                           class="form-control form-control-sm"
+                           {{ $movFilterType === 'dia' ? '' : 'disabled' }}>
+                </div>
+                <div class="col-md-3 mb-2" id="dashMovRangoBox" style="{{ $movFilterType === 'rango' ? '' : 'display:none;' }}">
+                    <label class="small font-weight-bold mb-1">Entre Fechas:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="date"
+                               name="mov_start_date"
+                               value="{{ $movStartDate }}"
+                               @if(!$canDashboardAllDates) min="{{ $minAllowedDate }}" @endif
+                               class="form-control"
+                               {{ $movFilterType === 'rango' ? '' : 'disabled' }}>
+                        <div class="input-group-prepend input-group-append">
+                            <span class="input-group-text">a</span>
+                        </div>
+                        <input type="date"
+                               name="mov_end_date"
+                               value="{{ $movEndDate }}"
+                               @if(!$canDashboardAllDates) min="{{ $minAllowedDate }}" @endif
+                               class="form-control"
+                               {{ $movFilterType === 'rango' ? '' : 'disabled' }}>
+                    </div>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold mb-1">Estado:</label>
+                    <select name="mov_status" class="form-control form-control-sm">
+                        <option value="">Todos</option>
+                        <option value="completado" {{ $movStatus === 'completado' ? 'selected' : '' }}>Completado</option>
+                        <option value="cancelado" {{ $movStatus === 'cancelado' ? 'selected' : '' }}>Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold mb-1">Buscar:</label>
+                    <input type="text" name="mov_search" value="{{ $movSearch }}" class="form-control form-control-sm" placeholder="Folio o cliente...">
+                </div>
+                <div class="col-md-1 mb-2">
+                    <button type="submit" class="btn btn-dark btn-sm font-weight-bold btn-block">
+                        <i class="las la-filter"></i>
+                    </button>
+                </div>
             </form>
         </div>
+        <script>
+        (function() {
+            function bindToggle(selectId, diaId, rangoId) {
+                var sel = document.getElementById(selectId);
+                if (!sel) return;
+                var dia = document.getElementById(diaId);
+                var rango = document.getElementById(rangoId);
+                function toggleBox(box, active) {
+                    if (!box) return;
+                    box.style.display = active ? '' : 'none';
+                    var inputs = box.querySelectorAll('input, select');
+                    for (var i = 0; i < inputs.length; i++) inputs[i].disabled = !active;
+                }
+                function sync() {
+                    toggleBox(dia, sel.value === 'dia');
+                    toggleBox(rango, sel.value === 'rango');
+                }
+                sel.addEventListener('change', sync);
+                sync();
+            }
+            bindToggle('dashFinFilterType', 'dashFinDiaBox', 'dashFinRangoBox');
+            bindToggle('dashMovFilterType', 'dashMovDiaBox', 'dashMovRangoBox');
+        })();
+        </script>
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-md-3">
@@ -405,7 +558,7 @@
                         @empty
                             <tr>
                                 <td colspan="9" class="text-center text-muted py-3">
-                                    No hay procesos de venta/cobro registrados en la fecha {{ \Carbon\Carbon::parse($movDate)->format('d/m/Y') }}.
+                                    No hay procesos de venta/cobro registrados en la fecha {{ $movPeriodLabel }}.
                                 </td>
                             </tr>
                         @endforelse

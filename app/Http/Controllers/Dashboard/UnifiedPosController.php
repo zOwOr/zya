@@ -128,7 +128,8 @@ class UnifiedPosController extends Controller
 
         $loanTypes = LoanType::where('is_active', true)->orderBy('name')->get();
         $customers = Customer::orderBy('tit_name')->get(['id', 'tit_name', 'tit_phone', 'tit_address', 'tit_status']);
-        $canPosExternalCustomers = auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.external_customers');
+        $canPosExternalCustomers = Schema::hasTable('external_customers')
+            && (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.external_customers'));
         $externalCustomers = $canPosExternalCustomers
             ? ExternalCustomer::selectableInPos()->orderBy('tit_name')->get(['id', 'tit_name', 'tit_phone', 'tit_email', 'tit_city', 'tit_status'])
             : collect();
@@ -598,6 +599,13 @@ class UnifiedPosController extends Controller
      */
     public function lookupExternalCustomers(Request $request)
     {
+        if (!Schema::hasTable('external_customers')) {
+            return response()->json([
+                'external_customers' => [],
+                'message' => 'Falta ejecutar "php artisan migrate" para habilitar el catálogo de Clientes Externos.',
+            ], 422);
+        }
+
         $q = trim((string) $request->input('q', ''));
 
         $results = ExternalCustomer::selectableInPos()
@@ -620,6 +628,13 @@ class UnifiedPosController extends Controller
      */
     public function storeExternalCustomer(Request $request)
     {
+        if (!Schema::hasTable('external_customers')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Falta ejecutar "php artisan migrate" para guardar Clientes Externos.',
+            ], 422);
+        }
+
         $validated = $request->validate(
             ExternalCustomer::validationRules(),
             ExternalCustomer::validationMessages()
@@ -719,10 +734,12 @@ class UnifiedPosController extends Controller
      */
     public function checkout(Request $request)
     {
+        $hasExternalCustomersTable = Schema::hasTable('external_customers');
+
         $validated = $request->validate([
             'branch_id' => 'nullable|exists:branches,id',
             'customer_id' => 'nullable|exists:customers,id',
-            'external_customer_id' => 'nullable|exists:external_customers,id',
+            'external_customer_id' => $hasExternalCustomersTable ? 'nullable|exists:external_customers,id' : 'nullable',
             'customer_name' => 'nullable|string|max:190',
             'customer_phone' => 'nullable|string|max:50',
             'payment_method' => 'required|in:efectivo,tarjeta,transferencia,mixto',
@@ -736,6 +753,13 @@ class UnifiedPosController extends Controller
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
         ]);
+
+        if (!$hasExternalCustomersTable && !empty($validated['external_customer_id'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Falta ejecutar "php artisan migrate" para asociar Clientes Externos en el Punto de Venta.',
+            ], 422);
+        }
 
         if (!empty($validated['customer_id']) && !empty($validated['external_customer_id'])) {
             return response()->json([
@@ -812,6 +836,14 @@ class UnifiedPosController extends Controller
         // Validar uso de Cliente Externo (solo con permiso y únicamente cuando hay conceptos de Financiera)
         $resolvedExternalCustomerId = !empty($validated['external_customer_id']) ? (int) $validated['external_customer_id'] : null;
         $hasFinancieraConcept = PosTransaction::containsFinancieraConcept($items);
+        $hasExternalCompanyConcept = collect($items)->contains(fn($i) => ($i['section'] ?? '') === 'financiera_externa');
+
+        if ($hasExternalCompanyConcept && (!$hasExternalCustomersTable || !Schema::hasColumn('fin_sale_payments', 'is_external_company'))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Falta ejecutar "php artisan migrate" para registrar abonos de financieras por equipos externos.',
+            ], 422);
+        }
 
         if ($resolvedExternalCustomerId !== null) {
             if (!$user->isSuperAdmin() && !$user->can('cobros.external_customers')) {
@@ -1640,7 +1672,11 @@ class UnifiedPosController extends Controller
      */
     public function printReceipt(PosTransaction $transaction)
     {
-        $transaction->load(['branch', 'user', 'customer', 'externalCustomer', 'financieraPayments.financiera', 'loanPayments.loan', 'tandaPayments.tanda']);
+        $relations = ['branch', 'user', 'customer', 'financieraPayments.financiera', 'loanPayments.loan', 'tandaPayments.tanda'];
+        if (Schema::hasTable('external_customers') && Schema::hasColumn('pos_transactions', 'external_customer_id')) {
+            $relations[] = 'externalCustomer';
+        }
+        $transaction->load($relations);
         return view('central-pos.receipt', compact('transaction'));
     }
 

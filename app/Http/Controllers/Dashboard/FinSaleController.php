@@ -13,6 +13,7 @@ use App\Models\FinSale;
 use App\Models\FinSaleNote;
 use App\Models\FinSalePayment;
 use App\Models\User;
+use App\Services\DateFilterService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xls;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class FinSaleController extends Controller
 {
@@ -42,7 +44,8 @@ class FinSaleController extends Controller
         'destroy' => 'delete',
         'cancel' => 'delete',
         'addNote' => 'create',
-        'exportExcel' => 'export',
+        'exportExcel' => 'export_excel',
+        'exportListPdf' => 'export_pdf',
         'exportPdf' => 'read',
         'checkTag' => 'read',
     ];
@@ -52,19 +55,17 @@ class FinSaleController extends Controller
         $this->initializeModulePermission();
     }
 
-    public function index(Request $request)
+    /**
+     * Construye la consulta filtrada de ventas de financieras respetando el filtro de fecha y el tope de 2 días.
+     */
+    public static function buildFilteredSalesQuery(Request $request): array
     {
-        $defaultStartDate = now()->startOfMonth()->format('Y-m-d');
-        $defaultEndDate = now()->endOfMonth()->format('Y-m-d');
-
-        if ($request->has('start_date') || $request->has('end_date')) {
-            $startDate = $request->input('start_date');
-            $endDate = $request->input('end_date');
-        } else {
-            $startDate = $defaultStartDate;
-            $endDate = $defaultEndDate;
-            $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
-        }
+        $dateFilter = DateFilterService::resolve($request, [
+            'default_type' => 'rango',
+            'default_start_date' => now()->startOfMonth()->toDateString(),
+            'default_end_date' => now()->endOfMonth()->toDateString(),
+            'history_permissions' => ['financieras.filter_all_dates'],
+        ]);
 
         $filters = array_merge(
             $request->only([
@@ -76,14 +77,31 @@ class FinSaleController extends Controller
                 'status',
             ]),
             [
-                'start_date' => $startDate,
-                'end_date'   => $endDate,
+                'start_date' => $dateFilter['start_date'],
+                'end_date' => $dateFilter['end_date'],
             ]
         );
 
-        $sales = FinSale::filter($filters)
+        $query = FinSale::filter($filters)
             ->with(['device.brand', 'financiera', 'branch', 'seller'])
             ->latest('sale_date')
+            ->orderByDesc('id');
+
+        return [
+            'query' => $query,
+            'dateFilter' => $dateFilter,
+            'filters' => $filters,
+            'periodLabel' => DateFilterService::periodLabel($dateFilter),
+            'fileSuffix' => DateFilterService::fileSuffix($dateFilter),
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $resolved = self::buildFilteredSalesQuery($request);
+        $salesDateFilter = $resolved['dateFilter'];
+
+        $sales = $resolved['query']
             ->paginate(15)
             ->withQueryString();
 
@@ -95,7 +113,13 @@ class FinSaleController extends Controller
         $financieras = FinFinanciera::where('is_active', true)->get();
         $sellers = User::orderBy('name')->get();
 
-        return view('financieras.ventas.index', compact('sales', 'branches', 'financieras', 'sellers'));
+        return view('financieras.ventas.index', compact(
+            'sales',
+            'branches',
+            'financieras',
+            'sellers',
+            'salesDateFilter'
+        ));
     }
 
     public function create()
@@ -964,10 +988,8 @@ class FinSaleController extends Controller
         ini_set('max_execution_time', 0);
         ini_set('memory_limit', '1024M');
 
-        $sales = FinSale::filter($request->all())
-            ->with(['device.brand', 'financiera', 'branch', 'seller'])
-            ->latest('sale_date')
-            ->get();
+        $resolved = self::buildFilteredSalesQuery($request);
+        $sales = $resolved['query']->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -1053,7 +1075,7 @@ class FinSaleController extends Controller
             $sheet->setCellValueByColumnAndRow(8,  $rowNum, $s->device?->brand?->name ?? '');
             $sheet->setCellValueByColumnAndRow(9,  $rowNum, $s->device?->model ?? '');
             $sheet->setCellValueByColumnAndRow(10, $rowNum, $s->device?->storage ?? '');
-            $sheet->setCellValueExplicitByColumnAndRow(11, $rowNum, (string)($s->device?->imei ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValueExplicitByColumnAndRow(11, $rowNum, (string)($s->device?->imei ?? ''), DataType::TYPE_STRING);
             $sheet->setCellValueByColumnAndRow(12, $rowNum, $s->price);
             $sheet->setCellValueByColumnAndRow(13, $rowNum, $s->down_payment);
             $sheet->setCellValueByColumnAndRow(14, $rowNum, $s->enganche_descuento ?? '');
@@ -1073,15 +1095,46 @@ class FinSaleController extends Controller
             $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
 
-        $writer = new Xls($spreadsheet);
-        $filename = 'Financieras_Ventas_' . date('Ymd_His') . '.xls';
+        $filename = "Financieras_Ventas_{$resolved['fileSuffix']}.xlsx";
+        $tempFile = tempnam(sys_get_temp_dir(), 'fin_sales_xlsx_');
+        (new Xlsx($spreadsheet))->save($tempFile);
 
-        header('Content-Type: application/vnd.ms-excel');
-        header("Content-Disposition: attachment;filename=\"{$filename}\"");
-        header('Cache-Control: max-age=0');
-        ob_end_clean();
-        $writer->save('php://output');
-        exit();
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Exportar listado filtrado de ventas de financieras a PDF.
+     */
+    public function exportListPdf(Request $request)
+    {
+        $resolved = self::buildFilteredSalesQuery($request);
+        $sales = $resolved['query']->get();
+        $activeSales = $sales->where('status', 'activa');
+
+        $totals = [
+            'count' => $sales->count(),
+            'active_count' => $activeSales->count(),
+            'price_total' => round((float) $activeSales->sum('price'), 2),
+            'down_payment_total' => round((float) $activeSales->sum(function ($s) {
+                return (!is_null($s->enganche_descuento) && $s->enganche_descuento !== '')
+                    ? (float) $s->enganche_descuento
+                    : (float) $s->down_payment;
+            }), 2),
+            'credit_total' => round((float) $activeSales->sum('credit_amount'), 2),
+            'abonos_total' => round((float) $activeSales->sum('total_abonos_paid'), 2),
+        ];
+
+        $periodLabel = $resolved['periodLabel'];
+        $branchName = $request->filled('branch_id')
+            ? (Branch::find((int) $request->input('branch_id'))?->name ?? 'Sucursal')
+            : (auth()->user()?->can('financieras.inventario.all_branches') ? 'Todas las Sucursales' : (auth()->user()?->branch?->name ?? 'Sucursal asignada'));
+
+        $pdf = Pdf::loadView(
+            'financieras.ventas.list-pdf',
+            compact('sales', 'totals', 'periodLabel', 'branchName')
+        )->setPaper('letter', 'landscape');
+
+        return $pdf->download("Financieras_Ventas_{$resolved['fileSuffix']}.pdf");
     }
 
     /**

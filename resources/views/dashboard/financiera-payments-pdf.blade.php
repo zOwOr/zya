@@ -39,7 +39,9 @@
 <body>
     <h2>ZYA CELULARES - REPORTE DIARIO DE ABONOS POR FINANCIERA</h2>
     <div class="subtitle">
-        @if($finStartDate === $finEndDate)
+        @if(!empty($finPeriodLabel))
+            Período consultado: <strong>{{ $finPeriodLabel }}</strong>
+        @elseif($finStartDate === $finEndDate)
             Fecha consultada: <strong>{{ \Carbon\Carbon::parse($finStartDate)->format('d/m/Y') }}</strong>
         @else
             Periodo consultado: <strong>{{ \Carbon\Carbon::parse($finStartDate)->format('d/m/Y') }}</strong> al <strong>{{ \Carbon\Carbon::parse($finEndDate)->format('d/m/Y') }}</strong>

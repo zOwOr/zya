@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StripsMissingSchemaColumns;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 
 class PaymentHistory extends Model
 {
+    use StripsMissingSchemaColumns;
+
     protected $fillable = [
         'order_id',
         'amount',
@@ -19,16 +21,9 @@ class PaymentHistory extends Model
         'branch_id',
     ];
 
-    protected static function booted()
+    protected static function optionalSchemaColumns(): array
     {
-        static::saving(function ($model) {
-            $optional = ['note', 'cash_amount', 'card_amount', 'transfer_amount', 'branch_id'];
-            foreach ($optional as $col) {
-                if (array_key_exists($col, $model->attributes) && !Schema::hasColumn('payment_histories', $col)) {
-                    unset($model->attributes[$col]);
-                }
-            }
-        });
+        return ['note', 'cash_amount', 'card_amount', 'transfer_amount', 'branch_id'];
     }
 
     public function branch()

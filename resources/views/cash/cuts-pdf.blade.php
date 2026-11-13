@@ -27,7 +27,13 @@
         @if($filterType === 'dia')
             <strong>Fecha:</strong> {{ \Carbon\Carbon::parse($selectedDate)->format('d/m/Y') }}
         @elseif($filterType === 'rango')
-            <strong>Período:</strong> {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+            @if(!empty($periodLabel))
+                <strong>Período:</strong> {{ $periodLabel }}
+            @elseif($startDate && $endDate)
+                <strong>Período:</strong> {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+            @else
+                <strong>Período:</strong> Todos los registros
+            @endif
         @else
             <strong>Alcance:</strong> Todos los registros
         @endif

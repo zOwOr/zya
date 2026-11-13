@@ -8,7 +8,10 @@
                 <i class="fa-solid fa-file-invoice-dollar text-danger mr-1"></i> Reporte de Gastos por Período
             </h3>
             <small class="text-muted">
-                Período: <strong>{{ $periodLabel }}</strong> ({{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }})
+                Período: <strong>{{ $periodLabel }}</strong>
+                @if($startDate && $endDate)
+                    ({{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }})
+                @endif
                 &bull; Sucursal: <strong>{{ $branchLabel }}</strong>
             </small>
         </div>
@@ -19,10 +22,12 @@
             <a href="{{ route('cash.expenseTypes.index') }}" class="btn btn-outline-dark btn-sm mr-2 shadow-sm font-weight-bold">
                 <i class="fa-solid fa-tags mr-1"></i> Tipos de Egreso
             </a>
-            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.export') || auth()->user()->can('cash.read'))
+            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.gastos.export_pdf'))
                 <a href="{{ route('cash.expenses.pdf', request()->query()) }}" class="btn btn-danger btn-sm mr-2 shadow-sm font-weight-bold">
                     <i class="las la-file-pdf mr-1"></i> Descargar PDF
                 </a>
+            @endif
+            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.gastos.export_excel'))
                 <a href="{{ route('cash.expenses.excel', request()->query()) }}" class="btn btn-success btn-sm shadow-sm font-weight-bold">
                     <i class="las la-file-excel mr-1"></i> Descargar Excel
                 </a>
@@ -35,28 +40,38 @@
             <strong class="font-size-13 text-dark"><i class="las la-filter text-danger mr-1"></i> Filtros de Consulta de Gastos</strong>
         </div>
         <div class="card-body py-3">
+            @if(!empty($wasRestricted))
+                <div class="alert alert-warning py-2 px-3 small mb-3">
+                    <i class="las la-exclamation-triangle mr-1"></i>
+                    Tu rol permite consultar o exportar gastos de hasta <strong>2 días de anterioridad</strong>
+                    (desde el <strong>{{ \Carbon\Carbon::parse($minAllowedDate)->format('d/m/Y') }}</strong>).
+                </div>
+            @endif
             <form method="GET" action="{{ route('cash.expenses') }}" class="row align-items-end">
                 <div class="col-md-2 mb-2">
                     <label class="small font-weight-bold mb-1">Período:</label>
                     <select name="period" id="expensePeriodSelect" class="form-control form-control-sm font-weight-bold">
-                        <option value="dia" {{ $period === 'dia' ? 'selected' : '' }}>Por Día</option>
+                        <option value="dia" {{ $period === 'dia' ? 'selected' : '' }}>Día en específico</option>
                         <option value="semana" {{ $period === 'semana' ? 'selected' : '' }}>Por Semana</option>
                         <option value="mes" {{ $period === 'mes' ? 'selected' : '' }}>Por Mes</option>
-                        <option value="rango" {{ $period === 'rango' ? 'selected' : '' }}>Rango personalizado</option>
+                        <option value="rango" {{ $period === 'rango' ? 'selected' : '' }}>Entre fechas</option>
+                        @if($canAllDates)
+                            <option value="todos" {{ $period === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                        @endif
                     </select>
                 </div>
 
-                <div class="col-md-2 mb-2" id="expenseSingleDateBox" style="{{ $period === 'rango' ? 'display:none;' : '' }}">
+                <div class="col-md-2 mb-2" id="expenseSingleDateBox" style="{{ in_array($period, ['rango', 'todos'], true) ? 'display:none;' : '' }}">
                     <label class="small font-weight-bold mb-1">Fecha base:</label>
-                    <input type="date" name="date" id="expenseSingleDateInp" value="{{ $refDate }}" class="form-control form-control-sm" {{ $period === 'rango' ? 'disabled' : '' }}>
+                    <input type="date" name="date" id="expenseSingleDateInp" value="{{ $refDate }}" @if(!$canAllDates) min="{{ $minAllowedDate }}" @endif class="form-control form-control-sm" {{ in_array($period, ['rango', 'todos'], true) ? 'disabled' : '' }}>
                 </div>
 
                 <div class="col-md-4 mb-2" id="expenseRangeBox" style="{{ $period === 'rango' ? '' : 'display:none;' }}">
                     <label class="small font-weight-bold mb-1">Rango de fechas (Desde - Hasta):</label>
                     <div class="input-group input-group-sm">
-                        <input type="date" name="start_date" id="expenseStartInp" value="{{ $startDate }}" class="form-control" {{ $period === 'rango' ? '' : 'disabled' }}>
+                        <input type="date" name="start_date" id="expenseStartInp" value="{{ $startDate }}" @if(!$canAllDates) min="{{ $minAllowedDate }}" @endif class="form-control" {{ $period === 'rango' ? '' : 'disabled' }}>
                         <div class="input-group-prepend input-group-append"><span class="input-group-text">a</span></div>
-                        <input type="date" name="end_date" id="expenseEndInp" value="{{ $endDate }}" class="form-control" {{ $period === 'rango' ? '' : 'disabled' }}>
+                        <input type="date" name="end_date" id="expenseEndInp" value="{{ $endDate }}" @if(!$canAllDates) min="{{ $minAllowedDate }}" @endif class="form-control" {{ $period === 'rango' ? '' : 'disabled' }}>
                     </div>
                 </div>
 
@@ -97,7 +112,13 @@
                 <div class="card-body text-center">
                     <small class="text-muted text-uppercase font-weight-bold d-block">Total Gastos del Período</small>
                     <h2 class="font-weight-bold text-danger mb-0">${{ number_format($totalExpense, 2) }}</h2>
-                    <small class="text-muted">{{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}</small>
+                    <small class="text-muted">
+                        @if($startDate && $endDate)
+                            {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                        @else
+                            Todos los registros
+                        @endif
+                    </small>
                 </div>
             </div>
         </div>
@@ -192,14 +213,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const endInp = document.getElementById('expenseEndInp');
 
     if (periodSelect) {
-        periodSelect.addEventListener('change', function () {
-            const isRange = this.value === 'rango';
-            singleBox.style.display = isRange ? 'none' : '';
-            if (singleInp) singleInp.disabled = isRange;
+        function syncExpenseDates() {
+            const val = periodSelect.value;
+            const isRange = val === 'rango';
+            const isTodos = val === 'todos';
+            singleBox.style.display = (isRange || isTodos) ? 'none' : '';
+            if (singleInp) singleInp.disabled = (isRange || isTodos);
             rangeBox.style.display = isRange ? '' : 'none';
             if (startInp) startInp.disabled = !isRange;
             if (endInp) endInp.disabled = !isRange;
-        });
+        }
+        periodSelect.addEventListener('change', syncExpenseDates);
+        syncExpenseDates();
     }
 });
 </script>

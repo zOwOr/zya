@@ -2,14 +2,24 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StripsMissingSchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class FinSalePayment extends Model
 {
     use HasFactory;
+    use StripsMissingSchemaColumns;
 
     protected $table = 'fin_sale_payments';
+
+    protected static function optionalSchemaColumns(): array
+    {
+        return [
+            'external_customer_id' => true,
+            'is_external_company' => true,
+        ];
+    }
 
     protected $fillable = [
         'fin_sale_id',

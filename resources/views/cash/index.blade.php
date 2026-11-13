@@ -176,9 +176,80 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body py-3">
             <form method="GET" action="{{ route('cash.index') }}" class="row align-items-end">
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold mb-1">Modo Fecha:</label>
+                    <select name="filter_type" id="cashIdxFilterType" class="form-control form-control-sm">
+                        <option value="dia" {{ ($filterType ?? 'dia') === 'dia' ? 'selected' : '' }}>Día en específico</option>
+                        <option value="rango" {{ ($filterType ?? 'dia') === 'rango' ? 'selected' : '' }}>Entre fechas</option>
+                        @if(!empty($canAllDates))
+                            <option value="todos" {{ ($filterType ?? 'dia') === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                        @endif
+                    </select>
+                </div>
                 <div class="col-md-4">
-                    <label class="small font-weight-bold mb-1">Filtrar por Fecha:</label>
-                    <input type="date" name="date" id="date" value="{{ $date ?? '' }}" class="form-control">
+                    <div id="cashIdxDiaBox" style="{{ ($filterType ?? 'dia') === 'dia' ? '' : 'display:none;' }}">
+                        <label class="small font-weight-bold mb-1">Fecha específica:</label>
+                        <input type="date"
+                               name="date"
+                               id="date"
+                               value="{{ $selectedDate ?? $date ?? '' }}"
+                               @if(empty($canAllDates) && !empty($minAllowedDate)) min="{{ $minAllowedDate }}" @endif
+                               class="form-control form-control-sm"
+                               {{ ($filterType ?? 'dia') === 'dia' ? '' : 'disabled' }}>
+                    </div>
+                    <div id="cashIdxRangoBox" style="{{ ($filterType ?? 'dia') === 'rango' ? '' : 'display:none;' }}">
+                        <label class="small font-weight-bold mb-1">Entre Fechas:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="date"
+                                   name="start_date"
+                                   value="{{ $startDate ?? $selectedDate ?? '' }}"
+                                   @if(empty($canAllDates) && !empty($minAllowedDate)) min="{{ $minAllowedDate }}" @endif
+                                   class="form-control"
+                                   {{ ($filterType ?? 'dia') === 'rango' ? '' : 'disabled' }}>
+                            <div class="input-group-prepend input-group-append"><span class="input-group-text">a</span></div>
+                            <input type="date"
+                                   name="end_date"
+                                   value="{{ $endDate ?? $selectedDate ?? '' }}"
+                                   @if(empty($canAllDates) && !empty($minAllowedDate)) min="{{ $minAllowedDate }}" @endif
+                                   class="form-control"
+                                   {{ ($filterType ?? 'dia') === 'rango' ? '' : 'disabled' }}>
+                        </div>
+                    </div>
+                    <div id="cashIdxTodosBox" style="{{ ($filterType ?? 'dia') === 'todos' ? '' : 'display:none;' }}">
+                        <label class="small font-weight-bold mb-1">Período:</label>
+                        <div class="form-control form-control-sm bg-light text-muted">Todos los registros</div>
+                    </div>
+                    @if(empty($canAllDates) && !empty($minAllowedDate))
+                        <small class="text-muted d-block mt-1">
+                            <i class="las la-lock"></i> Máx. 2 días atrás (desde {{ \Carbon\Carbon::parse($minAllowedDate)->format('d/m/Y') }})
+                        </small>
+                    @endif
+                    @if(!empty($wasRestricted))
+                        <small class="text-warning font-weight-bold d-block">Filtro ajustado al límite de 2 días.</small>
+                    @endif
+                    <script>
+                    (function() {
+                        var sel = document.getElementById('cashIdxFilterType');
+                        if (!sel) return;
+                        var boxes = {
+                            dia: document.getElementById('cashIdxDiaBox'),
+                            rango: document.getElementById('cashIdxRangoBox'),
+                            todos: document.getElementById('cashIdxTodosBox')
+                        };
+                        function sync() {
+                            Object.keys(boxes).forEach(function(k) {
+                                var el = boxes[k];
+                                if (!el) return;
+                                var active = sel.value === k;
+                                el.style.display = active ? '' : 'none';
+                                var inputs = el.querySelectorAll('input, select');
+                                for (var i = 0; i < inputs.length; i++) inputs[i].disabled = !active;
+                            });
+                        }
+                        sel.addEventListener('change', sync);
+                        sync();
+                    })();
+                    </script>
                 </div>
                 @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.all_branches'))
                     <div class="col-md-4">

@@ -14,6 +14,7 @@ use App\Models\FinWarranty;
 use App\Models\FinWarrantyStage;
 use App\Models\FinTheftReport;
 use App\Models\User;
+use App\Services\FinBitacoraService;
 use Illuminate\Http\Request;
 
 class FinancierasController extends Controller
@@ -31,13 +32,44 @@ class FinancierasController extends Controller
 
     public function __construct()
     {
-        $this->initializeModulePermission();
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            $action = $request->route()?->getActionMethod();
+
+            if ($action === 'index') {
+                $allowed = $user && (
+                    $user->isSuperAdmin()
+                    || $user->canAny([
+                        'financieras.menu',
+                        'financieras.read',
+                        'financieras.ventas.menu',
+                        'financieras.ventas.read',
+                        'financieras.inventario.menu',
+                        'financieras.garantias.menu',
+                        'financieras.robos.menu',
+                        'financieras.catalogos.menu',
+                        'financieras.bitacora.read',
+                    ])
+                );
+                if (!$allowed) {
+                    abort(403);
+                }
+                return $next($request);
+            }
+
+            $permission = $action ? $this->permissionForAction($action) : null;
+            if ($permission && !$user?->can($permission)) {
+                abort(403);
+            }
+
+            return $next($request);
+        });
     }
 
     public function index(Request $request)
     {
         $activeTab = $request->query('tab', 'ventas');
-        $validTabs = ['ventas', 'inventario', 'garantias', 'robos'];
+        $validTabs = ['ventas', 'inventario', 'garantias', 'robos', 'bitacora'];
         if (!in_array($activeTab, $validTabs)) {
             $activeTab = 'ventas';
         }
@@ -95,8 +127,10 @@ class FinancierasController extends Controller
         // Cargar datos del tab activo con sus respectivos filtros aplicados
         $devices = null;
         $sales = null;
+        $salesDateFilter = null;
         $warranties = null;
         $thefts = null;
+        $bitacora = null;
 
         if ($activeTab === 'inventario') {
             $deviceFilters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']);
@@ -106,30 +140,11 @@ class FinancierasController extends Controller
                 ->paginate(20)
                 ->appends(array_merge($deviceFilters, ['tab' => 'inventario']));
         } elseif ($activeTab === 'ventas') {
-            $defaultStartDate = now()->startOfMonth()->format('Y-m-d');
-            $defaultEndDate = now()->endOfMonth()->format('Y-m-d');
-
-            if ($request->has('start_date') || $request->has('end_date')) {
-                $startDate = $request->input('start_date');
-                $endDate = $request->input('end_date');
-            } else {
-                $startDate = $defaultStartDate;
-                $endDate = $defaultEndDate;
-                $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
-            }
-
-            $saleFilters = array_merge(
-                $request->only(['search', 'branch_id', 'financiera_id', 'status', 'seller_id', 'sale_type']),
-                [
-                    'start_date' => $startDate,
-                    'end_date'   => $endDate,
-                ]
-            );
-
-            $sales = FinSale::filter($saleFilters)
-                ->with(['device.brand', 'financiera', 'branch', 'seller'])
-                ->latest('sale_date')
-                ->paginate(15)->appends(array_merge($request->query(), ['tab' => 'ventas']));
+            $resolvedSales = FinSaleController::buildFilteredSalesQuery($request);
+            $salesDateFilter = $resolvedSales['dateFilter'];
+            $sales = $resolvedSales['query']
+                ->paginate(15)
+                ->appends(array_merge($request->query(), ['tab' => 'ventas']));
         } elseif ($activeTab === 'garantias') {
             $warrantyFilters = $request->only(['search', 'stage_id', 'branch_id', 'status']);
             $warranties = FinWarranty::filter($warrantyFilters)
@@ -142,6 +157,13 @@ class FinancierasController extends Controller
                 ->with(['device.brand', 'sale', 'branch'])
                 ->latest('incident_date')
                 ->paginate(15)->appends(array_merge($theftFilters, ['tab' => 'robos']));
+        } elseif ($activeTab === 'bitacora') {
+            $bitacora = FinBitacoraService::build($request, [
+                'prefix' => '',
+                'paginate' => true,
+                'per_page' => 20,
+                'history_permissions' => ['financieras.filter_all_dates'],
+            ]);
         }
 
         return view('financieras.index', compact(
@@ -156,8 +178,10 @@ class FinancierasController extends Controller
             'counts',
             'devices',
             'sales',
+            'salesDateFilter',
             'warranties',
             'thefts',
+            'bitacora',
             'selectedBranch',
             'canAllBranches'
         ));
