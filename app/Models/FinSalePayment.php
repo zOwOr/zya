@@ -92,28 +92,47 @@ class FinSalePayment extends Model
 
     public function getCashAmountAttribute(): float
     {
-        $bd = is_array($this->payment_breakdown) ? $this->payment_breakdown : [];
-        if (isset($bd['cash'])) {
-            return (float) $bd['cash'];
-        }
-        return $this->payment_method === 'efectivo' ? $this->total_paid : 0.0;
+        $txFallback = $this->relationLoaded('posTransaction')
+            ? ($this->posTransaction?->cash_amount !== null ? (float) $this->posTransaction->cash_amount : null)
+            : null;
+
+        return $this->resolveBreakdownAmount(['efectivo', 'cash'], 'efectivo', $txFallback);
     }
 
     public function getCardAmountAttribute(): float
     {
-        $bd = is_array($this->payment_breakdown) ? $this->payment_breakdown : [];
-        if (isset($bd['card'])) {
-            return (float) $bd['card'];
-        }
-        return $this->payment_method === 'tarjeta' ? $this->total_paid : 0.0;
+        $txFallback = $this->relationLoaded('posTransaction')
+            ? ($this->posTransaction?->card_amount !== null ? (float) $this->posTransaction->card_amount : null)
+            : null;
+
+        return $this->resolveBreakdownAmount(['tarjeta', 'card'], 'tarjeta', $txFallback);
     }
 
     public function getTransferAmountAttribute(): float
     {
+        $txFallback = $this->relationLoaded('posTransaction')
+            ? ($this->posTransaction?->transfer_amount !== null ? (float) $this->posTransaction->transfer_amount : null)
+            : null;
+
+        return $this->resolveBreakdownAmount(['transferencia', 'transfer'], 'transferencia', $txFallback);
+    }
+
+    /**
+     * Resuelve montos por método desde payment_breakdown soportando claves en español e inglés.
+     */
+    protected function resolveBreakdownAmount(array $keys, string $methodName, ?float $txFallback = null): float
+    {
         $bd = is_array($this->payment_breakdown) ? $this->payment_breakdown : [];
-        if (isset($bd['transfer'])) {
-            return (float) $bd['transfer'];
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $bd) && $bd[$key] !== null && $bd[$key] !== '') {
+                return round((float) $bd[$key], 2);
+            }
         }
-        return $this->payment_method === 'transferencia' ? $this->total_paid : 0.0;
+
+        if ($txFallback !== null && ($txFallback > 0 || $this->payment_method === 'mixto')) {
+            return round($txFallback, 2);
+        }
+
+        return $this->payment_method === $methodName ? round($this->total_paid, 2) : 0.0;
     }
 }

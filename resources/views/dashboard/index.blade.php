@@ -218,7 +218,7 @@
                         @forelse($financieraPayments as $fp)
                             <tr>
                                 <td>{{ optional($fp->payment_date)->format('d/m/Y H:i') }}</td>
-                                <td><span class="badge badge-primary">{{ $fp->finSupplier->name ?? ($fp->finSale->financiera ?? 'Financiera') }}</span></td>
+                                <td><span class="badge badge-primary">{{ $fp->financiera?->name ?? ($fp->finSupplier?->name ?? ($fp->sale?->financiera?->name ?? 'Financiera')) }}</span></td>
                                 <td class="font-weight-bold"><code>{{ $fp->device_tag ?? '-' }}</code></td>
                                 <td><small>{{ $fp->imei ?? '-' }}</small></td>
                                 <td>{{ $fp->customer_name ?? ($fp->finSale->customer_name ?? 'Cliente') }}</td>

@@ -7,6 +7,8 @@ use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
 use App\Models\DailyCut;
 use App\Models\FinFinanciera;
+use App\Models\FinSale;
+use App\Models\FinSaleNote;
 use App\Models\FinSalePayment;
 use App\Models\Order;
 use App\Models\PosTransaction;
@@ -63,7 +65,7 @@ class DashboardController extends Controller
         $branchId = $this->resolveBranchFilter($request);
         $search = $request->input('fin_search');
 
-        return FinSalePayment::with(['sale', 'financiera', 'branch', 'user', 'posTransaction'])
+        return FinSalePayment::with(['sale.financiera', 'financiera', 'branch', 'user', 'posTransaction'])
             ->where(function ($q) {
                 $q->whereNull('pos_transaction_id')
                     ->orWhereHas('posTransaction', fn($pt) => $pt->where('status', '!=', 'cancelado'));
@@ -166,7 +168,7 @@ class DashboardController extends Controller
         $branchName = $branchId ? (Branch::find($branchId)?->name ?? 'Sucursal') : 'Todas las Sucursales';
 
         $groupedPayments = $payments
-            ->groupBy(fn($p) => $p->financiera?->name ?? ($p->sale?->financiera ?? 'Sin Financiera'))
+            ->groupBy(fn($p) => $p->financiera?->name ?? ($p->sale?->financiera?->name ?? 'Sin Financiera'))
             ->sortKeys()
             ->map(function ($items, $name) {
                 return [
@@ -235,7 +237,7 @@ class DashboardController extends Controller
         foreach ($payments as $p) {
             $sheet->setCellValue("A{$row}", $p->id);
             $sheet->setCellValue("B{$row}", optional($p->payment_date)->format('d/m/Y H:i'));
-            $sheet->setCellValue("C{$row}", $p->financiera->name ?? ($p->sale->financiera ?? 'Financiera'));
+            $sheet->setCellValue("C{$row}", $p->financiera?->name ?? ($p->sale?->financiera?->name ?? 'Financiera'));
             $sheet->setCellValue("D{$row}", $p->tag_contrato);
             $sheet->setCellValue("E{$row}", $p->imei);
             $sheet->setCellValue("F{$row}", $p->customer_name ?? ($p->sale->customer_name ?? 'Cliente'));
@@ -308,6 +310,31 @@ class DashboardController extends Controller
                 Order::where('id', $lockedTx->order_id)
                     ->where('order_status', '!=', 'cancelado')
                     ->update(['order_status' => 'cancelado']);
+            }
+
+            $linkedFinPayments = FinSalePayment::where('pos_transaction_id', $lockedTx->id)
+                ->lockForUpdate()
+                ->get();
+
+            if ($linkedFinPayments->isNotEmpty()) {
+                foreach ($linkedFinPayments->groupBy('fin_sale_id') as $finSaleId => $salePayments) {
+                    $lockedFinSale = FinSale::where('id', $finSaleId)->lockForUpdate()->first();
+                    if (!$lockedFinSale) {
+                        continue;
+                    }
+
+                    $revertedAmount = round((float) $salePayments->sum('amount'), 2);
+                    $lockedFinSale->syncAfterAbonoCancellation($salePayments->count(), $revertedAmount);
+
+                    $receiptList = $salePayments->pluck('receipt_code')->filter()->implode(', ');
+                    FinSaleNote::create([
+                        'sale_id' => $lockedFinSale->id,
+                        'user_id' => auth()->id(),
+                        'note' => "Abono cancelado ({$receiptList} / Folio {$lockedTx->transaction_code}): -$"
+                            . number_format($revertedAmount, 2)
+                            . ($reason !== '' ? " | Motivo: {$reason}" : ''),
+                    ]);
+                }
             }
 
             $cashReversal = CashFlowService::revertPosTransactionCash($lockedTx, $reason !== '' ? $reason : null);

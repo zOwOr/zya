@@ -11,6 +11,7 @@ use App\Models\FinDevice;
 use App\Models\FinFinanciera;
 use App\Models\FinSale;
 use App\Models\FinSaleNote;
+use App\Models\FinSalePayment;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -628,11 +629,15 @@ class FinSaleController extends Controller
             'canceller',
             'notes.user',
             'payments.user',
+            'payments.branch',
+            'payments.posTransaction',
             'warranties.currentStage',
             'theftReports'
         ]);
 
-        return view('financieras.ventas.show', compact('sale'));
+        $branches = Branch::orderBy('name')->get(['id', 'name']);
+
+        return view('financieras.ventas.show', compact('sale', 'branches'));
     }
 
     public function edit(FinSale $sale)
@@ -843,10 +848,25 @@ class FinSaleController extends Controller
             return back()->with('error', 'Esta venta ya se encuentra cancelada.');
         }
 
-        DB::transaction(function () use ($request, $sale) {
+        $blockReason = null;
+
+        DB::transaction(function () use ($request, $sale, &$blockReason) {
             $lockedSale = FinSale::where('id', $sale->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedSale->status === 'cancelada') {
+                return;
+            }
+
+            $activePayments = FinSalePayment::where('fin_sale_id', $lockedSale->id)
+                ->where(function ($q) {
+                    $q->whereNull('pos_transaction_id')
+                        ->orWhereHas('posTransaction', fn ($pt) => $pt->where('status', '!=', 'cancelado'));
+                })
+                ->get();
+
+            if ($activePayments->isNotEmpty()) {
+                $totalActives = number_format((float) $activePayments->sum('total_amount'), 2);
+                $blockReason = "No es posible cancelar la venta {$lockedSale->sale_code} porque tiene {$activePayments->count()} abono(s) activo(s) registrado(s) en caja por \${$totalActives}. Primero cancela esos movimientos desde Dashboard → Gestión de Movimientos (si el Corte Z sigue abierto) para conservar la integridad de Caja.";
                 return;
             }
 
@@ -868,6 +888,11 @@ class FinSaleController extends Controller
                 'note' => 'Venta cancelada. Motivo: ' . $request->input('cancellation_reason'),
             ]);
         });
+
+        if ($blockReason !== null) {
+            return redirect()->route('financieras.ventas.show', $sale->id)
+                ->with('error', $blockReason);
+        }
 
         try {
             event(new FinancierasUpdated(

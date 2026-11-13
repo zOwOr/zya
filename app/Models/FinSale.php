@@ -142,6 +142,27 @@ class FinSale extends Model
         return $this->sale_type !== 'contado';
     }
 
+    /**
+     * Sincroniza contadores acumulados tras cancelar abonos vinculados a una transacción POS.
+     */
+    public function syncAfterAbonoCancellation(int $cancelledCount, float $cancelledAmount): void
+    {
+        $this->total_abonos_paid = max(0.0, round((float) $this->total_abonos_paid - max(0.0, $cancelledAmount), 2));
+        $this->abonos_count = max(0, (int) $this->abonos_count - max(0, $cancelledCount));
+
+        $latestActiveDate = $this->payments()
+            ->where(function ($q) {
+                $q->whereNull('pos_transaction_id')
+                    ->orWhereHas('posTransaction', fn ($pt) => $pt->where('status', '!=', 'cancelado'));
+            })
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->value('payment_date');
+
+        $this->last_abono_at = $latestActiveDate;
+        $this->save();
+    }
+
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'id', 'id')->whereRaw('1 = 0')->withDefault(function () {

@@ -102,7 +102,7 @@ class CashController extends Controller
      */
     protected function buildFinancieraSummary(array $branchIds, ?string $startDate = null, ?string $endDate = null): array
     {
-        $payments = FinSalePayment::with(['financiera', 'sale', 'posTransaction'])
+        $payments = FinSalePayment::with(['financiera', 'sale.financiera', 'posTransaction'])
             ->whereIn('branch_id', $branchIds)
             ->where(function ($q) {
                 $q->whereNull('pos_transaction_id')
@@ -113,7 +113,7 @@ class CashController extends Controller
             ->get();
 
         $items = $payments
-            ->groupBy(fn($p) => $p->financiera?->name ?? ($p->sale?->financiera ?? 'Financiera'))
+            ->groupBy(fn($p) => $p->financiera?->name ?? ($p->sale?->financiera?->name ?? 'Financiera'))
             ->map(function ($group, $finName) {
                 $amount = round((float) $group->sum('amount'), 2);
                 $commission = round((float) $group->sum('commission_amount'), 2);
@@ -330,7 +330,7 @@ class CashController extends Controller
                 });
             })
             ->orderByDesc('created_at')
-            ->paginate(15)
+            ->paginate(100)
             ->withQueryString();
 
         $allDailyCashFlows = CashFlow::with(['user', 'posTransaction', 'branch', 'expenseType'])
@@ -455,7 +455,9 @@ class CashController extends Controller
             ? $this->resolvePendingDueTotal((int) $branchId, $selectedDate)
             : 0.0;
         $expectedCash = round($openingBalance + $handCash - $totalExpense, 2);
-        $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+        $chronologicalSource = $filterType === 'dia' ? $allDailyCashFlows : $cashFlows;
+        $chronologicalOperations = $this->buildChronologicalOperations($chronologicalSource);
+        $isChronologicalPaginated = $filterType !== 'dia' && $cashFlows->hasPages();
         $expenseDetails = $this->buildExpenseDetails($allDailyCashFlows);
 
         $finStart = $filterType === 'dia' ? $selectedDate : ($filterType === 'rango' ? $startDate : null);
@@ -491,6 +493,7 @@ class CashController extends Controller
             'pendingDueTotal',
             'expectedCash',
             'chronologicalOperations',
+            'isChronologicalPaginated',
             'expenseDetails',
             'financieraSummary'
         ));
@@ -1387,7 +1390,7 @@ class CashController extends Controller
                     $lineAmt = ($sec === 'prestamo_apertura') ? $comm : ($unitAmt * $qty);
 
                     $concepts[] = [
-                        'title' => $item['title'] ?? 'Concepto',
+                        'title' => $item['title'] ?? ($item['label'] ?? ($item['description'] ?? 'Concepto')),
                         'amount' => $lineAmt,
                         'commission' => $comm,
                         'quantity' => $qty,

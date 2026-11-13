@@ -255,7 +255,7 @@
                             <h6 class="font-weight-bold mb-0 text-success">
                                 <i class="fa-solid fa-money-bill-transfer mr-2"></i>Historial de Abonos de Financiera (Device ID #{{ $sale->device_id }} / TAG: {{ $sale->tag_contrato ?: 'N/A' }})
                             </h6>
-                            @if ($sale->status === 'activa' && (auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.abonar') || auth()->user()->can('cobros.financieras')))
+                            @if ($sale->status === 'activa' && $sale->isCredito() && (auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.abonar') || auth()->user()->can('cobros.financieras')))
                                 <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#registerFinAbonoModal">
                                     <i class="fa-solid fa-plus mr-1"></i>Registrar Abono en Caja
                                 </button>
@@ -269,6 +269,7 @@
                                             <th>Recibo</th>
                                             <th># Abono</th>
                                             <th>Fecha</th>
+                                            <th>Sucursal Cobro</th>
                                             <th>Abono</th>
                                             <th>Comisión</th>
                                             <th>Total en Caja</th>
@@ -279,26 +280,43 @@
                                     </thead>
                                     <tbody>
                                         @forelse ($sale->payments ?? [] as $abono)
-                                            <tr>
-                                                <td class="font-weight-bold">{{ $abono->receipt_code }}</td>
+                                            @php
+                                                $isCancelledAbono = $abono->posTransaction?->status === 'cancelado';
+                                            @endphp
+                                            <tr class="{{ $isCancelledAbono ? 'table-danger text-muted' : '' }}">
+                                                <td class="font-weight-bold">
+                                                    {{ $abono->receipt_code }}
+                                                    @if ($isCancelledAbono)
+                                                        <span class="badge badge-danger ml-1">Cancelado</span>
+                                                    @endif
+                                                </td>
                                                 <td>#{{ $abono->installment_number }}</td>
                                                 <td>{{ $abono->payment_date ? $abono->payment_date->format('d/m/Y H:i') : '-' }}</td>
-                                                <td class="font-weight-bold text-success">${{ number_format($abono->amount, 2) }}</td>
-                                                <td class="text-info">${{ number_format($abono->commission_amount, 2) }}</td>
-                                                <td class="font-weight-bold">${{ number_format($abono->total_amount, 2) }}</td>
+                                                <td><span class="badge badge-light border">{{ $abono->branch?->name ?? 'General' }}</span></td>
+                                                <td class="font-weight-bold {{ $isCancelledAbono ? 'text-muted' : 'text-success' }}">
+                                                    @if ($isCancelledAbono) <s>${{ number_format($abono->amount, 2) }}</s> @else ${{ number_format($abono->amount, 2) }} @endif
+                                                </td>
+                                                <td class="{{ $isCancelledAbono ? 'text-muted' : 'text-info' }}">
+                                                    @if ($isCancelledAbono) <s>${{ number_format($abono->commission_amount, 2) }}</s> @else ${{ number_format($abono->commission_amount, 2) }} @endif
+                                                </td>
+                                                <td class="font-weight-bold">
+                                                    @if ($isCancelledAbono) <s>${{ number_format($abono->total_amount, 2) }}</s> @else ${{ number_format($abono->total_amount, 2) }} @endif
+                                                </td>
                                                 <td><span class="badge badge-light border">{{ strtoupper($abono->payment_method) }}</span></td>
                                                 <td>{{ $abono->user?->name ?? 'Sistema' }}</td>
                                                 <td class="text-right">
-                                                    @if ($abono->pos_transaction_id)
+                                                    @if ($abono->pos_transaction_id && !$isCancelledAbono)
                                                         <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $abono->pos_transaction_id) }}')" class="btn btn-xs btn-outline-dark" title="Imprimir Ticket">
                                                             <i class="fa-solid fa-print"></i>
                                                         </button>
+                                                    @elseif ($isCancelledAbono)
+                                                        <span class="text-danger small" title="Movimiento cancelado en Caja">Anulado</span>
                                                     @endif
                                                 </td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="9" class="text-center py-3 text-muted">No se han registrado abonos para este contrato/equipo aún.</td>
+                                                <td colspan="10" class="text-center py-3 text-muted">No se han registrado abonos para este contrato/equipo aún.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
@@ -322,7 +340,33 @@
                                     <div class="modal-body">
                                         <div class="alert alert-light border py-2 font-size-13">
                                             <strong>Cliente:</strong> {{ $sale->customer_name }}<br>
-                                            <strong>Device ID:</strong> #{{ $sale->device_id }} | <strong>IMEI:</strong> {{ $sale->device?->imei ?? 'N/A' }} | <strong>TAG:</strong> {{ $sale->tag_contrato ?: 'N/A' }}
+                                            <strong>Device ID:</strong> #{{ $sale->device_id }} | <strong>IMEI:</strong> {{ $sale->device?->imei ?? 'N/A' }} | <strong>TAG:</strong> {{ $sale->tag_contrato ?: 'N/A' }}<br>
+                                            <strong>Sucursal Contrato:</strong> {{ $sale->branch?->name ?? 'General' }}
+                                        </div>
+                                        @php
+                                            $canChooseAbonoBranch = auth()->user()->isSuperAdmin()
+                                                || auth()->user()->can('cobros.all_branches')
+                                                || auth()->user()->can('financieras.all_branches')
+                                                || auth()->user()->can('cash.all_branches');
+                                            $defaultAbonoBranchId = auth()->user()->branch_id ?? $sale->branch_id;
+                                        @endphp
+                                        <div class="form-group">
+                                            <label class="font-weight-bold">Sucursal que recibe físicamente el dinero (Caja) *</label>
+                                            @if ($canChooseAbonoBranch && isset($branches) && $branches->count() > 0)
+                                                <select name="branch_id" class="form-control" required>
+                                                    @foreach ($branches as $b)
+                                                        <option value="{{ $b->id }}" {{ (int) $defaultAbonoBranchId === (int) $b->id ? 'selected' : '' }}>
+                                                            {{ $b->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                <small class="text-muted">El ingreso en caja y reporte se registrará en la sucursal seleccionada.</small>
+                                            @else
+                                                <div class="form-control bg-light font-weight-bold text-dark">
+                                                    {{ auth()->user()->branch?->name ?? ($sale->branch?->name ?? 'Sucursal asignada') }}
+                                                </div>
+                                                <small class="text-muted">El abono entrará físicamente en la caja de tu sucursal asignada.</small>
+                                            @endif
                                         </div>
                                         <div class="row">
                                             <div class="col-md-6 form-group">

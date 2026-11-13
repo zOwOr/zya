@@ -218,6 +218,9 @@
         }
         if (is_array($transaction->items_payload)) {
             foreach ($transaction->items_payload as $item) {
+                if (($item['section'] ?? '') === 'gift') {
+                    continue;
+                }
                 if (!empty($item['financiera_name'])) {
                     $financieraList[] = $item['financiera_name'];
                 } elseif (!empty($item['title'])) {
@@ -275,11 +278,14 @@
             $qty = max(1, (int) ($item['quantity'] ?? 1));
             $amt = in_array($sec, ['prestamo_apertura', 'gift'], true) ? 0 : ((float) ($item['amount'] ?? 0) * $qty);
             $comm = (float) ($item['commission'] ?? 0);
+            $itemSubtitle = $sec === 'gift'
+                ? \App\Models\PosTransaction::sanitizeGiftSubtitle($item['subtitle'] ?? null)
+                : ($item['subtitle'] ?? null);
         @endphp
         <div style="margin-bottom: 5px;">
             <div class="bold">{{ $qty }}x {{ $item['title'] ?? 'Concepto' }}@if($sec === 'gift') <span style="font-size:10px;">(REGALO)</span>@endif</div>
-            @if (!empty($item['subtitle']))
-                <div style="font-size: 10px; color: #222;">{{ $item['subtitle'] }}</div>
+            @if (!empty($itemSubtitle))
+                <div style="font-size: 10px; color: #222;">{{ $itemSubtitle }}</div>
             @endif
             @if ($sec !== 'prestamo_apertura')
                 <div class="row-flex">

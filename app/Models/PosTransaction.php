@@ -68,6 +68,42 @@ class PosTransaction extends Model
         return 'POS Central';
     }
 
+    /**
+     * Resumen legible de los conceptos del movimiento (soporta claves title, label y description).
+     */
+    public function getConceptsSummaryAttribute(): string
+    {
+        return collect($this->items_payload ?? [])
+            ->map(function ($item) {
+                if (!is_array($item)) {
+                    return is_string($item) ? trim($item) : null;
+                }
+
+                return $item['title']
+                    ?? ($item['label']
+                    ?? ($item['description']
+                    ?? ($item['section'] ?? null)));
+            })
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->implode(', ');
+    }
+
+    /**
+     * Elimina la referencia al proveedor del gift en subtítulos guardados para no mostrarla en tickets.
+     */
+    public static function sanitizeGiftSubtitle(?string $subtitle): ?string
+    {
+        if ($subtitle === null) {
+            return null;
+        }
+
+        $cleaned = preg_replace('/\bRegalo de proveedor:\s*[^|]*(\|\s*)?/iu', '', trim($subtitle));
+        $cleaned = preg_replace('/\bProv(?:eedor)?:\s*[^|]*(\|\s*)?/iu', '', (string) $cleaned);
+        $cleaned = trim((string) $cleaned, " \t\n\r\0\x0B|•-");
+
+        return $cleaned !== '' ? $cleaned : null;
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');

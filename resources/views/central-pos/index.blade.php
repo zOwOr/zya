@@ -450,6 +450,7 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
                                         <span class="badge badge-primary" id="finSelFinanciera"></span>
+                                        <span class="badge badge-light border ml-1 d-none" id="finSelBranchBadge"></span>
                                         <h6 class="font-weight-bold mb-0 mt-1 text-dark" id="finSelCustomer"></h6>
                                         <small class="text-muted font-weight-bold" id="finSelDevice"></small>
                                     </div>
@@ -1214,10 +1215,15 @@
                         <tbody id="posHistoryTableBody">
                             @forelse ($recentTransactions as $rTx)
                                 <tr>
-                                    <td><span class="badge badge-dark">{{ $rTx->transaction_code }}</span></td>
+                                    <td>
+                                        <span class="badge badge-dark">{{ $rTx->transaction_code }}</span>
+                                        @if($rTx->status === 'cancelado')
+                                            <span class="badge badge-danger ml-1">Cancelado</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $rTx->created_at ? $rTx->created_at->format('d/m/Y H:i') : '' }}</td>
                                     <td class="font-weight-bold">{{ $rTx->customer_name ?: 'Cliente Mostrador' }}</td>
-                                    <td class="text-muted">{{ \Illuminate\Support\Str::limit(collect($rTx->items_payload ?? [])->pluck('label')->filter()->implode(', '), 60) }}</td>
+                                    <td class="text-muted">{{ \Illuminate\Support\Str::limit($rTx->concepts_summary ?: '-', 60) }}</td>
                                     <td>{{ strtoupper((string) $rTx->payment_method) }}</td>
                                     <td class="text-right font-weight-bold">${{ number_format((float) $rTx->total_amount, 2) }}</td>
                                     <td class="text-right text-nowrap">
@@ -1674,13 +1680,21 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('tabCommissionText').textContent = '$' + totals.commission.toFixed(2);
         document.getElementById('tabGrandTotalText').textContent = '$' + totals.total.toFixed(2);
 
-        // Control de pago parcial / saldo pendiente
+        // Control de pago parcial / saldo pendiente (deshabilitado cuando hay abono a financiera)
         const partialCheck = document.getElementById('posPartialPayCheck');
         const partialDetails = document.getElementById('posPartialPayDetails');
         const paidTodayInput = document.getElementById('posPaidTodayInput');
         const dueText = document.getElementById('posDueBalanceText');
+        const hasFinAbonoItem = tab.items.some(it => it.section === 'financiera_abono');
 
-        if (tab.isPartial) {
+        if (hasFinAbonoItem && tab.isPartial) {
+            tab.isPartial = false;
+            tab.paidToday = totals.total;
+            saveState();
+        }
+        partialCheck.disabled = hasFinAbonoItem;
+
+        if (tab.isPartial && !hasFinAbonoItem) {
             partialCheck.checked = true;
             partialDetails.classList.remove('d-none');
             const paid = (tab.paidToday !== undefined && tab.paidToday !== '') ? parseFloat(tab.paidToday) : 0;
@@ -1998,6 +2012,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('posPartialPayCheck').addEventListener('change', function () {
         const tab = getActiveTab();
+        if (this.checked && tab.items.some(it => it.section === 'financiera_abono')) {
+            this.checked = false;
+            tab.isPartial = false;
+            alert('⚠️ Los abonos a financieras no permiten pago parcial ni saldo pendiente en nota. Ajusta directamente el monto del abono en el carrito si es menor.');
+            saveState();
+            renderActiveCart();
+            return;
+        }
         const totals = calculateTabTotals(tab);
         tab.isPartial = this.checked;
         if (tab.isPartial) {
@@ -2179,13 +2201,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 let rows = data.results.map(r => `
                     <tr>
                         <td><strong>${r.tag_contrato}</strong><small class="d-block text-muted">ID: #${r.device_id} | IMEI: ${r.imei}</small></td>
-                        <td>${r.financiera_name}</td>
+                        <td>${r.financiera_name}<small class="d-block text-muted">Suc: ${r.branch_name || 'General'}</small></td>
                         <td><strong>${r.customer_name}</strong><small class="d-block text-muted">${r.device_model}</small></td>
                         <td>$${r.abono_semanal.toFixed(2)}<small class="d-block text-success font-size-11">Abonado: $${r.total_abonos_paid.toFixed(2)}</small></td>
                         <td class="text-right">
                             <button type="button" class="btn btn-xs btn-primary btn-select-fin shadow-sm"
                                 data-sale-id="${r.sale_id}"
                                 data-fin="${r.financiera_name}"
+                                data-branch="${r.branch_name || 'General'}"
+                                data-branch-id="${r.branch_id || ''}"
                                 data-customer="${r.customer_name}"
                                 data-device="Device #${r.device_id} | IMEI: ${r.imei} | TAG: ${r.tag_contrato}"
                                 data-tag="${r.tag_contrato}"
@@ -2239,6 +2263,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (saleIdEl) saleIdEl.value = btn.dataset.saleId;
             const finEl = document.getElementById('finSelFinanciera');
             if (finEl) finEl.textContent = btn.dataset.fin;
+            const branchBadgeEl = document.getElementById('finSelBranchBadge');
+            if (branchBadgeEl) {
+                const originBranch = btn.dataset.branch || 'General';
+                const currentBranch = '{{ $branchId }}';
+                const isOtherBranch = btn.dataset.branchId && String(btn.dataset.branchId) !== String(currentBranch);
+                branchBadgeEl.textContent = isOtherBranch
+                    ? `Contrato: ${originBranch} (cobra en caja actual)`
+                    : `Sucursal: ${originBranch}`;
+                branchBadgeEl.className = isOtherBranch
+                    ? 'badge badge-warning ml-1'
+                    : 'badge badge-light border ml-1';
+            }
             const custEl = document.getElementById('finSelCustomer');
             if (custEl) custEl.textContent = btn.dataset.customer;
             const custNameEl = document.getElementById('finSelCustomerName');
@@ -2752,7 +2788,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 section: 'gift',
                 gift_id: giftId,
                 title: `${btn.dataset.name} (Regalo)`,
-                subtitle: `Regalo de proveedor: ${btn.dataset.supplier || '-'} | Código: ${btn.dataset.code || '-'}`,
+                subtitle: btn.dataset.code ? `Código: ${btn.dataset.code}` : '',
                 quantity: 1,
                 amount: 0,
                 original_amount: 0,
@@ -2845,6 +2881,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const effectivePaidAmount = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
             const effectiveDueAmount = Math.max(0, totals.total - effectivePaidAmount);
+            const hasFinAbono = tab.items.some(it => it.section === 'financiera_abono');
+
+            if (hasFinAbono && effectiveDueAmount > 0.01) {
+                alert('⚠️ Los abonos a financieras no permiten pago parcial ni dejar saldo pendiente. Cubre el total completo o edita directamente el monto del abono.');
+                return;
+            }
 
             if (effectiveDueAmount > 0) {
                 const cName = (tab.customerName || '').trim();
@@ -3032,8 +3074,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 list.forEach(tx => {
                     const tr = document.createElement('tr');
+                    const statusBadge = tx.status === 'cancelado'
+                        ? '<span class="badge badge-danger ml-1">Cancelado</span>'
+                        : '';
                     tr.innerHTML = `
-                        <td><span class="badge badge-dark">${tx.transaction_code}</span></td>
+                        <td><span class="badge badge-dark">${tx.transaction_code}</span>${statusBadge}</td>
                         <td>${tx.created_at}</td>
                         <td class="font-weight-bold">${tx.customer_name}</td>
                         <td class="text-muted">${tx.concepts || '-'}</td>

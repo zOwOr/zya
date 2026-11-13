@@ -141,7 +141,7 @@ class UnifiedPosController extends Controller
             ->where('branch_id', $branchId)
             ->whereDate('created_at', Carbon::today())
             ->orderByDesc('created_at')
-            ->take(25)
+            ->take(100)
             ->get();
 
         return view('central-pos.index', compact(
@@ -176,6 +176,10 @@ class UnifiedPosController extends Controller
 
         $sales = FinSale::with(['device.brand', 'financiera', 'branch', 'payments'])
             ->where('status', '!=', 'cancelada')
+            ->where(function ($q) {
+                $q->whereNull('sale_type')
+                    ->orWhere('sale_type', '!=', 'contado');
+            })
             ->when($financieraId, fn($q) => $q->where('financiera_id', $financieraId))
             ->when($query !== '', function ($q) use ($query) {
                 $q->where(function ($sub) use ($query) {
@@ -224,6 +228,7 @@ class UnifiedPosController extends Controller
                 'abonos_count' => (int) $sale->abonos_count,
                 'remaining_balance' => $remaining,
                 'next_installment' => ((int) $sale->abonos_count) + 1,
+                'branch_id' => $sale->branch_id,
                 'branch_name' => $sale->branch?->name ?? 'General',
             ];
         });
@@ -600,14 +605,15 @@ class UnifiedPosController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->where('transaction_code', 'like', "%{$search}%")
                         ->orWhere('customer_name', 'like', "%{$search}%")
-                        ->orWhere('customer_phone', 'like', "%{$search}%");
+                        ->orWhere('customer_phone', 'like', "%{$search}%")
+                        ->orWhere('items_payload', 'like', "%{$search}%");
                 });
             })
             ->orderByDesc('created_at')
-            ->limit(30)
+            ->limit(150)
             ->get()
             ->map(function (PosTransaction $tx) {
-                $concepts = collect($tx->items_payload ?? [])->pluck('label')->filter()->implode(', ');
+                $concepts = $tx->concepts_summary;
                 return [
                     'id' => $tx->id,
                     'transaction_code' => $tx->transaction_code,
@@ -736,9 +742,15 @@ class UnifiedPosController extends Controller
                 // En apertura de préstamo, el capital prestado NO entra ni sale de caja; SOLO se cobra la comisión por apertura
                 $commissionTotal += $comm;
             } elseif ($section === 'gift') {
-                // Los regalos/promocionales siempre salen en $0.00 en ticket y sin cargo al total
+                // Los regalos/promocionales siempre salen en $0.00 en ticket y sin cargo al total ni proveedor visible
                 $items[$idx]['amount'] = 0;
                 $items[$idx]['commission'] = 0;
+                $sanitizedSub = PosTransaction::sanitizeGiftSubtitle($item['subtitle'] ?? null);
+                if ($sanitizedSub !== null) {
+                    $items[$idx]['subtitle'] = $sanitizedSub;
+                } else {
+                    unset($items[$idx]['subtitle']);
+                }
             } else {
                 $subtotal += ($unitAmount * $qty);
                 $commissionTotal += $comm;
@@ -803,6 +815,14 @@ class UnifiedPosController extends Controller
         }
 
         $dueAmount = max(0, round($totalAmount - $paidToday, 2));
+
+        $hasFinancieraAbono = collect($items)->contains(fn($i) => ($i['section'] ?? '') === 'financiera_abono');
+        if ($hasFinancieraAbono && $dueAmount > 0.009) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Los abonos a financieras no permiten pago parcial ni dejar saldo pendiente en nota. Cubre el total completo o edita directamente el monto del abono.',
+            ], 422);
+        }
 
         if ($dueAmount > 0) {
             if ($resolvedCustomerName === '' || $resolvedCustomerName === 'Cliente Mostrador') {
@@ -1084,6 +1104,8 @@ class UnifiedPosController extends Controller
                 }
 
                 // 3. Procesar cada ítem de Financieras, Préstamos y Tandas
+                $collectingBranchName = Branch::find($branchId)?->name ?? 'General';
+
                 foreach ($items as $item) {
                     $section = $item['section'] ?? '';
 
@@ -1091,11 +1113,26 @@ class UnifiedPosController extends Controller
                     if ($section === 'financiera_abono') {
                         $saleId = (int) ($item['sale_id'] ?? 0);
                         $sale = FinSale::where('id', $saleId)->lockForUpdate()->firstOrFail();
+
+                        if ($sale->status === 'cancelada') {
+                            throw new \RuntimeException("No es posible registrar abonos sobre la venta {$sale->sale_code} porque se encuentra cancelada.");
+                        }
+                        if ($sale->isContado()) {
+                            throw new \RuntimeException("La venta {$sale->sale_code} es de contado y no admite abonos en el POS.");
+                        }
+
                         $abonoAmount = round((float) ($item['amount'] ?? 0), 2);
                         $commAmount = round((float) ($item['commission'] ?? 0), 2);
                         $totalFin = round($abonoAmount + $commAmount, 2);
                         $installmentNo = ((int) $sale->abonos_count) + 1;
                         $receiptCode = 'ABFIN-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+                        $finBreakdown = $this->allocatePaymentBreakdown(
+                            $totalFin,
+                            $paidToday,
+                            $cashAmount,
+                            $cardAmount,
+                            $transferAmount
+                        );
 
                         FinSalePayment::create([
                             'fin_sale_id' => $sale->id,
@@ -1113,11 +1150,7 @@ class UnifiedPosController extends Controller
                             'commission_amount' => $commAmount,
                             'total_amount' => $totalFin,
                             'payment_method' => $method,
-                            'payment_breakdown' => [
-                                'efectivo' => $cashAmount,
-                                'tarjeta' => $cardAmount,
-                                'transferencia' => $transferAmount,
-                            ],
+                            'payment_breakdown' => $finBreakdown,
                             'payment_date' => now(),
                             'notes' => $item['notes'] ?? "Abono #{$installmentNo} registrado desde Módulo Centralizado de Cobros",
                         ]);
@@ -1133,7 +1166,8 @@ class UnifiedPosController extends Controller
                             'user_id' => auth()->id(),
                             'note' => "Abono #{$installmentNo} registrado ({$receiptCode}): Abono $" . number_format($abonoAmount, 2)
                                 . ($commAmount > 0 ? " + Comisión $" . number_format($commAmount, 2) : '')
-                                . " | Método: " . strtoupper($method),
+                                . " | Método: " . strtoupper($method)
+                                . " | Sucursal cobro: {$collectingBranchName}",
                         ]);
                     }
 
@@ -1434,6 +1468,7 @@ class UnifiedPosController extends Controller
     public function registerDirectFinancieraAbono(Request $request, FinSale $sale)
     {
         $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
             'amount' => 'required|numeric|min:0',
             'commission_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|in:efectivo,tarjeta,transferencia,mixto',
@@ -1443,11 +1478,26 @@ class UnifiedPosController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
+        if ($sale->status === 'cancelada') {
+            return back()->with('error', "La venta {$sale->sale_code} está cancelada y no permite registrar abonos.");
+        }
+        if ($sale->isContado()) {
+            return back()->with('error', "La venta {$sale->sale_code} es de contado y no admite abonos de crédito.");
+        }
+
         $abono = round((float) $validated['amount'], 2);
         $comm = round((float) ($validated['commission_amount'] ?? 0), 2);
         $total = round($abono + $comm, 2);
         $method = $validated['payment_method'];
-        $branchId = auth()->user()->branch_id ?? $sale->branch_id ?? 1;
+
+        $canChooseBranch = $this->canAccessAllBranches()
+            || auth()->user()->can('financieras.all_branches')
+            || auth()->user()->can('cash.all_branches');
+
+        $branchId = ($canChooseBranch && !empty($validated['branch_id']))
+            ? (int) $validated['branch_id']
+            : (int) (auth()->user()->branch_id ?? $sale->branch_id ?? Branch::value('id') ?? 1);
+        $collectingBranchName = Branch::find($branchId)?->name ?? 'General';
 
         $cashAmount = $method === 'mixto' ? round((float) $request->input('cash_amount', 0), 2) : ($method === 'efectivo' ? $total : 0);
         $cardAmount = $method === 'mixto' ? round((float) $request->input('card_amount', 0), 2) : ($method === 'tarjeta' ? $total : 0);
@@ -1457,8 +1507,13 @@ class UnifiedPosController extends Controller
             return back()->with('error', 'En pago mixto la suma de Efectivo + Tarjeta + Transferencia debe igualar el total ($' . number_format($total, 2) . ').');
         }
 
-        $tx = DB::transaction(function () use ($sale, $abono, $comm, $total, $method, $branchId, $cashAmount, $cardAmount, $transferAmount, $validated) {
+        $tx = DB::transaction(function () use ($sale, $abono, $comm, $total, $method, $branchId, $collectingBranchName, $cashAmount, $cardAmount, $transferAmount, $validated) {
             $lockedSale = FinSale::where('id', $sale->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedSale->status === 'cancelada' || $lockedSale->isContado()) {
+                throw new \RuntimeException('La venta seleccionada no admite abonos de crédito.');
+            }
+
             $installmentNo = ((int) $lockedSale->abonos_count) + 1;
             $receiptCode = 'ABFIN-' . date('Ymd') . '-' . strtoupper(Str::random(4));
             $txCode = 'MOV-' . date('Ymd') . '-' . strtoupper(Str::random(5));
@@ -1524,7 +1579,8 @@ class UnifiedPosController extends Controller
                 'user_id' => auth()->id(),
                 'note' => "Abono #{$installmentNo} ({$receiptCode}): $" . number_format($abono, 2)
                     . ($comm > 0 ? " + Comisión $" . number_format($comm, 2) : '')
-                    . " | Método: " . strtoupper($method),
+                    . " | Método: " . strtoupper($method)
+                    . " | Sucursal cobro: {$collectingBranchName}",
             ]);
 
             CashFlowService::register(
@@ -1551,6 +1607,51 @@ class UnifiedPosController extends Controller
         return back()
             ->with('success', "Abono registrado en Financiera y Caja correctamente (Folio {$tx->transaction_code}).")
             ->with('print_receipt_url', route('central-pos.receipt', $tx->id));
+    }
+
+    /**
+     * Prorratea el desglose efectivo/tarjeta/transferencia para conceptos individuales cuando un ticket incluye múltiples ítems.
+     */
+    protected function allocatePaymentBreakdown(
+        float $itemTotal,
+        float $paidToday,
+        float $cashAmount,
+        float $cardAmount,
+        float $transferAmount
+    ): array {
+        if ($itemTotal <= 0 || $paidToday <= 0) {
+            return ['efectivo' => 0.0, 'tarjeta' => 0.0, 'transferencia' => 0.0];
+        }
+
+        if (abs($paidToday - $itemTotal) <= 0.01) {
+            return [
+                'efectivo' => round($cashAmount, 2),
+                'tarjeta' => round($cardAmount, 2),
+                'transferencia' => round($transferAmount, 2),
+            ];
+        }
+
+        $ratio = min(1.0, max(0.0, $itemTotal / $paidToday));
+        $effCash = round($cashAmount * $ratio, 2);
+        $effCard = round($cardAmount * $ratio, 2);
+        $effTransfer = round($transferAmount * $ratio, 2);
+
+        $diff = round($itemTotal - ($effCash + $effCard + $effTransfer), 2);
+        if (abs($diff) > 0.0) {
+            if ($effCash >= $effCard && $effCash >= $effTransfer && $cashAmount > 0) {
+                $effCash = round($effCash + $diff, 2);
+            } elseif ($effCard >= $effTransfer && $cardAmount > 0) {
+                $effCard = round($effCard + $diff, 2);
+            } elseif ($transferAmount > 0) {
+                $effTransfer = round($effTransfer + $diff, 2);
+            }
+        }
+
+        return [
+            'efectivo' => max(0.0, $effCash),
+            'tarjeta' => max(0.0, $effCard),
+            'transferencia' => max(0.0, $effTransfer),
+        ];
     }
 }
 

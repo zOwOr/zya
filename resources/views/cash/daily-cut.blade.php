@@ -928,7 +928,13 @@
             <h6 class="mb-0 font-weight-bold">
                 <i class="las la-stream mr-1"></i> 3) Bitácora Cronológica con Detalle por Operación del Cliente
             </h6>
-            <span class="badge badge-light text-dark font-weight-bold">{{ count($chronologicalOperations) }} Operaciones</span>
+            <span class="badge badge-light text-dark font-weight-bold">
+                @if(!empty($isChronologicalPaginated))
+                    {{ count($chronologicalOperations) }} de {{ $cashFlows->total() }} Operaciones (Pág. {{ $cashFlows->currentPage() }}/{{ $cashFlows->lastPage() }})
+                @else
+                    {{ count($chronologicalOperations) }} Operaciones
+                @endif
+            </span>
         </div>
         <div class="card-body p-0">
             @if(count($chronologicalOperations) > 0)
@@ -991,9 +997,11 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="p-3 border-top">
-                    {{ $cashFlows->links('pagination::bootstrap-5') }}
-                </div>
+                @if(!empty($isChronologicalPaginated))
+                    <div class="p-3 border-top">
+                        {{ $cashFlows->links('pagination::bootstrap-5') }}
+                    </div>
+                @endif
             @else
                 <div class="text-center text-muted py-4">
                     <i class="fa-solid fa-receipt fa-2x mb-2 d-block text-secondary" style="opacity: 0.4;"></i>
