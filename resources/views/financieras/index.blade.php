@@ -242,13 +242,6 @@
                                     <span class="badge badge-danger badge-tab-count">{{ $counts['robos_activos'] }}</span>
                                 </a>
                             </li>
-                            @if(auth()->user()->isSuperAdmin() || auth()->user()->canAny(['financieras.bitacora.read', 'financieras.read', 'financieras.ventas.read']))
-                                <li class="nav-item">
-                                    <a class="nav-link {{ $activeTab === 'bitacora' ? 'active' : '' }}" id="tab-link-bitacora" href="{{ route('financieras.index', ['tab' => 'bitacora']) }}" data-tab-name="bitacora">
-                                        <i class="fa-solid fa-book-open mr-2 text-info"></i>5. Bitácora Abonos y Enganches
-                                    </a>
-                                </li>
-                            @endif
                         </ul>
 
                         <div class="py-2">
@@ -264,17 +257,6 @@
                         <div class="tab-pane fade {{ $activeTab === 'ventas' ? 'show active' : '' }}" id="section-ventas" role="tabpanel">
                             @if($activeTab === 'ventas')
                                 @include('financieras.ventas.index')
-                            @endif
-                        </div>
-
-                        <!-- Sección 5: Bitácora Abonos y Enganches -->
-                        <div class="tab-pane fade {{ $activeTab === 'bitacora' ? 'show active' : '' }}" id="section-bitacora" role="tabpanel">
-                            @if($activeTab === 'bitacora' && !empty($bitacora))
-                                @include('financieras.bitacora.partial', [
-                                    'bitacora' => $bitacora,
-                                    'formAction' => route('financieras.index'),
-                                    'includeTab' => true,
-                                ])
                             @endif
                         </div>
 

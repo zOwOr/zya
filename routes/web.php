@@ -23,7 +23,6 @@ use App\Http\Controllers\Dashboard\TandaPeriodController;
 use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\BranchController;
 use App\Http\Controllers\Dashboard\FinancierasController;
-use App\Http\Controllers\Dashboard\FinBitacoraController;
 use App\Http\Controllers\Dashboard\FinSaleController;
 use App\Http\Controllers\Dashboard\FinDeviceController;
 use App\Http\Controllers\Dashboard\FinWarrantyController;
@@ -327,18 +326,8 @@ Route::middleware(['permission:roles.menu|roles.read|roles.edit|permissions.menu
 });
 
 // ====== FINANCIERAS ======
-Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financieras.ventas.menu|financieras.bitacora.read|financieras.inventario.menu|financieras.garantias.menu|financieras.robos.menu|financieras.catalogos.menu'])->prefix('financieras')->name('financieras.')->group(function () {
+Route::middleware(['auth', 'permission:financieras.menu|financieras.read|financieras.ventas.menu|financieras.inventario.menu|financieras.garantias.menu|financieras.robos.menu|financieras.catalogos.menu'])->prefix('financieras')->name('financieras.')->group(function () {
     Route::get('/', [FinancierasController::class, 'index'])->name('index');
-
-    Route::prefix('bitacora')->name('bitacora.')->group(function () {
-        Route::get('/', [FinBitacoraController::class, 'index'])->name('index');
-        Route::get('/export-pdf', [FinBitacoraController::class, 'exportPdf'])
-            ->middleware('permission:financieras.bitacora.export_pdf')
-            ->name('export.pdf');
-        Route::get('/export-excel', [FinBitacoraController::class, 'exportExcel'])
-            ->middleware('permission:financieras.bitacora.export_excel')
-            ->name('export.excel');
-    });
     Route::get('/brands/autocomplete', [FinancierasController::class, 'autocompleteBrands'])->name('brands.autocomplete');
     Route::get('/devices/autocomplete-imei', [FinancierasController::class, 'autocompleteImeis'])->name('devices.autocomplete-imei');
     Route::get('/devices/lookup-imei', [FinancierasController::class, 'lookupImei'])->name('devices.lookup-imei');

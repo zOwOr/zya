@@ -141,28 +141,17 @@
                 @endif
 
                 {{-- ===================== 3. MÓDULO FINANCIERAS ===================== --}}
-                @if (auth()->user()->can('financieras.menu') || auth()->user()->can('financieras.read') || auth()->user()->can('financieras.ventas.menu') || auth()->user()->can('financieras.bitacora.read') || auth()->user()->can('financieras.inventario.menu') || auth()->user()->can('financieras.garantias.menu') || auth()->user()->can('financieras.robos.menu') || auth()->user()->can('financieras.catalogos.menu'))
+                @if (auth()->user()->can('financieras.menu') || auth()->user()->can('financieras.read') || auth()->user()->can('financieras.ventas.menu') || auth()->user()->can('financieras.inventario.menu') || auth()->user()->can('financieras.garantias.menu') || auth()->user()->can('financieras.robos.menu') || auth()->user()->can('financieras.catalogos.menu'))
                     <li class="sidebar-section-title">
                         <span>Financiamiento</span>
                     </li>
 
-                    @if (auth()->user()->can('financieras.menu') || auth()->user()->can('financieras.read') || auth()->user()->can('financieras.ventas.menu') || auth()->user()->can('financieras.inventario.menu') || auth()->user()->can('financieras.garantias.menu') || auth()->user()->can('financieras.robos.menu') || auth()->user()->can('financieras.catalogos.menu'))
-                        <li class="{{ Request::is('financieras*') && !Request::is('financieras/bitacora*') ? 'active' : '' }}">
-                            <a href="{{ route('financieras.index') }}" class="svg-icon">
-                                <i class="fa-solid fa-landmark text-primary"></i>
-                                <span class="ml-3">Financieras</span>
-                            </a>
-                        </li>
-                    @endif
-
-                    @if (auth()->user()->isSuperAdmin() || auth()->user()->canAny(['financieras.bitacora.read', 'financieras.read', 'financieras.ventas.read']))
-                        <li class="{{ Request::is('financieras/bitacora*') ? 'active' : '' }}">
-                            <a href="{{ route('financieras.bitacora.index') }}" class="svg-icon">
-                                <i class="fa-solid fa-book-open text-info"></i>
-                                <span class="ml-3">Bitácora Abonos y Enganches</span>
-                            </a>
-                        </li>
-                    @endif
+                    <li class="{{ Request::is('financieras*') ? 'active' : '' }}">
+                        <a href="{{ route('financieras.index') }}" class="svg-icon">
+                            <i class="fa-solid fa-landmark text-primary"></i>
+                            <span class="ml-3">Financieras</span>
+                        </a>
+                    </li>
                 @endif
 
                 {{-- ===================== 4. CATÁLOGO & STOCK ===================== --}}

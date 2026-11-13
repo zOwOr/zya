@@ -56,7 +56,6 @@
         @endif
         <form id="filter-sales-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-3 rounded border bg-light shadow-xs">
             <input type="hidden" name="tab" value="ventas">
-            <input type="hidden" name="tab" value="ventas">
 
             <!-- Fila 1: Búsqueda, Tipo Venta, Financiera, Sucursal, Estado -->
             <div class="row align-items-end mb-2">
