@@ -104,6 +104,9 @@
             <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId, 'date' => $date]) }}" class="btn btn-info mr-2">
                 <i class="las la-calculator"></i> Corte Diario (Pre-Corte X / Corte Z)
             </a>
+            <a href="{{ route('cash.expenseTypes.index') }}" class="btn btn-outline-dark mr-2">
+                <i class="fa-solid fa-tags"></i> Tipos de Egreso
+            </a>
             <a href="{{ route('cash.expenses', ['branch_id' => $branchId, 'date' => $date]) }}" class="btn btn-outline-danger">
                 <i class="fa-solid fa-file-invoice-dollar"></i> Reporte de Gastos
             </a>
@@ -115,6 +118,18 @@
     @endif
     @if(session('info'))
         <div class="alert alert-info">{{ session('info') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0 pl-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
     @endif
 
     {{-- KPIs del Periodo / Fecha --}}
@@ -330,12 +345,19 @@
                                     </span>
                                 </td>
                                 <td>
+                                    @if($flow->resolved_expense_type_label)
+                                        <span class="badge badge-danger mb-1">{{ $flow->resolved_expense_type_label }}</span>
+                                    @endif
                                     <div class="text-dark font-size-12" style="line-height: 1.4;">
-                                        {{ $desc }}
+                                        {{ $desc ?: 'Sin motivo adicional' }}
                                     </div>
                                 </td>
                                 <td class="text-center" style="white-space: nowrap;">
-                                    @if(str_contains($mod, 'cobro') || str_contains($mod, 'venta') || str_contains($mod, 'pos'))
+                                    @if($flow->resolved_expense_type_label)
+                                        <span class="badge badge-light border text-danger font-weight-bold px-2 py-1">
+                                            <i class="fa-solid fa-tags mr-1"></i>{{ $flow->resolved_expense_type_label }}
+                                        </span>
+                                    @elseif(str_contains($mod, 'cobro') || str_contains($mod, 'venta') || str_contains($mod, 'pos'))
                                         <span class="badge badge-light border text-primary font-weight-bold px-2 py-1">
                                             <i class="fa-solid fa-cart-shopping mr-1"></i>POS / Ventas
                                         </span>

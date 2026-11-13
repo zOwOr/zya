@@ -8,6 +8,7 @@ use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
 use App\Models\CashFlow;
 use App\Models\DailyCut;
+use App\Models\ExpenseType;
 use App\Models\FinSalePayment;
 use App\Models\Order;
 use App\Models\OrderDetails;
@@ -18,6 +19,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -41,6 +43,11 @@ class CashController extends Controller
         'expensesReport' => 'read',
         'exportExpensesPdf' => 'export',
         'exportExpensesExcel' => 'export',
+        'expenseTypesIndex' => 'read',
+        'storeExpenseType' => 'edit',
+        'updateExpenseType' => 'edit',
+        'toggleExpenseType' => 'edit',
+        'destroyExpenseType' => 'edit',
     ];
 
     public function __construct()
@@ -163,7 +170,7 @@ class CashController extends Controller
             $this->ensurePastDaysAutoClosed((int) $branchId);
         }
 
-        $cashFlows = CashFlow::with(['user', 'branch'])
+        $cashFlows = CashFlow::with(['user', 'branch', 'expenseType'])
             ->where('branch_id', $branchId)
             ->when($date, fn($q) => $q->whereDate('created_at', $date))
             ->orderByDesc('created_at')
@@ -201,6 +208,10 @@ class CashController extends Controller
             ? Branch::orderBy('name')->get()
             : Branch::where('id', $branchId)->get();
 
+        $expenseSelector = ExpenseType::forBranchSelector((int) $branchId);
+        $mostUsedExpenseTypes = $expenseSelector['mostUsed'];
+        $allExpenseTypes = $expenseSelector['allTypes'];
+
         return view('cash.index', compact(
             'cashFlows',
             'date',
@@ -214,7 +225,9 @@ class CashController extends Controller
             'perPage',
             'customerMovements',
             'branches',
-            'branchId'
+            'branchId',
+            'mostUsedExpenseTypes',
+            'allExpenseTypes'
         ));
     }
 
@@ -303,7 +316,7 @@ class CashController extends Controller
             ->whereNotIn('order_id', $specialProviderOrderIds)
             ->get();
 
-        $cashFlows = CashFlow::with(['user', 'posTransaction', 'branch'])
+        $cashFlows = CashFlow::with(['user', 'posTransaction', 'branch', 'expenseType'])
             ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
             ->when($search, function ($q) use ($search) {
@@ -312,6 +325,7 @@ class CashController extends Controller
                         ->orWhere('description', 'like', "%{$search}%")
                         ->orWhere('reference', 'like', "%{$search}%")
                         ->orWhere('module', 'like', "%{$search}%")
+                        ->orWhere('expense_type_name', 'like', "%{$search}%")
                         ->orWhere('payment_method', 'like', "%{$search}%");
                 });
             })
@@ -319,7 +333,7 @@ class CashController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $allDailyCashFlows = CashFlow::with(['user', 'posTransaction', 'branch'])
+        $allDailyCashFlows = CashFlow::with(['user', 'posTransaction', 'branch', 'expenseType'])
             ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
             ->when($search, function ($q) use ($search) {
@@ -328,6 +342,7 @@ class CashController extends Controller
                         ->orWhere('description', 'like', "%{$search}%")
                         ->orWhere('reference', 'like', "%{$search}%")
                         ->orWhere('module', 'like', "%{$search}%")
+                        ->orWhere('expense_type_name', 'like', "%{$search}%")
                         ->orWhere('payment_method', 'like', "%{$search}%");
                 });
             })
@@ -441,6 +456,7 @@ class CashController extends Controller
             : 0.0;
         $expectedCash = round($openingBalance + $handCash - $totalExpense, 2);
         $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+        $expenseDetails = $this->buildExpenseDetails($allDailyCashFlows);
 
         $finStart = $filterType === 'dia' ? $selectedDate : ($filterType === 'rango' ? $startDate : null);
         $finEnd = $filterType === 'dia' ? $selectedDate : ($filterType === 'rango' ? $endDate : null);
@@ -475,15 +491,18 @@ class CashController extends Controller
             'pendingDueTotal',
             'expectedCash',
             'chronologicalOperations',
+            'expenseDetails',
             'financieraSummary'
         ));
     }
 
     /**
-     * Registrar un movimiento manual en Caja (con soporte de pagos mixtos y cliente nominal).
+     * Registrar un movimiento manual en Caja (con soporte de pagos mixtos, catálogo de egresos y cliente nominal).
      */
     public function store(Request $request)
     {
+        $isExpense = $request->input('type') === 'expense';
+
         $validated = $request->validate([
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0.01',
@@ -492,20 +511,55 @@ class CashController extends Controller
             'cash_amount' => 'nullable|numeric|min:0',
             'card_amount' => 'nullable|numeric|min:0',
             'transfer_amount' => 'nullable|numeric|min:0',
-            'description' => 'nullable|string|max:255',
+            'expense_type_id' => $isExpense ? 'required|exists:expense_types,id' : 'nullable|exists:expense_types,id',
+            'description' => $isExpense ? 'nullable|string|max:255' : 'required|string|max:255',
             'reference' => 'nullable|string|max:100',
             'module' => 'nullable|string|max:100',
             'branch_id' => 'nullable|exists:branches,id',
+        ], [
+            'expense_type_id.required' => 'Selecciona un tipo de egreso de la lista.',
+            'expense_type_id.exists' => 'El tipo de egreso seleccionado no es válido.',
+            'description.required' => 'Captura el concepto o motivo del movimiento.',
         ]);
 
         $branchId = $this->resolveBranchId($request);
         $amount = round((float) $validated['amount'], 2);
         $method = $validated['payment_method'] ?? 'efectivo';
 
-        if ($validated['type'] === 'expense' && $method !== 'efectivo') {
+        if ($isExpense && $method !== 'efectivo') {
             return back()
                 ->withInput()
                 ->withErrors(['payment_method' => 'Los egresos de caja solo pueden registrarse en efectivo. Las transferencias y pagos con tarjeta nunca deben registrarse como egresos de caja.']);
+        }
+
+        $expenseTypeId = null;
+        $expenseTypeName = null;
+        $descriptionText = trim((string) ($validated['description'] ?? ''));
+
+        if ($isExpense) {
+            $expenseType = ExpenseType::findOrFail((int) $validated['expense_type_id']);
+            if (!$expenseType->is_active) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['expense_type_id' => 'El tipo de egreso seleccionado está desactivado en el catálogo.']);
+            }
+            if (($expenseType->is_other || $expenseType->requires_reason) && $descriptionText === '') {
+                return back()
+                    ->withInput()
+                    ->withErrors(['description' => "Para el tipo de egreso \"{$expenseType->name}\" es obligatorio capturar el motivo."]);
+            }
+
+            $expenseTypeId = $expenseType->id;
+            $expenseTypeName = $expenseType->name;
+            $descriptionToSave = $descriptionText !== '' ? $descriptionText : null;
+            $moduleToSave = trim((string) ($validated['module'] ?? '')) !== ''
+                ? trim((string) $validated['module'])
+                : 'Egresos / Gastos';
+        } else {
+            $descriptionToSave = $descriptionText !== '' ? $descriptionText : 'Movimiento manual de caja';
+            $moduleToSave = trim((string) ($validated['module'] ?? '')) !== ''
+                ? trim((string) $validated['module'])
+                : 'Movimiento Manual';
         }
 
         $cashAmount = $method === 'mixto' ? round((float) $request->input('cash_amount', 0), 2) : ($method === 'efectivo' ? $amount : 0);
@@ -515,9 +569,9 @@ class CashController extends Controller
         CashFlowService::register(
             $validated['type'],
             $amount,
-            $validated['description'] ?? 'Movimiento manual de caja',
+            $descriptionToSave,
             $validated['reference'] ?? null,
-            $validated['module'] ?? 'Movimiento Manual',
+            $moduleToSave,
             $branchId,
             [
                 'customer_name' => $validated['customer_name'] ?? 'Operación Manual en Caja',
@@ -525,10 +579,14 @@ class CashController extends Controller
                 'cash_amount' => $cashAmount,
                 'card_amount' => $cardAmount,
                 'transfer_amount' => $transferAmount,
+                'expense_type_id' => $expenseTypeId,
+                'expense_type_name' => $expenseTypeName,
             ]
         );
 
-        return redirect()->route('cash.index')->with('success', 'Movimiento registrado en caja correctamente.');
+        return redirect()
+            ->route('cash.index', ['branch_id' => $branchId])
+            ->with('success', 'Movimiento registrado en caja correctamente.');
     }
 
     /**
@@ -787,7 +845,7 @@ class CashController extends Controller
             $cutBranchId = (int) $dailyCut->branch_id;
             $date = $dailyCut->date ? $dailyCut->date->toDateString() : Carbon::parse($dailyCut->created_at)->toDateString();
 
-            $cashFlows = CashFlow::with(['user', 'posTransaction'])
+            $cashFlows = CashFlow::with(['user', 'posTransaction', 'expenseType'])
                 ->where('branch_id', $cutBranchId)
                 ->whereDate('created_at', $date)
                 ->orderBy('created_at')
@@ -799,6 +857,7 @@ class CashController extends Controller
             $expectedCash = round($openingBalance + $cashIncome - $totalExpense, 2);
             $pendingDueTotal = $this->resolvePendingDueTotal($cutBranchId, $date);
             $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+            $expenseDetails = $this->buildExpenseDetails($cashFlows);
             $financieraSummary = $this->buildFinancieraSummary([$cutBranchId], $date, $date);
 
             return view('cash.print', compact(
@@ -807,6 +866,7 @@ class CashController extends Controller
                 'expectedCash',
                 'pendingDueTotal',
                 'chronologicalOperations',
+                'expenseDetails',
                 'financieraSummary'
             ));
         }
@@ -845,7 +905,7 @@ class CashController extends Controller
             }
 
             $cutsQuery = DailyCut::with(['branch', 'user'])->whereIn('branch_id', $branchIds);
-            $flowsQuery = CashFlow::with(['user', 'posTransaction'])->whereIn('branch_id', $branchIds);
+            $flowsQuery = CashFlow::with(['user', 'posTransaction', 'expenseType'])->whereIn('branch_id', $branchIds);
 
             if ($filterType === 'rango' || $filterType === 'dia') {
                 $cutsQuery->whereBetween('date', [$startDate, $endDate]);
@@ -874,6 +934,7 @@ class CashController extends Controller
             $totalDifference = round((float) $cutsHistory->where('cut_type', 'corte_z')->sum('difference_amount'), 2);
 
             $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+            $expenseDetails = $this->buildExpenseDetails($cashFlows);
             $financieraSummary = $this->buildFinancieraSummary(
                 $branchIds,
                 $filterType === 'todos' ? null : $startDate,
@@ -900,6 +961,7 @@ class CashController extends Controller
                 'totalDeclaredCash',
                 'totalDifference',
                 'chronologicalOperations',
+                'expenseDetails',
                 'financieraSummary'
             ));
         }
@@ -912,7 +974,7 @@ class CashController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        $cashFlows = CashFlow::with(['user', 'posTransaction'])
+        $cashFlows = CashFlow::with(['user', 'posTransaction', 'expenseType'])
             ->where('branch_id', $branchId)
             ->whereDate('created_at', $date)
             ->orderBy('created_at')
@@ -956,6 +1018,7 @@ class CashController extends Controller
 
         $pendingDueTotal = $this->resolvePendingDueTotal($branchId, $date);
         $chronologicalOperations = $this->buildChronologicalOperations($cashFlows);
+        $expenseDetails = $this->buildExpenseDetails($cashFlows);
         $financieraSummary = $this->buildFinancieraSummary([$branchId], $date, $date);
 
         return view('cash.print', compact(
@@ -964,6 +1027,7 @@ class CashController extends Controller
             'expectedCash',
             'pendingDueTotal',
             'chronologicalOperations',
+            'expenseDetails',
             'financieraSummary'
         ));
     }
@@ -1193,7 +1257,7 @@ class CashController extends Controller
 
         $search = trim((string) $request->input('search', ''));
 
-        $expenses = CashFlow::with(['branch', 'user'])
+        $expenses = CashFlow::with(['branch', 'user', 'expenseType'])
             ->where('type', 'expense')
             ->whereIn('branch_id', $branchIds)
             ->whereBetween('created_at', [
@@ -1205,6 +1269,7 @@ class CashController extends Controller
                     $sub->where('description', 'like', "%{$search}%")
                         ->orWhere('reference', 'like', "%{$search}%")
                         ->orWhere('module', 'like', "%{$search}%")
+                        ->orWhere('expense_type_name', 'like', "%{$search}%")
                         ->orWhere('customer_name', 'like', "%{$search}%");
                 });
             })
@@ -1274,7 +1339,7 @@ class CashController extends Controller
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Gastos');
-        $sheet->fromArray(['Fecha/Hora', 'Sucursal', 'Módulo', 'Referencia', 'Concepto / Detalle', 'Registró', 'Importe ($)'], null, 'A1');
+        $sheet->fromArray(['Fecha/Hora', 'Sucursal', 'Tipo de Egreso / Módulo', 'Referencia', 'Motivo / Detalle', 'Registró', 'Importe ($)'], null, 'A1');
         $sheet->getStyle('A1:G1')->getFont()->setBold(true);
 
         $row = 2;
@@ -1282,7 +1347,7 @@ class CashController extends Controller
             $sheet->fromArray([
                 optional($exp->created_at)->format('d/m/Y H:i'),
                 $exp->branch?->name ?? 'General',
-                $exp->module ?: 'Caja',
+                $exp->resolved_expense_type_label ?: ($exp->module ?: 'Caja'),
                 $exp->reference ?: '',
                 $exp->description ?: 'Gasto registrado en caja',
                 $exp->user?->name ?? 'Sistema',
@@ -1330,14 +1395,19 @@ class CashController extends Controller
                     ];
                 }
             } else {
+                $expenseTypeLabel = $flow->type === 'expense' ? $flow->resolved_expense_type_label : null;
                 $concepts[] = [
-                    'title' => $flow->description ?: ($flow->module ?: 'Operación en Caja'),
+                    'title' => $flow->description ?: ($expenseTypeLabel ?: ($flow->module ?: 'Operación en Caja')),
                     'amount' => (float) $flow->amount,
                     'commission' => (float) ($flow->commission_amount ?? 0),
                     'quantity' => 1,
-                    'section' => 'general',
+                    'section' => $flow->type === 'expense' ? 'egreso' : 'general',
+                    'expense_type' => $expenseTypeLabel,
+                    'expense_reason' => $flow->type === 'expense' ? $flow->description : null,
                 ];
             }
+
+            $expenseTypeLabel = $flow->type === 'expense' ? $flow->resolved_expense_type_label : null;
 
             $operations[] = [
                 'id' => $flow->id,
@@ -1347,7 +1417,9 @@ class CashController extends Controller
                 'payment_method' => $flow->payment_method ?? 'efectivo',
                 'total_amount' => (float) $flow->amount,
                 'type' => $flow->type,
-                'module' => $flow->module ?: 'General',
+                'module' => $expenseTypeLabel ?: ($flow->module ?: 'General'),
+                'expense_type_name' => $expenseTypeLabel,
+                'expense_reason' => $flow->type === 'expense' ? $flow->description : null,
                 'reference' => $flow->reference,
                 'user_name' => $flow->user?->name ?? 'Cajero',
                 'concepts' => $concepts,
@@ -1355,6 +1427,34 @@ class CashController extends Controller
         }
 
         return $operations;
+    }
+
+    /**
+     * Construye el desglose explícito de egresos (tipo de egreso, motivo e importe) para el Corte X / Z.
+     */
+    protected function buildExpenseDetails($cashFlows): array
+    {
+        return collect($cashFlows)
+            ->where('type', 'expense')
+            ->values()
+            ->map(function (CashFlow $flow) {
+                $typeLabel = $flow->resolved_expense_type_label ?: ($flow->module ?: 'Egreso en Caja');
+                $reason = trim((string) ($flow->description ?? ''));
+                if ($reason === '' && $flow->customer_name) {
+                    $reason = $flow->customer_name;
+                }
+
+                return [
+                    'id' => $flow->id,
+                    'time' => $flow->created_at ? $flow->created_at->format('H:i') : '--:--',
+                    'expense_type' => $typeLabel,
+                    'reason' => $reason !== '' ? $reason : 'Sin motivo adicional',
+                    'amount' => round((float) $flow->effective_cash_amount > 0 ? (float) $flow->effective_cash_amount : (float) $flow->amount, 2),
+                    'user_name' => $flow->user?->name ?? 'Cajero',
+                    'reference' => $flow->reference,
+                ];
+            })
+            ->all();
     }
 
     /**
@@ -1377,5 +1477,130 @@ class CashController extends Controller
             });
 
         return round(max($orderDue, $posDue), 2);
+    }
+
+    /**
+     * Vista CRUD del Catálogo de Tipos de Egreso / Salidas de Caja.
+     */
+    public function expenseTypesIndex(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+        $expenseTypes = ExpenseType::withCount('cashFlows')
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('name', 'like', "%{$search}%")
+                        ->orWhere('examples', 'like', "%{$search}%")
+                        ->orWhere('slug', 'like', "%{$search}%");
+                });
+            })
+            ->ordered()
+            ->get();
+
+        return view('cash.expense-types', compact('expenseTypes', 'search'));
+    }
+
+    /**
+     * Crear un nuevo tipo de egreso en el catálogo.
+     */
+    public function storeExpenseType(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:160',
+            'examples' => 'nullable|string|max:255',
+            'sort_order' => 'nullable|integer|min:1|max:9998',
+            'requires_reason' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $baseSlug = Str::slug($validated['name']) ?: 'tipo-egreso';
+        $slug = $baseSlug;
+        if (ExpenseType::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . strtolower(Str::random(4));
+        }
+
+        $nextOrder = ((int) ExpenseType::where('is_other', false)->max('sort_order')) + 1;
+        $sortOrder = isset($validated['sort_order']) ? (int) $validated['sort_order'] : min(9998, max(1, $nextOrder));
+
+        ExpenseType::create([
+            'name' => trim($validated['name']),
+            'examples' => trim((string) ($validated['examples'] ?? '')) ?: null,
+            'slug' => $slug,
+            'is_other' => false,
+            'requires_reason' => $request->boolean('requires_reason'),
+            'sort_order' => $sortOrder,
+            'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
+        ]);
+
+        return back()->with('success', 'Tipo de egreso agregado correctamente al catálogo.');
+    }
+
+    /**
+     * Actualizar un tipo de egreso existente del catálogo.
+     */
+    public function updateExpenseType(Request $request, ExpenseType $expenseType)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:160',
+            'examples' => 'nullable|string|max:255',
+            'sort_order' => 'nullable|integer|min:1|max:9999',
+            'requires_reason' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $isOther = (bool) $expenseType->is_other;
+
+        $expenseType->update([
+            'name' => trim($validated['name']),
+            'examples' => trim((string) ($validated['examples'] ?? '')) ?: null,
+            'requires_reason' => $isOther ? true : $request->boolean('requires_reason'),
+            'sort_order' => $isOther ? 9999 : min(9998, max(1, (int) ($validated['sort_order'] ?? $expenseType->sort_order))),
+            'is_active' => $isOther ? true : ($request->has('is_active') ? $request->boolean('is_active') : $expenseType->is_active),
+        ]);
+
+        return back()->with('success', "Tipo de egreso \"{$expenseType->name}\" actualizado correctamente.");
+    }
+
+    /**
+     * Activar / desactivar rápidamente un tipo de egreso.
+     */
+    public function toggleExpenseType(ExpenseType $expenseType)
+    {
+        if ($expenseType->is_other) {
+            return back()->with('error', 'El tipo "Otro (motivo obligatorio)" siempre debe permanecer activo al final del catálogo.');
+        }
+
+        $expenseType->update([
+            'is_active' => !$expenseType->is_active,
+        ]);
+
+        $estado = $expenseType->is_active ? 'activado' : 'desactivado';
+        return back()->with('success', "Tipo de egreso \"{$expenseType->name}\" {$estado}.");
+    }
+
+    /**
+     * Eliminar un tipo de egreso del catálogo preservando el nombre histórico en cortes previos.
+     */
+    public function destroyExpenseType(ExpenseType $expenseType)
+    {
+        if ($expenseType->is_other) {
+            return back()->with('error', 'El tipo "Otro (motivo obligatorio)" no se puede eliminar porque es respaldo obligatorio al final del menú.');
+        }
+
+        $name = $expenseType->name;
+
+        DB::transaction(function () use ($expenseType, $name) {
+            CashFlow::where('expense_type_id', $expenseType->id)
+                ->where(function ($q) {
+                    $q->whereNull('expense_type_name')->orWhere('expense_type_name', '');
+                })
+                ->update(['expense_type_name' => $name]);
+
+            CashFlow::where('expense_type_id', $expenseType->id)
+                ->update(['expense_type_id' => null]);
+
+            $expenseType->delete();
+        });
+
+        return back()->with('success', "Tipo de egreso \"{$name}\" eliminado del catálogo.");
     }
 }

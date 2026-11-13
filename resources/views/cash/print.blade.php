@@ -352,6 +352,9 @@
                     </div>
                 @endif
 
+                {{-- E) DETALLE COMPACTO DE EGRESOS / SALIDAS DE CAJA --}}
+                @includeIf('cash.partials.cut-expenses-table')
+
                 {{-- 3) OPERACIONES Y MOVIMIENTOS REGISTRADOS EN EL PERIODO --}}
                 @if(count($chronologicalOperations) > 0)
                     <div class="cut-section-head">
@@ -381,7 +384,9 @@
                                     <td>
                                         <ul>
                                             @foreach($op['concepts'] as $c)
-                                                <li>• {{ $c['title'] }} — <strong>${{ number_format($c['amount'], 2) }}</strong></li>
+                                                <li>
+                                                    • @if(!empty($op['expense_type_name']))<strong class="text-danger">[{{ $op['expense_type_name'] }}]</strong> @endif{{ $c['title'] }} — <strong>${{ number_format($c['amount'], 2) }}</strong>
+                                                </li>
                                             @endforeach
                                         </ul>
                                     </td>
@@ -636,6 +641,9 @@
                 </table>
             @endif
 
+            {{-- E) DETALLE COMPACTO DE EGRESOS / SALIDAS DE CAJA --}}
+            @includeIf('cash.partials.cut-expenses-table')
+
             {{-- 3) BITÁCORA CRONOLÓGICA COMPACTA --}}
             <div class="cut-section-head">
                 <span class="cut-section-num">3</span> Bitácora Cronológica con Detalle por Operación del Cliente ({{ count($chronologicalOperations) }})
@@ -676,7 +684,7 @@
                                     <ul>
                                         @foreach($op['concepts'] as $c)
                                             <li>
-                                                • {{ $c['title'] }} <strong>— ${{ number_format($c['amount'], 2) }}</strong>
+                                                • @if(!empty($op['expense_type_name']))<strong class="text-danger">[{{ $op['expense_type_name'] }}]</strong> @endif{{ $c['title'] }} <strong>— ${{ number_format($c['amount'], 2) }}</strong>
                                                 @if(!empty($c['commission']) && (float)$c['commission'] > 0 && ($c['section'] ?? '') !== 'prestamo_apertura')
                                                     <span class="text-info">(+Com. ${{ number_format($c['commission'], 2) }})</span>
                                                 @endif

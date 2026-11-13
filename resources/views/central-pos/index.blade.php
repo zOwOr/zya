@@ -2983,51 +2983,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function printTicketDirectly(url) {
-        if (!url) return;
-        // Normalizar URL a relativa si coincide con host para evitar bloqueos por Cross-Origin
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-            try {
-                const parsed = new URL(url);
-                if (parsed.host === window.location.host) {
-                    url = parsed.pathname + parsed.search;
-                }
-            } catch (e) {}
+        if (typeof window.printTicketDirectly === 'function') {
+            window.printTicketDirectly(url);
         }
-
-        let oldFrame = document.getElementById('posDirectPrintFrame');
-        if (oldFrame) {
-            oldFrame.remove();
-        }
-        let frame = document.createElement('iframe');
-        frame.id = 'posDirectPrintFrame';
-        frame.name = 'posDirectPrintFrame';
-        frame.style.position = 'fixed';
-        frame.style.left = '-9999px';
-        frame.style.top = '-9999px';
-        frame.style.width = '300px';
-        frame.style.height = '300px';
-        frame.style.border = '0';
-        frame.style.visibility = 'visible';
-
-        frame.onload = function() {
-            try {
-                if (frame.contentWindow) {
-                    setTimeout(function() {
-                        try {
-                            frame.contentWindow.focus();
-                            frame.contentWindow.print();
-                        } catch (err) {
-                            console.warn('Error al invocar frame.contentWindow.print():', err);
-                        }
-                    }, 300);
-                }
-            } catch (e) {
-                console.error('Error al imprimir ticket directo:', e);
-            }
-        };
-
-        document.body.appendChild(frame);
-        frame.src = url;
     }
 
     function showSaleSuccessBanner(txCode, receiptUrl) {

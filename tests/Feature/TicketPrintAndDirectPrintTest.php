@@ -473,4 +473,40 @@ class TicketPrintAndDirectPrintTest extends TestCase
             $this->assertStringContainsString(route('dashboard'), $html);
         }
     }
+
+    /**
+     * Regresión: evitar que printTicketDirectly dispare dos diálogos de impresión
+     * (por appendChild antes de frame.src / about:blank / implementación duplicada).
+     */
+    public function test_direct_ticket_print_does_not_trigger_duplicate_print_dialog(): void
+    {
+        $this->actingAs($this->userAllende);
+
+        // 1. Verificar POS Central: usa la implementación única y protegida de window.printTicketDirectly
+        $posResponse = $this->get(route('central-pos.index'));
+        $posResponse->assertStatus(200);
+        $posHtml = $posResponse->getContent();
+
+        $this->assertSame(1, substr_count($posHtml, 'frame.contentWindow.print();'));
+        $this->assertStringContainsString('var hasPrinted = false;', $posHtml);
+        $this->assertStringContainsString("loadedHref === 'about:blank'", $posHtml);
+        $this->assertStringContainsString('frame.onload = null;', $posHtml);
+        $this->assertStringContainsString("if (typeof window.printTicketDirectly === 'function')", $posHtml);
+
+        $srcPos = strpos($posHtml, 'frame.src = url;');
+        $appendPos = strpos($posHtml, 'document.body.appendChild(frame);');
+        $this->assertNotFalse($srcPos);
+        $this->assertNotFalse($appendPos);
+        $this->assertLessThan($appendPos, $srcPos, 'frame.src debe asignarse antes de insertar el iframe en el DOM.');
+
+        // 2. Verificar Cuentas por Cobrar / Abonos con session print_ticket_url: delega a window.printTicketDirectly
+        $dueResponse = $this->withSession([
+            'print_ticket_url' => route('central-pos.index') . '/receipt/999',
+        ])->get(route('order.pendingDue'));
+        $dueResponse->assertStatus(200);
+        $dueHtml = $dueResponse->getContent();
+
+        $this->assertSame(1, substr_count($dueHtml, 'frame.contentWindow.print();'));
+        $this->assertStringContainsString('window.printTicketDirectly(', $dueHtml);
+    }
 }

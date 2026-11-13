@@ -268,6 +268,8 @@ class CashFlowService
             'description' => $description,
             'reference' => $reference,
             'module' => $module,
+            'expense_type_id' => $extra['expense_type_id'] ?? null,
+            'expense_type_name' => $extra['expense_type_name'] ?? null,
             'branch_id' => $branchId,
             'user_id' => $userId,
             'pos_transaction_id' => $extra['pos_transaction_id'] ?? null,

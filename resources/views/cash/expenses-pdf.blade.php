@@ -68,12 +68,12 @@
                     <td>{{ optional($exp->created_at)->format('d/m/Y H:i') }}</td>
                     <td>{{ $exp->branch?->name ?? 'General' }}</td>
                     <td>
-                        {{ $exp->module ?: 'Caja' }}
+                        {{ $exp->resolved_expense_type_label ?: ($exp->module ?: 'Caja') }}
                         @if($exp->reference)
                             <br><small>{{ $exp->reference }}</small>
                         @endif
                     </td>
-                    <td>{{ $exp->description ?: 'Gasto registrado en caja' }}</td>
+                    <td>{{ $exp->description ?: 'Sin motivo adicional' }}</td>
                     <td>{{ $exp->user?->name ?? 'Sistema' }}</td>
                     <td class="text-right"><strong>${{ number_format((float) $exp->amount, 2) }}</strong></td>
                 </tr>

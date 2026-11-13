@@ -230,6 +230,11 @@ Route::middleware(['permission:cash.menu|cash.read'])->group(function () {
     Route::get('/cash/expenses', [CashController::class, 'expensesReport'])->name('cash.expenses');
     Route::get('/cash/expenses/pdf', [CashController::class, 'exportExpensesPdf'])->name('cash.expenses.pdf');
     Route::get('/cash/expenses/excel', [CashController::class, 'exportExpensesExcel'])->name('cash.expenses.excel');
+    Route::get('/cash/expense-types', [CashController::class, 'expenseTypesIndex'])->name('cash.expenseTypes.index');
+    Route::post('/cash/expense-types', [CashController::class, 'storeExpenseType'])->name('cash.expenseTypes.store');
+    Route::put('/cash/expense-types/{expenseType}', [CashController::class, 'updateExpenseType'])->name('cash.expenseTypes.update');
+    Route::patch('/cash/expense-types/{expenseType}/toggle', [CashController::class, 'toggleExpenseType'])->name('cash.expenseTypes.toggle');
+    Route::delete('/cash/expense-types/{expenseType}', [CashController::class, 'destroyExpenseType'])->name('cash.expenseTypes.destroy');
 });
 
 // ====== ORDERS ======

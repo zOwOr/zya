@@ -878,6 +878,50 @@
         </div>
     @endif
 
+    {{-- E) DETALLE DE EGRESOS / SALIDAS DE CAJA (TIPO, MOTIVO E IMPORTE) --}}
+    @if(!empty($expenseDetails) && count($expenseDetails) > 0)
+        <div class="card shadow-sm mb-4 border-danger">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 font-weight-bold text-white">
+                    <i class="fa-solid fa-money-bill-transfer mr-1"></i> E) Detalle de Egresos / Salidas de Caja (Tipo de Egreso, Motivo e Importe)
+                </h6>
+                <span class="badge badge-light text-danger font-weight-bold">{{ count($expenseDetails) }} egresos</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 75px;" class="text-center">Hora</th>
+                                <th style="width: 220px;">Tipo de Egreso</th>
+                                <th>Motivo / Detalle</th>
+                                <th style="width: 130px;">Cajero</th>
+                                <th style="width: 130px;" class="text-right">Importe ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($expenseDetails as $expItem)
+                                <tr>
+                                    <td class="text-center text-muted font-weight-bold">{{ $expItem['time'] }}</td>
+                                    <td><span class="badge badge-danger">{{ $expItem['expense_type'] }}</span></td>
+                                    <td class="text-dark">{{ $expItem['reason'] }}</td>
+                                    <td class="text-muted small">{{ $expItem['user_name'] }}</td>
+                                    <td class="text-right font-weight-bold text-danger">${{ number_format($expItem['amount'], 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="bg-light font-weight-bold">
+                            <tr>
+                                <th colspan="4" class="text-right">TOTAL DE EGRESOS EN CAJA:</th>
+                                <th class="text-right text-danger">${{ number_format(collect($expenseDetails)->sum('amount'), 2) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- 3) BITÁCORA CRONOLÓGICA CON DETALLE POR OPERACIÓN DEL CLIENTE --}}
     <div class="card shadow-sm mb-4 border-dark">
         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
@@ -928,6 +972,9 @@
                                             @foreach($op['concepts'] as $c)
                                                 <li class="mb-1">
                                                     <i class="fa-solid fa-circle text-primary mr-1" style="font-size: 7px; vertical-align: middle;"></i>
+                                                    @if(!empty($op['expense_type_name']))
+                                                        <span class="badge badge-danger mr-1">{{ $op['expense_type_name'] }}</span>
+                                                    @endif
                                                     <span class="text-dark">{{ $c['title'] }}</span>
                                                     <strong class="text-dark ml-1">— ${{ number_format($c['amount'], 2) }}</strong>
                                                     @if(!empty($c['commission']) && (float)$c['commission'] > 0 && ($c['section'] ?? '') !== 'prestamo_apertura')
