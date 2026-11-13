@@ -20,7 +20,10 @@
 <body>
     <h2>ZYA CELULARES - REPORTE DE GASTOS Y SALIDAS DE CAJA</h2>
     <div class="subtitle">
-        <strong>Período ({{ $periodLabel }}):</strong> Del {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+        <strong>Período:</strong> {{ $periodLabel }}
+        @if($startDate && $endDate)
+            (Del {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }})
+        @endif
         &nbsp;|&nbsp; <strong>Sucursal:</strong> {{ $branchLabel }}
         &nbsp;|&nbsp; <strong>Generado:</strong> {{ now()->format('d/m/Y H:i') }} por {{ auth()->user()->name ?? 'Sistema' }}
     </div>

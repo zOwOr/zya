@@ -28,6 +28,10 @@
                 'name' => 'Cliente',
             ],
             [
+                'slug' => 'external_customer',
+                'name' => 'Clientes Externos',
+            ],
+            [
                 'slug' => 'supplier',
                 'name' => 'Proveedor',
             ],

@@ -256,7 +256,7 @@
         <span class="bold">{{ $transaction->created_at ? $transaction->created_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i') }}</span>
     </div>
     <div class="row-flex">
-        <span class="bold">Cliente:</span>
+        <span class="bold">{{ $transaction->external_customer_id ? 'Cliente Externo:' : 'Cliente:' }}</span>
         <span class="bold" style="font-size: 13px;">{{ strtoupper($transaction->customer_name ?: 'Cliente Mostrador') }}</span>
     </div>
     @if (!empty($financieraList))

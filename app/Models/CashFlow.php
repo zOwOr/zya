@@ -2,15 +2,28 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StripsMissingSchemaColumns;
 use Illuminate\Database\Eloquent\Model;
 
 class CashFlow extends Model
 {
+    use StripsMissingSchemaColumns;
+
+    protected static function optionalSchemaColumns(): array
+    {
+        return [
+            'external_customer_id' => true,
+            'expense_type_id' => true,
+            'expense_type_name' => true,
+        ];
+    }
+
     protected $fillable = [
         'branch_id',
         'user_id',
         'pos_transaction_id',
         'customer_id',
+        'external_customer_id',
         'customer_name',
         'type',
         'amount',
@@ -50,6 +63,11 @@ class CashFlow extends Model
         return $this->belongsTo(Customer::class, 'customer_id');
     }
 
+    public function externalCustomer()
+    {
+        return $this->belongsTo(ExternalCustomer::class, 'external_customer_id')->withTrashed();
+    }
+
     public function posTransaction()
     {
         return $this->belongsTo(PosTransaction::class, 'pos_transaction_id');
@@ -74,10 +92,18 @@ class CashFlow extends Model
         if (!empty($this->customer_name)) {
             return $this->customer_name;
         }
+        if ($this->externalCustomer) {
+            return $this->externalCustomer->tit_name;
+        }
         if ($this->customer) {
             return $this->customer->tit_name;
         }
         return 'Público en General / Operación Interna';
+    }
+
+    public function getIsExternalCustomerAttribute(): bool
+    {
+        return !empty($this->external_customer_id);
     }
 
     public function getEffectiveCashAmountAttribute(): float

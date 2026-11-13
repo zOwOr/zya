@@ -74,4 +74,9 @@ class Customer extends Model
                     ->withPivot('position')
                     ->withTimestamps();
     }
+
+    public function externalOrigin()
+    {
+        return $this->hasOne(ExternalCustomer::class, 'converted_customer_id');
+    }
 }

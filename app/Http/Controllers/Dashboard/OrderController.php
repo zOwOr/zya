@@ -19,11 +19,14 @@ use Illuminate\Support\Facades\Redirect;
 use Gloudemans\Shoppingcart\Facades\Cart;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
 use App\Services\CashFlowService;
+use App\Services\DateFilterService;
 use App\Models\DailyCut;
 use App\Models\PaymentHistory;
 use App\Models\Branch;
 use App\Models\Loan;
 use App\Models\Customer;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 class OrderController extends Controller
 {
     use ModulePermissionTrait;
@@ -33,6 +36,8 @@ class OrderController extends Controller
     protected array $permissionMapping = [
         'pendingOrders' => 'read',
         'completeOrders' => 'read',
+        'exportOrdersPdf' => 'export_pdf',
+        'exportOrdersExcel' => 'export_excel',
         'stockManage' => 'read',
         'orderDetails' => 'read',
         'invoiceDownload' => 'read',
@@ -55,21 +60,66 @@ class OrderController extends Controller
     {
         $this->initializeModulePermission();
     }
+
+    /**
+     * Construye consulta filtrada de órdenes/ventas con soporte de día, rango, todos y límite de 2 días sin permiso histórico.
+     */
+    protected function buildFilteredOrdersQuery(Request $request, string $defaultStatus = 'complete'): array
+    {
+        $canHistory = DateFilterService::userCanFilterAllDates(auth()->user(), ['orders.filter_all_dates']);
+        $dateFilter = DateFilterService::resolve($request, [
+            'default_type' => $canHistory ? 'todos' : 'rango',
+            'default_start_date' => Carbon::today()->subDays(DateFilterService::MAX_RESTRICTED_DAYS)->toDateString(),
+            'default_end_date' => Carbon::today()->toDateString(),
+            'history_permissions' => ['orders.filter_all_dates'],
+        ]);
+
+        $status = (string) $request->input('order_status', $defaultStatus);
+        $search = trim((string) $request->input('search', ''));
+
+        $query = Order::with(['customer', 'branch', 'user'])
+            ->when(in_array($status, ['pending', 'complete'], true), fn($q) => $q->where('order_status', $status))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('invoice_no', 'like', "%{$search}%")
+                        ->orWhere('payment_status', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($c) use ($search) {
+                            $c->where('tit_name', 'like', "%{$search}%")
+                                ->orWhere('tit_phone', 'like', "%{$search}%");
+                        });
+                });
+            });
+
+        DateFilterService::apply($query, 'order_date', $dateFilter, true);
+
+        return [
+            'query' => $query,
+            'dateFilter' => $dateFilter,
+            'status' => $status,
+            'search' => $search,
+            'periodLabel' => DateFilterService::periodLabel($dateFilter),
+            'fileSuffix' => DateFilterService::fileSuffix($dateFilter),
+        ];
+    }
+
     /**
      * Display a listing of the resource.
      */
-    public function pendingOrders()
+    public function pendingOrders(Request $request)
     {
-        $row = (int) request('row', 10);
+        $row = (int) $request->input('row', 10);
 
         if ($row < 1 || $row > 100000) {
             abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
         }
 
-        $orders = Order::where('order_status', 'pending')->sortable()->paginate($row);
+        $resolved = $this->buildFilteredOrdersQuery($request, 'pending');
+        $orders = $resolved['query']->sortable()->paginate($row)->withQueryString();
 
         return view('orders.pending-orders', [
-            'orders' => $orders
+            'orders' => $orders,
+            'dateFilter' => $resolved['dateFilter'],
+            'periodLabel' => $resolved['periodLabel'],
         ]);
     }
 
@@ -140,19 +190,96 @@ class OrderController extends Controller
     }
     
 
-    public function completeOrders()
+    public function completeOrders(Request $request)
     {
-        $row = (int) request('row', 10);
+        $row = (int) $request->input('row', 10);
 
         if ($row < 1 || $row > 100000) {
             abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
         }
 
-        $orders = Order::where('order_status', 'complete')->sortable()->paginate($row);
+        $resolved = $this->buildFilteredOrdersQuery($request, 'complete');
+        $orders = $resolved['query']->sortable()->paginate($row)->withQueryString();
 
         return view('orders.complete-orders', [
-            'orders' => $orders
+            'orders' => $orders,
+            'dateFilter' => $resolved['dateFilter'],
+            'periodLabel' => $resolved['periodLabel'],
         ]);
+    }
+
+    /**
+     * Exportar órdenes filtradas a PDF.
+     */
+    public function exportOrdersPdf(Request $request)
+    {
+        $resolved = $this->buildFilteredOrdersQuery($request, (string) $request->input('order_status', 'complete'));
+        $orders = $resolved['query']->orderByDesc('order_date')->orderByDesc('id')->get();
+        $totals = [
+            'count' => $orders->count(),
+            'total' => round((float) $orders->sum('total'), 2),
+            'pay' => round((float) $orders->sum('pay'), 2),
+            'due' => round((float) $orders->sum('due'), 2),
+        ];
+        $statusLabel = $resolved['status'] === 'pending' ? 'Órdenes Pendientes' : ($resolved['status'] === 'complete' ? 'Órdenes Aprobadas' : 'Todas las Órdenes');
+        $periodLabel = $resolved['periodLabel'];
+
+        $pdf = Pdf::loadView('orders.list-pdf', compact('orders', 'totals', 'statusLabel', 'periodLabel'))
+            ->setPaper('letter', 'landscape');
+
+        return $pdf->download("Ordenes_Ventas_{$resolved['fileSuffix']}.pdf");
+    }
+
+    /**
+     * Exportar órdenes filtradas a Excel (.xlsx).
+     */
+    public function exportOrdersExcel(Request $request)
+    {
+        $resolved = $this->buildFilteredOrdersQuery($request, (string) $request->input('order_status', 'complete'));
+        $orders = $resolved['query']->orderByDesc('order_date')->orderByDesc('id')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Órdenes y Ventas');
+
+        $headers = [
+            'Nota de Venta',
+            'Fecha',
+            'Sucursal',
+            'Cliente',
+            'Método de Pago',
+            'Total ($)',
+            'Pagado ($)',
+            'Saldo Pendiente ($)',
+            'Estado',
+        ];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($orders as $order) {
+            $sheet->fromArray([
+                $order->invoice_no,
+                $order->order_date ? Carbon::parse($order->order_date)->format('d/m/Y') : '',
+                $order->resolved_branch?->name ?? 'Principal',
+                $order->customer ? $order->customer->tit_name : 'Público en General',
+                $order->payment_status,
+                (float) $order->total,
+                (float) $order->pay,
+                (float) $order->due,
+                ucfirst((string) $order->order_status),
+            ], null, "A{$row}");
+            $row++;
+        }
+
+        foreach (range('A', 'I') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'orders_xlsx_');
+        (new Xlsx($spreadsheet))->save($tempFile);
+
+        return response()->download($tempFile, "Ordenes_Ventas_{$resolved['fileSuffix']}.xlsx")->deleteFileAfterSend(true);
     }
 
     public function stockManage()

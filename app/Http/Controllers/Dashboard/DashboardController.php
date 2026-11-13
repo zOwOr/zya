@@ -14,10 +14,13 @@ use App\Models\Order;
 use App\Models\PosTransaction;
 use App\Models\Product;
 use App\Services\CashFlowService;
+use App\Services\DateFilterService;
+use App\Services\FinBitacoraService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -29,8 +32,10 @@ class DashboardController extends Controller
 
     protected array $permissionMapping = [
         'index' => 'read',
-        'exportFinancieraPaymentsPdf' => 'export',
-        'exportFinancieraPaymentsExcel' => 'export',
+        'exportFinancieraPaymentsPdf' => 'financieras.export_pdf',
+        'exportFinancieraPaymentsExcel' => 'financieras.export_excel',
+        'exportVentasPdf' => 'ventas.export_pdf',
+        'exportVentasExcel' => 'ventas.export_excel',
     ];
 
     public function __construct()
@@ -56,43 +61,95 @@ class DashboardController extends Controller
         return (int) (auth()->user()->branch_id ?? 1);
     }
 
-    protected function buildFinancieraPaymentsQuery(Request $request)
+    protected function resolveFinancieraDateFilter(Request $request): array
     {
-        $singleDate = $request->input('date');
-        $startDate = $singleDate ?: $request->input('fin_start_date', Carbon::today()->toDateString());
-        $endDate = $singleDate ?: $request->input('fin_end_date', Carbon::today()->toDateString());
+        return DateFilterService::resolve($request, [
+            'prefix' => 'fin_',
+            'default_type' => 'dia',
+            'history_permissions' => ['dashboard.filter_all_dates'],
+            'fallback_unprefixed' => true,
+        ]);
+    }
+
+    protected function resolveMovementsDateFilter(Request $request): array
+    {
+        return DateFilterService::resolve($request, [
+            'prefix' => 'mov_',
+            'default_type' => 'dia',
+            'history_permissions' => ['dashboard.filter_all_dates'],
+        ]);
+    }
+
+    protected function buildFinancieraPaymentsQuery(Request $request, ?array $dateFilter = null)
+    {
+        $dateFilter = $dateFilter ?? $this->resolveFinancieraDateFilter($request);
         $financieraId = $request->input('financiera_id');
         $branchId = $this->resolveBranchFilter($request);
-        $search = $request->input('fin_search');
+        $search = trim((string) $request->input('fin_search', ''));
 
-        return FinSalePayment::with(['sale.financiera', 'financiera', 'branch', 'user', 'posTransaction'])
+        $query = FinSalePayment::with(['sale.financiera', 'financiera', 'branch', 'user', 'posTransaction', 'externalCustomer'])
             ->where(function ($q) {
                 $q->whereNull('pos_transaction_id')
                     ->orWhereHas('posTransaction', fn($pt) => $pt->where('status', '!=', 'cancelado'));
-            })
-            ->when($startDate, fn($q) => $q->whereDate('payment_date', '>=', $startDate))
-            ->when($endDate, fn($q) => $q->whereDate('payment_date', '<=', $endDate))
+            });
+
+        DateFilterService::apply($query, 'payment_date', $dateFilter);
+
+        return $query
             ->when($financieraId, fn($q) => $q->where('financiera_id', $financieraId))
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->when($search, function ($q) use ($search) {
+            ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
-                    $sub->where('tag_contrato', 'like', "%{$search}%")
+                    $sub->where('receipt_code', 'like', "%{$search}%")
+                        ->orWhere('tag_contrato', 'like', "%{$search}%")
                         ->orWhere('imei', 'like', "%{$search}%")
-                        ->orWhere('customer_name', 'like', "%{$search}%");
+                        ->orWhere('customer_name', 'like', "%{$search}%")
+                        ->orWhereHas('externalCustomer', function ($ext) use ($search) {
+                            $ext->where('tit_name', 'like', "%{$search}%")
+                                ->orWhere('tit_phone', 'like', "%{$search}%");
+                        });
                 });
             })
             ->orderByDesc('payment_date')
             ->orderByDesc('id');
     }
 
+    protected function buildMovementsQuery(Request $request, ?array $dateFilter = null)
+    {
+        $dateFilter = $dateFilter ?? $this->resolveMovementsDateFilter($request);
+        $branchId = $this->resolveBranchFilter($request);
+        $status = trim((string) $request->input('mov_status', ''));
+        $search = trim((string) $request->input('mov_search', ''));
+
+        $query = PosTransaction::with(['branch', 'user', 'cashFlows', 'externalCustomer']);
+        DateFilterService::apply($query, 'created_at', $dateFilter);
+
+        return $query
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->when(in_array($status, ['completado', 'cancelado'], true), fn($q) => $q->where('status', $status))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('transaction_code', 'like', "%{$search}%")
+                        ->orWhere('customer_name', 'like', "%{$search}%")
+                        ->orWhere('customer_phone', 'like', "%{$search}%")
+                        ->orWhere('notes', 'like', "%{$search}%")
+                        ->orWhereHas('externalCustomer', function ($ext) use ($search) {
+                            $ext->where('tit_name', 'like', "%{$search}%")
+                                ->orWhere('tit_phone', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
+
     public function index(Request $request)
     {
-        $finStartDate = $request->input('fin_start_date', Carbon::today()->toDateString());
-        $finEndDate = $request->input('fin_end_date', Carbon::today()->toDateString());
-        $movDate = $request->input('mov_date', Carbon::today()->toDateString());
+        $finDateFilter = $this->resolveFinancieraDateFilter($request);
+        $movDateFilter = $this->resolveMovementsDateFilter($request);
         $branchId = $this->resolveBranchFilter($request);
 
-        $finPaymentsQuery = $this->buildFinancieraPaymentsQuery($request);
+        $finPaymentsQuery = $this->buildFinancieraPaymentsQuery($request, $finDateFilter);
         $allFinPayments = (clone $finPaymentsQuery)->get();
         $financieraPayments = $finPaymentsQuery->paginate(15, ['*'], 'fin_page')->withQueryString();
 
@@ -106,23 +163,26 @@ class DashboardController extends Controller
             'transfer' => round((float) $allFinPayments->sum(fn($p) => $p->transfer_amount), 2),
         ];
 
-        // Movimientos (procesos de venta con varios pagos distintos) por día por fecha seleccionada
-        $posTransactionsQuery = PosTransaction::with(['branch', 'user', 'cashFlows'])
-            ->whereDate('created_at', $movDate)
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->orderByDesc('created_at')
-            ->orderByDesc('id');
-
+        $posTransactionsQuery = $this->buildMovementsQuery($request, $movDateFilter);
         $allMovementsDay = (clone $posTransactionsQuery)->get();
         $dailyMovements = $posTransactionsQuery->paginate(15, ['*'], 'mov_page')->withQueryString();
 
+        $completedMovements = $allMovementsDay->where('status', 'completado');
         $movTotals = [
-            'count' => $allMovementsDay->where('status', 'completado')->count(),
-            'total' => round((float) $allMovementsDay->where('status', 'completado')->sum('total_amount'), 2),
-            'cash' => round((float) $allMovementsDay->where('status', 'completado')->sum('cash_amount'), 2),
-            'card' => round((float) $allMovementsDay->where('status', 'completado')->sum('card_amount'), 2),
-            'transfer' => round((float) $allMovementsDay->where('status', 'completado')->sum('transfer_amount'), 2),
+            'count' => $completedMovements->count(),
+            'total_rows' => $allMovementsDay->count(),
+            'total' => round((float) $completedMovements->sum('total_amount'), 2),
+            'cash' => round((float) $completedMovements->sum('cash_amount'), 2),
+            'card' => round((float) $completedMovements->sum('card_amount'), 2),
+            'transfer' => round((float) $completedMovements->sum('transfer_amount'), 2),
         ];
+
+        $bitacora = FinBitacoraService::build($request, [
+            'prefix' => 'bit_',
+            'paginate' => true,
+            'per_page' => 15,
+            'history_permissions' => ['dashboard.filter_all_dates', 'financieras.filter_all_dates'],
+        ]);
 
         $financieras = FinFinanciera::where('is_active', true)->orderBy('name')->get(['id', 'name']);
         if ($financieras->isEmpty()) {
@@ -139,11 +199,26 @@ class DashboardController extends Controller
             'new_products' => Product::orderBy('buying_date')->take(2)->get(),
             'financieraPayments' => $financieraPayments,
             'finTotals' => $finTotals,
-            'finStartDate' => $finStartDate,
-            'finEndDate' => $finEndDate,
+            'finDateFilter' => $finDateFilter,
+            'finFilterType' => $finDateFilter['filter_type'],
+            'finDate' => $finDateFilter['date'],
+            'finStartDate' => $finDateFilter['start_date'] ?? $finDateFilter['date'],
+            'finEndDate' => $finDateFilter['end_date'] ?? $finDateFilter['date'],
+            'finPeriodLabel' => DateFilterService::periodLabel($finDateFilter),
             'dailyMovements' => $dailyMovements,
             'movTotals' => $movTotals,
-            'movDate' => $movDate,
+            'movDateFilter' => $movDateFilter,
+            'movFilterType' => $movDateFilter['filter_type'],
+            'movDate' => $movDateFilter['date'],
+            'movStartDate' => $movDateFilter['start_date'] ?? $movDateFilter['date'],
+            'movEndDate' => $movDateFilter['end_date'] ?? $movDateFilter['date'],
+            'movPeriodLabel' => DateFilterService::periodLabel($movDateFilter),
+            'movStatus' => (string) $request->input('mov_status', ''),
+            'movSearch' => (string) $request->input('mov_search', ''),
+            'canDashboardAllDates' => $finDateFilter['can_all_dates'],
+            'minAllowedDate' => $finDateFilter['min_allowed_date'],
+            'dateRestrictionTriggered' => $finDateFilter['was_restricted'] || $movDateFilter['was_restricted'] || ($bitacora['dateFilter']['was_restricted'] ?? false),
+            'bitacora' => $bitacora,
             'financieras' => $financieras,
             'branches' => $branches,
             'branchId' => $branchId,
@@ -152,18 +227,20 @@ class DashboardController extends Controller
     }
 
     /**
-     * Exportar Pagos de Financieras por Fecha a PDF.
+     * Exportar Pagos de Financieras por Filtro a PDF.
      */
     public function exportFinancieraPaymentsPdf(Request $request)
     {
-        $payments = $this->buildFinancieraPaymentsQuery($request)
+        $finDateFilter = $this->resolveFinancieraDateFilter($request);
+        $payments = $this->buildFinancieraPaymentsQuery($request, $finDateFilter)
             ->reorder('payment_date')
             ->orderBy('id')
             ->get();
 
-        $singleDate = $request->input('date');
-        $finStartDate = $singleDate ?: $request->input('fin_start_date', Carbon::today()->toDateString());
-        $finEndDate = $singleDate ?: $request->input('fin_end_date', Carbon::today()->toDateString());
+        $finFilterType = $finDateFilter['filter_type'];
+        $finStartDate = $finDateFilter['start_date'] ?? $finDateFilter['date'];
+        $finEndDate = $finDateFilter['end_date'] ?? $finDateFilter['date'];
+        $finPeriodLabel = DateFilterService::periodLabel($finDateFilter);
         $branchId = $this->resolveBranchFilter($request);
         $branchName = $branchId ? (Branch::find($branchId)?->name ?? 'Sucursal') : 'Todas las Sucursales';
 
@@ -191,21 +268,20 @@ class DashboardController extends Controller
 
         $pdf = Pdf::loadView(
             'dashboard.financiera-payments-pdf',
-            compact('payments', 'groupedPayments', 'totals', 'finStartDate', 'finEndDate', 'branchName')
+            compact('payments', 'groupedPayments', 'totals', 'finFilterType', 'finStartDate', 'finEndDate', 'finPeriodLabel', 'branchName')
         )->setPaper('letter', 'portrait');
 
-        $fileSuffix = ($finStartDate === $finEndDate) ? $finStartDate : "{$finStartDate}_a_{$finEndDate}";
+        $fileSuffix = DateFilterService::fileSuffix($finDateFilter);
         return $pdf->download("Abonos_Financieras_{$fileSuffix}.pdf");
     }
 
     /**
-     * Exportar Pagos de Financieras por Fecha a Excel (.xlsx).
+     * Exportar Pagos de Financieras por Filtro a Excel (.xlsx).
      */
     public function exportFinancieraPaymentsExcel(Request $request)
     {
-        $payments = $this->buildFinancieraPaymentsQuery($request)->get();
-        $finStartDate = $request->input('fin_start_date', Carbon::today()->toDateString());
-        $finEndDate = $request->input('fin_end_date', Carbon::today()->toDateString());
+        $finDateFilter = $this->resolveFinancieraDateFilter($request);
+        $payments = $this->buildFinancieraPaymentsQuery($request, $finDateFilter)->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -232,6 +308,7 @@ class DashboardController extends Controller
         foreach ($headers as $cell => $label) {
             $sheet->setCellValue($cell, $label);
         }
+        $sheet->getStyle('A1:O1')->getFont()->setBold(true);
 
         $row = 2;
         foreach ($payments as $p) {
@@ -239,10 +316,10 @@ class DashboardController extends Controller
             $sheet->setCellValue("B{$row}", optional($p->payment_date)->format('d/m/Y H:i'));
             $sheet->setCellValue("C{$row}", $p->financiera?->name ?? ($p->sale?->financiera?->name ?? 'Financiera'));
             $sheet->setCellValue("D{$row}", $p->tag_contrato);
-            $sheet->setCellValue("E{$row}", $p->imei);
-            $sheet->setCellValue("F{$row}", $p->customer_name ?? ($p->sale->customer_name ?? 'Cliente'));
+            $sheet->setCellValueExplicit("E{$row}", (string) ($p->imei ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValue("F{$row}", $p->customer_name ?? ($p->externalCustomer?->tit_name ?? ($p->sale?->customer_name ?? 'Cliente')));
             $sheet->setCellValue("G{$row}", $p->branch->name ?? 'General');
-            $sheet->setCellValue("H{$row}", strtoupper($p->payment_method));
+            $sheet->setCellValue("H{$row}", strtoupper((string) $p->payment_method));
             $sheet->setCellValue("I{$row}", (float) $p->amount);
             $sheet->setCellValue("J{$row}", (float) $p->commission_amount);
             $sheet->setCellValue("K{$row}", (float) $p->total_paid);
@@ -257,12 +334,125 @@ class DashboardController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $fileName = "Pagos_Financieras_{$finStartDate}_a_{$finEndDate}.xlsx";
+        $fileSuffix = DateFilterService::fileSuffix($finDateFilter);
+        $fileName = "Pagos_Financieras_{$fileSuffix}.xlsx";
         $tempFile = tempnam(sys_get_temp_dir(), 'fin_xlsx_');
         $writer = new Xlsx($spreadsheet);
         $writer->save($tempFile);
 
         return response()->download($tempFile, $fileName)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Exportar Movimientos / Ventas POS del Dashboard a PDF.
+     */
+    public function exportVentasPdf(Request $request)
+    {
+        $movDateFilter = $this->resolveMovementsDateFilter($request);
+        $movements = $this->buildMovementsQuery($request, $movDateFilter)->get();
+
+        $completed = $movements->where('status', 'completado');
+        $totals = [
+            'total_rows' => $movements->count(),
+            'completed_count' => $completed->count(),
+            'cancelled_count' => $movements->where('status', 'cancelado')->count(),
+            'cash' => round((float) $completed->sum('cash_amount'), 2),
+            'card' => round((float) $completed->sum('card_amount'), 2),
+            'transfer' => round((float) $completed->sum('transfer_amount'), 2),
+            'commission' => round((float) $completed->sum('commission_total'), 2),
+            'total' => round((float) $completed->sum('total_amount'), 2),
+        ];
+
+        $periodLabel = DateFilterService::periodLabel($movDateFilter);
+        $branchId = $this->resolveBranchFilter($request);
+        $branchName = $branchId ? (Branch::find($branchId)?->name ?? 'Sucursal') : 'Todas las Sucursales';
+
+        $pdf = Pdf::loadView(
+            'dashboard.ventas-pdf',
+            compact('movements', 'totals', 'periodLabel', 'movDateFilter', 'branchName')
+        )->setPaper('letter', 'landscape');
+
+        $fileSuffix = DateFilterService::fileSuffix($movDateFilter);
+        return $pdf->download("Ventas_Movimientos_POS_{$fileSuffix}.pdf");
+    }
+
+    /**
+     * Exportar Movimientos / Ventas POS del Dashboard a Excel (.xlsx).
+     */
+    public function exportVentasExcel(Request $request)
+    {
+        $movDateFilter = $this->resolveMovementsDateFilter($request);
+        $movements = $this->buildMovementsQuery($request, $movDateFilter)->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Ventas POS');
+
+        $headers = [
+            'Folio',
+            'Fecha / Hora',
+            'Sucursal',
+            'Cliente',
+            'Conceptos',
+            'Método de Pago',
+            'Efectivo ($)',
+            'Tarjeta ($)',
+            'Transferencia ($)',
+            'Comisión ($)',
+            'Total ($)',
+            'Estado',
+            'Cajero',
+        ];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($movements as $tx) {
+            $sheet->fromArray([
+                $tx->folio,
+                optional($tx->transaction_date)->format('d/m/Y H:i'),
+                $tx->branch->name ?? 'Principal',
+                $tx->customer_name ?? ($tx->externalCustomer?->tit_name ?? 'Público en General'),
+                $tx->concepts_summary ?: 'Movimiento unificado',
+                strtoupper((string) $tx->payment_method),
+                (float) $tx->cash_amount,
+                (float) $tx->card_amount,
+                (float) $tx->transfer_amount,
+                (float) $tx->commission_total,
+                (float) $tx->total_amount,
+                ucfirst((string) $tx->status),
+                $tx->user->name ?? 'Sistema',
+            ], null, "A{$row}");
+            $row++;
+        }
+
+        $completed = $movements->where('status', 'completado');
+        $sheet->fromArray([
+            'TOTALES COMPLETADOS',
+            $completed->count() . ' movs',
+            '',
+            '',
+            '',
+            '',
+            round((float) $completed->sum('cash_amount'), 2),
+            round((float) $completed->sum('card_amount'), 2),
+            round((float) $completed->sum('transfer_amount'), 2),
+            round((float) $completed->sum('commission_total'), 2),
+            round((float) $completed->sum('total_amount'), 2),
+            '',
+            '',
+        ], null, "A{$row}");
+        $sheet->getStyle("A{$row}:M{$row}")->getFont()->setBold(true);
+
+        foreach (range('A', 'M') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $fileSuffix = DateFilterService::fileSuffix($movDateFilter);
+        $tempFile = tempnam(sys_get_temp_dir(), 'ventas_xlsx_');
+        (new Xlsx($spreadsheet))->save($tempFile);
+
+        return response()->download($tempFile, "Ventas_Movimientos_POS_{$fileSuffix}.xlsx")->deleteFileAfterSend(true);
     }
 
     /**
@@ -317,7 +507,7 @@ class DashboardController extends Controller
                 ->get();
 
             if ($linkedFinPayments->isNotEmpty()) {
-                foreach ($linkedFinPayments->groupBy('fin_sale_id') as $finSaleId => $salePayments) {
+                foreach ($linkedFinPayments->filter(fn ($p) => !empty($p->fin_sale_id))->groupBy('fin_sale_id') as $finSaleId => $salePayments) {
                     $lockedFinSale = FinSale::where('id', $finSaleId)->lockForUpdate()->first();
                     if (!$lockedFinSale) {
                         continue;

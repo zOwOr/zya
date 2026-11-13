@@ -2,20 +2,30 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\StripsMissingSchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class PosTransaction extends Model
 {
     use HasFactory;
+    use StripsMissingSchemaColumns;
 
     protected $table = 'pos_transactions';
+
+    protected static function optionalSchemaColumns(): array
+    {
+        return [
+            'external_customer_id' => true,
+        ];
+    }
 
     protected $fillable = [
         'transaction_code',
         'branch_id',
         'user_id',
         'customer_id',
+        'external_customer_id',
         'customer_name',
         'customer_phone',
         'subtotal',
@@ -104,6 +114,28 @@ class PosTransaction extends Model
         return $cleaned !== '' ? $cleaned : null;
     }
 
+    /**
+     * Secciones de carrito consideradas conceptos de pago de financiera.
+     */
+    public static function isFinancieraSection(?string $section): bool
+    {
+        return in_array($section, ['financiera_abono', 'financiera_externa'], true);
+    }
+
+    /**
+     * Determina si los conceptos del carrito contienen al menos un pago de financiera.
+     */
+    public static function containsFinancieraConcept(array $items): bool
+    {
+        foreach ($items as $item) {
+            if (is_array($item) && self::isFinancieraSection($item['section'] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');
@@ -117,6 +149,11 @@ class PosTransaction extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    public function externalCustomer()
+    {
+        return $this->belongsTo(ExternalCustomer::class, 'external_customer_id')->withTrashed();
     }
 
     public function order()

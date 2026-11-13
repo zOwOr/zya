@@ -8,11 +8,16 @@
                 <p class="text-muted font-size-13 mb-0">Gestión de operaciones, financiamientos y seguimiento de clientes.</p>
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
-                @can('financieras.ventas.export')
-                    <a href="{{ route('financieras.ventas.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm mr-2">
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.export_pdf'))
+                    <a href="{{ route('financieras.ventas.export.pdf', request()->query()) }}" class="btn btn-outline-danger btn-sm mr-2">
+                        <i class="fa-solid fa-file-pdf mr-1"></i>Exportar PDF
+                    </a>
+                @endif
+                @if(auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.export_excel'))
+                    <a href="{{ route('financieras.ventas.export.excel', request()->query()) }}" class="btn btn-outline-success btn-sm mr-2">
                         <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
                     </a>
-                @endcan
+                @endif
                 @if (auth()->user()->can('financieras.ventas.create'))
                     <a href="{{ route('financieras.ventas.create-contado') }}" class="btn btn-success btn-sm mr-2 shadow-xs">
                         <i class="fa-solid fa-money-bill-wave mr-1"></i>Venta al Contado
@@ -42,7 +47,15 @@
         @endif
 
         <!-- Filters Form -->
+        @if(!empty($salesDateFilter['was_restricted']))
+            <div class="alert alert-warning py-2 px-3 small mb-2">
+                <i class="las la-exclamation-triangle mr-1"></i>
+                Tu rol permite consultar o exportar ventas financieras de hasta <strong>2 días de anterioridad</strong>
+                (desde el <strong>{{ \Carbon\Carbon::parse($salesDateFilter['min_allowed_date'])->format('d/m/Y') }}</strong>).
+            </div>
+        @endif
         <form id="filter-sales-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-3 rounded border bg-light shadow-xs">
+            <input type="hidden" name="tab" value="ventas">
             <input type="hidden" name="tab" value="ventas">
 
             <!-- Fila 1: Búsqueda, Tipo Venta, Financiera, Sucursal, Estado -->
@@ -123,22 +136,53 @@
                             <i class="fa-solid fa-calendar-days mr-1 text-primary"></i>Intervalo de Fechas (Venta)
                         </label>
                         <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('current_month')">Mes actual</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('prev_month')">Mes anterior</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('all')">Todo</button>
+                            @php
+                                $finSalesDf = $salesDateFilter ?? ['filter_type' => 'rango', 'can_all_dates' => false, 'min_allowed_date' => \Carbon\Carbon::today()->subDays(2)->toDateString(), 'date' => date('Y-m-d'), 'start_date' => date('Y-m-d'), 'end_date' => date('Y-m-d'), 'was_restricted' => false];
+                                $finSalesCanAll = $finSalesDf['can_all_dates'] ?? false;
+                                $finSalesMinDate = $finSalesDf['min_allowed_date'] ?? \Carbon\Carbon::today()->subDays(2)->toDateString();
+                                $finSalesType = $finSalesDf['filter_type'] ?? 'rango';
+                            @endphp
+                            @if($finSalesCanAll)
+                                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('current_month')">Mes actual</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('prev_month')">Mes anterior</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('all')">Todo</button>
+                            @else
+                                <span class="badge badge-light border text-muted"><i class="las la-lock"></i> Máx. 2 días atrás ({{ \Carbon\Carbon::parse($finSalesMinDate)->format('d/m/Y') }})</span>
+                            @endif
                         </div>
                     </div>
-                    <div class="input-group input-group-sm">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text font-size-11 bg-white">Desde</span>
+                    <div class="row align-items-end no-gutters" style="gap: 6px;">
+                        <div style="min-width: 145px;">
+                            <select name="filter_type" id="filter_sale_type" class="form-control form-control-sm font-weight-bold">
+                                <option value="dia" {{ $finSalesType === 'dia' ? 'selected' : '' }}>Día en específico</option>
+                                <option value="rango" {{ $finSalesType === 'rango' ? 'selected' : '' }}>Entre fechas</option>
+                                @if($finSalesCanAll)
+                                    <option value="todos" {{ $finSalesType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                                @endif
+                            </select>
                         </div>
-                        <input type="date" name="start_date" id="filter_sale_start_date" class="form-control form-control-sm"
-                            value="{{ request('start_date', now()->startOfMonth()->format('Y-m-d')) }}">
-                        <div class="input-group-prepend input-group-append">
-                            <span class="input-group-text font-size-11 bg-white">Hasta</span>
+                        <div class="flex-grow-1" id="finSaleDiaBox" style="{{ $finSalesType === 'dia' ? '' : 'display:none;' }}">
+                            <input type="date" name="date" id="filter_sale_date" class="form-control form-control-sm"
+                                value="{{ $finSalesDf['date'] ?? date('Y-m-d') }}"
+                                @if(!$finSalesCanAll) min="{{ $finSalesMinDate }}" @endif
+                                {{ $finSalesType === 'dia' ? '' : 'disabled' }}>
                         </div>
-                        <input type="date" name="end_date" id="filter_sale_end_date" class="form-control form-control-sm"
-                            value="{{ request('end_date', now()->endOfMonth()->format('Y-m-d')) }}">
+                        <div class="input-group input-group-sm flex-grow-1" id="finSaleRangoBox" style="{{ $finSalesType === 'rango' ? '' : 'display:none;' }}">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text font-size-11 bg-white">Desde</span>
+                            </div>
+                            <input type="date" name="start_date" id="filter_sale_start_date" class="form-control form-control-sm"
+                                value="{{ $finSalesDf['start_date'] ?? now()->startOfMonth()->format('Y-m-d') }}"
+                                @if(!$finSalesCanAll) min="{{ $finSalesMinDate }}" @endif
+                                {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
+                            <div class="input-group-prepend input-group-append">
+                                <span class="input-group-text font-size-11 bg-white">Hasta</span>
+                            </div>
+                            <input type="date" name="end_date" id="filter_sale_end_date" class="form-control form-control-sm"
+                                value="{{ $finSalesDf['end_date'] ?? now()->endOfMonth()->format('Y-m-d') }}"
+                                @if(!$finSalesCanAll) min="{{ $finSalesMinDate }}" @endif
+                                {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
+                        </div>
                     </div>
                 </div>
                 <div class="col-lg-3 col-md-12 d-flex align-items-end mb-2 mb-lg-0">
@@ -267,12 +311,52 @@
 </div>
 
 <script>
+    function syncFinSaleDateMode() {
+        var sel = document.getElementById('filter_sale_type');
+        if (!sel) return;
+        var val = sel.value;
+        var diaBox = document.getElementById('finSaleDiaBox');
+        var diaInput = document.getElementById('filter_sale_date');
+        var rangoBox = document.getElementById('finSaleRangoBox');
+        var startInput = document.getElementById('filter_sale_start_date');
+        var endInput = document.getElementById('filter_sale_end_date');
+
+        if (diaBox) diaBox.style.display = (val === 'dia') ? '' : 'none';
+        if (diaInput) diaInput.disabled = (val !== 'dia');
+
+        if (rangoBox) rangoBox.style.display = (val === 'rango') ? '' : 'none';
+        if (startInput) startInput.disabled = (val !== 'rango');
+        if (endInput) endInput.disabled = (val !== 'rango');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var sel = document.getElementById('filter_sale_type');
+        if (sel) {
+            sel.addEventListener('change', syncFinSaleDateMode);
+            syncFinSaleDateMode();
+        }
+    });
+
     function setDateRange(type) {
+        var sel = document.getElementById('filter_sale_type');
         var startInput = document.getElementById('filter_sale_start_date');
         var endInput = document.getElementById('filter_sale_end_date');
         if (!startInput || !endInput) return;
 
         var now = new Date();
+
+        if (type === 'all') {
+            if (sel && sel.querySelector('option[value="todos"]')) {
+                sel.value = 'todos';
+                syncFinSaleDateMode();
+            }
+            return;
+        }
+
+        if (sel) {
+            sel.value = 'rango';
+            syncFinSaleDateMode();
+        }
 
         if (type === 'current_month') {
             var firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -284,9 +368,6 @@
             var lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
             startInput.value = formatLocalDate(firstDay);
             endInput.value = formatLocalDate(lastDay);
-        } else if (type === 'all') {
-            startInput.value = '';
-            endInput.value = '';
         }
     }
 

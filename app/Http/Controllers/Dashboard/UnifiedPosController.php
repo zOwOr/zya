@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\ExternalCustomer;
 use App\Models\FinDevice;
 use App\Models\FinFinanciera;
 use App\Models\FinSale;
@@ -48,6 +49,8 @@ class UnifiedPosController extends Controller
         'lookupProducts' => 'read',
         'lookupGifts' => 'read',
         'recentTransactions' => 'read',
+        'lookupExternalCustomers' => 'external_customers',
+        'storeExternalCustomer' => 'external_customers',
         'checkout' => 'create',
         'printReceipt' => 'read',
         'openCashDrawer' => 'open_drawer',
@@ -96,6 +99,13 @@ class UnifiedPosController extends Controller
                 }
             }
 
+            // 5. Uso y captura de Clientes Externos en POS (exclusivo para financieras)
+            if (in_array($action, ['lookupExternalCustomers', 'storeExternalCustomer'], true)) {
+                if (!$user->can('cobros.external_customers')) {
+                    abort(403, 'No tienes permisos para operar con Clientes Externos en el Punto de Venta.');
+                }
+            }
+
             return $next($request);
         });
     }
@@ -118,6 +128,12 @@ class UnifiedPosController extends Controller
 
         $loanTypes = LoanType::where('is_active', true)->orderBy('name')->get();
         $customers = Customer::orderBy('tit_name')->get(['id', 'tit_name', 'tit_phone', 'tit_address', 'tit_status']);
+        $canPosExternalCustomers = Schema::hasTable('external_customers')
+            && (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.external_customers'));
+        $externalCustomers = $canPosExternalCustomers
+            ? ExternalCustomer::selectableInPos()->orderBy('tit_name')->get(['id', 'tit_name', 'tit_phone', 'tit_email', 'tit_city', 'tit_status'])
+            : collect();
+        $extCustomerStatusOptions = ExternalCustomer::TIT_STATUS_OPTIONS;
         $tandas = Tanda::with(['participants', 'periods'])
             ->when(!$this->canAccessAllBranches() && $branchId, fn($q) => $q->where('branch_id', $branchId))
             ->orderByDesc('created_at')
@@ -148,6 +164,9 @@ class UnifiedPosController extends Controller
             'financieras',
             'loanTypes',
             'customers',
+            'externalCustomers',
+            'canPosExternalCustomers',
+            'extCustomerStatusOptions',
             'tandas',
             'products',
             'gifts',
@@ -576,6 +595,83 @@ class UnifiedPosController extends Controller
     }
 
     /**
+     * Buscar clientes externos activos para selección rápida en POS (financieras).
+     */
+    public function lookupExternalCustomers(Request $request)
+    {
+        if (!Schema::hasTable('external_customers')) {
+            return response()->json([
+                'external_customers' => [],
+                'message' => 'Falta ejecutar "php artisan migrate" para habilitar el catálogo de Clientes Externos.',
+            ], 422);
+        }
+
+        $q = trim((string) $request->input('q', ''));
+
+        $results = ExternalCustomer::selectableInPos()
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('tit_name', 'like', "%{$q}%")
+                        ->orWhere('tit_phone', 'like', "%{$q}%")
+                        ->orWhere('tit_email', 'like', "%{$q}%");
+                });
+            })
+            ->orderBy('tit_name')
+            ->limit(50)
+            ->get(['id', 'tit_name', 'tit_phone', 'tit_email', 'tit_city', 'tit_status']);
+
+        return response()->json(['external_customers' => $results]);
+    }
+
+    /**
+     * Captura y guardado rápido de Cliente Externo directamente desde el POS (catálogo separado).
+     */
+    public function storeExternalCustomer(Request $request)
+    {
+        if (!Schema::hasTable('external_customers')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Falta ejecutar "php artisan migrate" para guardar Clientes Externos.',
+            ], 422);
+        }
+
+        $validated = $request->validate(
+            ExternalCustomer::validationRules(),
+            ExternalCustomer::validationMessages()
+        );
+
+        $branchId = ($this->canAccessAllBranches() && $request->filled('branch_id'))
+            ? (int) $request->input('branch_id')
+            : (auth()->user()->branch_id ?? Branch::value('id'));
+
+        $validated['branch_id'] = $branchId;
+        $validated['created_by'] = auth()->id();
+        $validated['status'] = ExternalCustomer::STATUS_ACTIVE;
+
+        $externalCustomer = ExternalCustomer::create($validated);
+
+        $existingInternal = Customer::where('tit_phone', $externalCustomer->tit_phone)->first(['id', 'tit_name', 'tit_phone']);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Cliente externo '{$externalCustomer->tit_name}' guardado correctamente.",
+            'external_customer' => [
+                'id' => $externalCustomer->id,
+                'tit_name' => $externalCustomer->tit_name,
+                'tit_phone' => $externalCustomer->tit_phone,
+                'tit_email' => $externalCustomer->tit_email,
+                'tit_city' => $externalCustomer->tit_city,
+                'tit_status' => $externalCustomer->tit_status,
+            ],
+            'internal_match' => $existingInternal ? [
+                'id' => $existingInternal->id,
+                'tit_name' => $existingInternal->tit_name,
+                'tit_phone' => $existingInternal->tit_phone,
+            ] : null,
+        ], 201);
+    }
+
+    /**
      * Historial de tickets recientes para reimpresión o vista previa (WhatsApp / sin papel / sin luz).
      */
     public function recentTransactions(Request $request)
@@ -618,6 +714,7 @@ class UnifiedPosController extends Controller
                     'id' => $tx->id,
                     'transaction_code' => $tx->transaction_code,
                     'customer_name' => $tx->customer_name ?: 'Cliente Mostrador',
+                    'is_external_customer' => !empty($tx->external_customer_id),
                     'total_amount' => number_format((float) $tx->total_amount, 2),
                     'payment_method' => strtoupper((string) $tx->payment_method),
                     'status' => $tx->status,
@@ -637,9 +734,12 @@ class UnifiedPosController extends Controller
      */
     public function checkout(Request $request)
     {
+        $hasExternalCustomersTable = Schema::hasTable('external_customers');
+
         $validated = $request->validate([
             'branch_id' => 'nullable|exists:branches,id',
             'customer_id' => 'nullable|exists:customers,id',
+            'external_customer_id' => $hasExternalCustomersTable ? 'nullable|exists:external_customers,id' : 'nullable',
             'customer_name' => 'nullable|string|max:190',
             'customer_phone' => 'nullable|string|max:50',
             'payment_method' => 'required|in:efectivo,tarjeta,transferencia,mixto',
@@ -653,6 +753,20 @@ class UnifiedPosController extends Controller
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
         ]);
+
+        if (!$hasExternalCustomersTable && !empty($validated['external_customer_id'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Falta ejecutar "php artisan migrate" para asociar Clientes Externos en el Punto de Venta.',
+            ], 422);
+        }
+
+        if (!empty($validated['customer_id']) && !empty($validated['external_customer_id'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No es posible asociar simultáneamente un Cliente Interno y un Cliente Externo al mismo movimiento.',
+            ], 422);
+        }
 
         $branchId = ($this->canAccessAllBranches() && !empty($validated['branch_id']))
             ? (int) $validated['branch_id']
@@ -680,7 +794,7 @@ class UnifiedPosController extends Controller
         if (!$user->isSuperAdmin()) {
             foreach ($items as $item) {
                 $sec = $item['section'] ?? '';
-                if ($sec === 'financiera_abono') {
+                if (PosTransaction::isFinancieraSection($sec)) {
                     if (!$user->can('cobros.financieras') && !$user->can('financieras.ventas.abonar')) {
                         return response()->json([
                             'success' => false,
@@ -719,16 +833,74 @@ class UnifiedPosController extends Controller
             }
         }
 
+        // Validar uso de Cliente Externo (solo con permiso y únicamente cuando hay conceptos de Financiera)
+        $resolvedExternalCustomerId = !empty($validated['external_customer_id']) ? (int) $validated['external_customer_id'] : null;
+        $hasFinancieraConcept = PosTransaction::containsFinancieraConcept($items);
+        $hasExternalCompanyConcept = collect($items)->contains(fn($i) => ($i['section'] ?? '') === 'financiera_externa');
+
+        if ($hasExternalCompanyConcept && (!$hasExternalCustomersTable || !Schema::hasColumn('fin_sale_payments', 'is_external_company'))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Falta ejecutar "php artisan migrate" para registrar abonos de financieras por equipos externos.',
+            ], 422);
+        }
+
+        if ($resolvedExternalCustomerId !== null) {
+            if (!$user->isSuperAdmin() && !$user->can('cobros.external_customers')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permisos para registrar cobros con Cliente Externo en el POS.',
+                ], 403);
+            }
+
+            if (!$hasFinancieraConcept) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La opción de Cliente Externo solo está habilitada cuando el carrito contiene al menos un pago de Financiera.',
+                ], 422);
+            }
+
+            $externalCustomer = ExternalCustomer::find($resolvedExternalCustomerId);
+            if (!$externalCustomer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El cliente externo seleccionado no existe o fue eliminado.',
+                ], 422);
+            }
+
+            if ($externalCustomer->isConverted() && $externalCustomer->converted_customer_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "El cliente externo '{$externalCustomer->tit_name}' ya fue promovido al catálogo de Clientes Internos. Selecciónalo desde el selector estándar de clientes.",
+                ], 422);
+            }
+        }
+
         // Calcular totales del movimiento
         $subtotal = 0;
         $commissionTotal = 0;
         $resolvedCustomerName = trim((string) ($validated['customer_name'] ?? ''));
+        $resolvedCustomerPhone = $validated['customer_phone'] ?? null;
         $resolvedCustomerId = $validated['customer_id'] ?? null;
 
-        if ($resolvedCustomerId && $resolvedCustomerName === '') {
+        if ($resolvedExternalCustomerId) {
+            $resolvedCustomerId = null;
+            $extCust = $externalCustomer ?? ExternalCustomer::find($resolvedExternalCustomerId);
+            if ($extCust) {
+                if ($resolvedCustomerName === '' || strcasecmp($resolvedCustomerName, 'Cliente Mostrador') === 0) {
+                    $resolvedCustomerName = $extCust->tit_name;
+                }
+                if (empty($resolvedCustomerPhone)) {
+                    $resolvedCustomerPhone = $extCust->tit_phone;
+                }
+            }
+        } elseif ($resolvedCustomerId && $resolvedCustomerName === '') {
             $cust = Customer::find($resolvedCustomerId);
             if ($cust) {
                 $resolvedCustomerName = $cust->tit_name;
+                if (empty($resolvedCustomerPhone)) {
+                    $resolvedCustomerPhone = $cust->tit_phone;
+                }
             }
         }
 
@@ -816,7 +988,7 @@ class UnifiedPosController extends Controller
 
         $dueAmount = max(0, round($totalAmount - $paidToday, 2));
 
-        $hasFinancieraAbono = collect($items)->contains(fn($i) => ($i['section'] ?? '') === 'financiera_abono');
+        $hasFinancieraAbono = PosTransaction::containsFinancieraConcept($items);
         if ($hasFinancieraAbono && $dueAmount > 0.009) {
             return response()->json([
                 'success' => false,
@@ -852,7 +1024,9 @@ class UnifiedPosController extends Controller
                 $transferAmount,
                 $changeAmount,
                 $resolvedCustomerId,
-                $resolvedCustomerName
+                $resolvedExternalCustomerId,
+                $resolvedCustomerName,
+                $resolvedCustomerPhone
             ) {
                 // 1. Validar stock real primero para productos de inventario y regalos
                 $inventoryItems = [];
@@ -901,8 +1075,9 @@ class UnifiedPosController extends Controller
                     'branch_id' => $branchId,
                     'user_id' => auth()->id(),
                     'customer_id' => $resolvedCustomerId,
+                    'external_customer_id' => $resolvedExternalCustomerId,
                     'customer_name' => $resolvedCustomerName,
-                    'customer_phone' => $validated['customer_phone'] ?? null,
+                    'customer_phone' => $resolvedCustomerPhone,
                     'subtotal' => $subtotal,
                     'commission_total' => $commissionTotal,
                     'total_amount' => $totalAmount,
@@ -1136,6 +1311,7 @@ class UnifiedPosController extends Controller
 
                         FinSalePayment::create([
                             'fin_sale_id' => $sale->id,
+                            'external_customer_id' => $resolvedExternalCustomerId,
                             'device_id' => $sale->device_id,
                             'financiera_id' => $sale->financiera_id,
                             'branch_id' => $branchId,
@@ -1145,6 +1321,7 @@ class UnifiedPosController extends Controller
                             'tag_contrato' => $sale->tag_contrato,
                             'imei' => $sale->device?->imei,
                             'customer_name' => $sale->customer_name,
+                            'is_external_company' => false,
                             'installment_number' => $installmentNo,
                             'amount' => $abonoAmount,
                             'commission_amount' => $commAmount,
@@ -1168,6 +1345,50 @@ class UnifiedPosController extends Controller
                                 . ($commAmount > 0 ? " + Comisión $" . number_format($commAmount, 2) : '')
                                 . " | Método: " . strtoupper($method)
                                 . " | Sucursal cobro: {$collectingBranchName}",
+                        ]);
+                    }
+
+                    // A2) ABONO DE FINANCIERA POR EQUIPO EXTERNO (adquirido en otra empresa)
+                    elseif ($section === 'financiera_externa') {
+                        $finId = (int) ($item['financiera_id'] ?? 0);
+                        $financiera = FinFinanciera::find($finId);
+                        if (!$financiera) {
+                            throw new \RuntimeException('Selecciona una financiera válida para registrar el cobro de equipo externo.');
+                        }
+
+                        $abonoAmount = round((float) ($item['amount'] ?? 0), 2);
+                        $commAmount = round((float) ($item['commission'] ?? 0), 2);
+                        $totalFin = round($abonoAmount + $commAmount, 2);
+                        $receiptCode = 'ABEXT-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+                        $finBreakdown = $this->allocatePaymentBreakdown(
+                            $totalFin,
+                            $paidToday,
+                            $cashAmount,
+                            $cardAmount,
+                            $transferAmount
+                        );
+
+                        FinSalePayment::create([
+                            'fin_sale_id' => null,
+                            'external_customer_id' => $resolvedExternalCustomerId,
+                            'device_id' => null,
+                            'financiera_id' => $financiera->id,
+                            'branch_id' => $branchId,
+                            'user_id' => auth()->id(),
+                            'pos_transaction_id' => $posTx->id,
+                            'receipt_code' => $receiptCode,
+                            'tag_contrato' => trim((string) ($item['tag_contrato'] ?? ($item['reference'] ?? 'EXTERNO'))) ?: 'EXTERNO',
+                            'imei' => !empty($item['imei']) ? trim((string) $item['imei']) : null,
+                            'customer_name' => $resolvedCustomerName,
+                            'is_external_company' => true,
+                            'installment_number' => null,
+                            'amount' => $abonoAmount,
+                            'commission_amount' => $commAmount,
+                            'total_amount' => $totalFin,
+                            'payment_method' => $method,
+                            'payment_breakdown' => $finBreakdown,
+                            'payment_date' => now(),
+                            'notes' => $item['notes'] ?? ($item['subtitle'] ?? "Pago financiera externa ({$financiera->name}) en sucursal {$collectingBranchName}"),
                         ]);
                     }
 
@@ -1416,6 +1637,7 @@ class UnifiedPosController extends Controller
                         [
                             'pos_transaction_id' => $posTx->id,
                             'customer_id' => $resolvedCustomerId,
+                            'external_customer_id' => $resolvedExternalCustomerId,
                             'customer_name' => $resolvedCustomerName,
                             'payment_method' => $method,
                             'cash_amount' => $cashAmount,
@@ -1450,7 +1672,11 @@ class UnifiedPosController extends Controller
      */
     public function printReceipt(PosTransaction $transaction)
     {
-        $transaction->load(['branch', 'user', 'financieraPayments.financiera', 'loanPayments.loan', 'tandaPayments.tanda']);
+        $relations = ['branch', 'user', 'customer', 'financieraPayments.financiera', 'loanPayments.loan', 'tandaPayments.tanda'];
+        if (Schema::hasTable('external_customers') && Schema::hasColumn('pos_transactions', 'external_customer_id')) {
+            $relations[] = 'externalCustomer';
+        }
+        $transaction->load($relations);
         return view('central-pos.receipt', compact('transaction'));
     }
 

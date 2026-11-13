@@ -29,7 +29,11 @@
                 @if($filterType === 'dia')
                     Corte de Caja Diario - {{ \Carbon\Carbon::parse($selectedDate)->format('d/m/Y') }}
                 @elseif($filterType === 'rango')
+                @if(!empty($startDate) && !empty($endDate))
                     Corte de Caja - Rango del {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                @else
+                    Corte de Caja - Todos los registros
+                @endif
                 @else
                     Corte de Caja - Historial Completo (Todos los Registros)
                 @endif
@@ -54,11 +58,16 @@
             <a href="{{ route('cash.expenses', ['branch_id' => $branchId, 'date' => $selectedDate]) }}" class="btn btn-outline-danger btn-sm mr-2 shadow-sm font-weight-bold">
                 <i class="fa-solid fa-file-invoice-dollar"></i> Reporte Gastos
             </a>
-            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.export') || auth()->user()->can('cash.read'))
-                <a href="{{ route('cash.exportPdf', $exportCutsParams) }}" class="btn btn-danger btn-sm mr-2 shadow-sm font-weight-bold">
+            @php
+                $cutsExportQuery = array_merge($exportCutsParams, ['search' => $search]);
+            @endphp
+            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.cortes.export_pdf'))
+                <a href="{{ route('cash.exportPdf', $cutsExportQuery) }}" class="btn btn-danger btn-sm mr-2 shadow-sm font-weight-bold">
                     <i class="las la-file-pdf"></i> Cortes Z PDF
                 </a>
-                <a href="{{ route('cash.exportExcel', $exportCutsParams) }}" class="btn btn-success btn-sm mr-2 shadow-sm font-weight-bold">
+            @endif
+            @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.cortes.export_excel'))
+                <a href="{{ route('cash.exportExcel', $cutsExportQuery) }}" class="btn btn-success btn-sm mr-2 shadow-sm font-weight-bold">
                     <i class="las la-file-excel"></i> Cortes Z Excel
                 </a>
             @endif
@@ -112,30 +121,44 @@
             </span>
         </div>
         <div class="card-body py-3">
+            @if(!empty($wasRestricted))
+                <div class="alert alert-warning py-2 px-3 small mb-3">
+                    <i class="las la-exclamation-triangle mr-1"></i>
+                    Tu rol solo permite consultar o exportar cortes de hasta <strong>2 días de anterioridad</strong>
+                    (desde el <strong>{{ \Carbon\Carbon::parse($minAllowedDate)->format('d/m/Y') }}</strong>).
+                </div>
+            @endif
             <form method="GET" action="{{ route('cash.dailyCut') }}" id="cutFilterForm" class="row align-items-end">
                 <div class="col-lg-3 col-md-4 mb-2 mb-md-0">
                     <label class="small font-weight-bold mb-1"><i class="las la-calendar mr-1"></i>Tipo de Filtro:</label>
                     <select name="filter_type" id="filterTypeSelect" class="form-control font-weight-bold text-primary">
                         <option value="dia" {{ $filterType === 'dia' ? 'selected' : '' }}>Día en específico</option>
-                        <option value="rango" {{ $filterType === 'rango' ? 'selected' : '' }}>Rango de fechas</option>
-                        <option value="todos" {{ $filterType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                        <option value="rango" {{ $filterType === 'rango' ? 'selected' : '' }}>Entre fechas</option>
+                        @if($canAllDates)
+                            <option value="todos" {{ $filterType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                        @endif
                     </select>
                 </div>
 
                 <div class="col-lg-3 col-md-4 mb-2 mb-md-0" id="singleDateContainer" style="{{ $filterType === 'dia' ? '' : 'display: none;' }}">
                     <label class="small font-weight-bold mb-1">Fecha de Corte:</label>
-                    <input type="date" name="date" id="singleDateInput" value="{{ $selectedDate }}" class="form-control" {{ $filterType === 'dia' ? '' : 'disabled' }}>
+                    <input type="date" name="date" id="singleDateInput" value="{{ $selectedDate }}" @if(!$canAllDates) min="{{ $minAllowedDate }}" @endif class="form-control" {{ $filterType === 'dia' ? '' : 'disabled' }}>
                 </div>
 
                 <div class="col-lg-4 col-md-5 mb-2 mb-md-0" id="dateRangeContainer" style="{{ $filterType === 'rango' ? '' : 'display: none;' }}">
                     <label class="small font-weight-bold mb-1">Rango de Fechas (Desde - Hasta):</label>
                     <div class="input-group">
-                        <input type="date" name="start_date" id="startDateInput" value="{{ $startDate }}" class="form-control" title="Fecha inicial" {{ $filterType === 'rango' ? '' : 'disabled' }}>
+                        <input type="date" name="start_date" id="startDateInput" value="{{ $startDate }}" @if(!$canAllDates) min="{{ $minAllowedDate }}" @endif class="form-control" title="Fecha inicial" {{ $filterType === 'rango' ? '' : 'disabled' }}>
                         <div class="input-group-prepend input-group-append">
                             <span class="input-group-text font-size-12 px-2">a</span>
                         </div>
-                        <input type="date" name="end_date" id="endDateInput" value="{{ $endDate }}" class="form-control" title="Fecha final" {{ $filterType === 'rango' ? '' : 'disabled' }}>
+                        <input type="date" name="end_date" id="endDateInput" value="{{ $endDate }}" @if(!$canAllDates) min="{{ $minAllowedDate }}" @endif class="form-control" title="Fecha final" {{ $filterType === 'rango' ? '' : 'disabled' }}>
                     </div>
+                    @if(!$canAllDates)
+                        <small class="text-muted d-block mt-1">
+                            <i class="las la-lock"></i> Límite de consulta: desde {{ \Carbon\Carbon::parse($minAllowedDate)->format('d/m/Y') }} (2 días).
+                        </small>
+                    @endif
                 </div>
 
                 <div class="col-lg-3 col-md-4 mb-2 mb-md-0" id="allRecordsContainer" style="{{ $filterType === 'todos' ? '' : 'display: none;' }}">
@@ -555,7 +578,11 @@
             <div>
                 <i class="las la-history la-lg mr-1"></i>
                 @if($filterType === 'rango')
-                    <strong>Modo Consulta por Rango:</strong> Mostrando movimientos y cortes del <strong>{{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}</strong> al <strong>{{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}</strong>.
+                    @if(!empty($startDate) && !empty($endDate))
+                        <strong>Modo Consulta por Rango:</strong> Mostrando movimientos y cortes del <strong>{{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}</strong> al <strong>{{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}</strong>.
+                    @else
+                        <strong>Modo Todos los Registros:</strong> Mostrando historial completo.
+                    @endif
                 @else
                     <strong>Modo Consulta Histórico:</strong> Mostrando todos los movimientos y cortes registrados sin límite de fechas.
                 @endif
@@ -709,7 +736,11 @@
                     @if($filterType === 'dia')
                         del Día ({{ \Carbon\Carbon::parse($selectedDate)->format('d/m/Y') }})
                     @elseif($filterType === 'rango')
-                        del Periodo ({{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }})
+                        @if(!empty($startDate) && !empty($endDate))
+                            del Periodo ({{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }})
+                        @else
+                            (Todos los registros)
+                        @endif
                     @else
                         (Todos los Registros Históricos)
                     @endif
@@ -957,7 +988,18 @@
                                 <tr>
                                     <td class="text-center align-middle font-weight-bold text-muted">{{ $op['time'] }}</td>
                                     <td class="align-middle">
-                                        <div class="font-weight-bold text-dark">{{ $op['customer_name'] }}</div>
+                                        <div class="font-weight-bold text-dark">
+                                            {{ $op['customer_name'] }}
+                                            @if(!empty($op['is_external_customer']))
+                                                @if(!empty($op['external_customer_id']) && auth()->user()->can('external_customer.read'))
+                                                    <a href="{{ route('external-customers.show', $op['external_customer_id']) }}" class="badge badge-warning text-dark font-size-10 ml-1">
+                                                        Externo
+                                                    </a>
+                                                @else
+                                                    <span class="badge badge-warning text-dark font-size-10 ml-1">Externo</span>
+                                                @endif
+                                            @endif
+                                        </div>
                                         @if($op['reference'])
                                             <small class="text-muted d-block font-size-11"><code>{{ $op['reference'] }}</code></small>
                                         @endif
