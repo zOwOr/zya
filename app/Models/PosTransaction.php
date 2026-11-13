@@ -68,6 +68,26 @@ class PosTransaction extends Model
         return 'POS Central';
     }
 
+    /**
+     * Resumen legible de los conceptos del movimiento (soporta claves title, label y description).
+     */
+    public function getConceptsSummaryAttribute(): string
+    {
+        return collect($this->items_payload ?? [])
+            ->map(function ($item) {
+                if (!is_array($item)) {
+                    return is_string($item) ? trim($item) : null;
+                }
+
+                return $item['title']
+                    ?? ($item['label']
+                    ?? ($item['description']
+                    ?? ($item['section'] ?? null)));
+            })
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->implode(', ');
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');

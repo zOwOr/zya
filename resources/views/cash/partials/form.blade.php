@@ -105,7 +105,7 @@
             <div class="row mb-3">
                 <div class="col-md-4" id="manualModuleCol">
                     <label class="form-label font-weight-bold small">Módulo / Categoría</label>
-                    <input type="text" name="module" value="{{ old('module') }}" class="form-control" placeholder="Ej. Movimiento Manual, Financieras...">
+                    <input type="text" name="module" value="{{ old('module') }}" class="form-control" placeholder="Ej. Movimiento Manual, Gastos Operativos...">
                 </div>
                 <div class="col-md-4" id="manualReferenceCol">
                     <label class="form-label font-weight-bold small">Referencia / Folio</label>
