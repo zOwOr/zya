@@ -46,6 +46,8 @@
             align-items: baseline;
             margin: 2px 0;
             gap: 4px;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
         .row-flex > :first-child {
             flex-shrink: 0;
@@ -74,6 +76,9 @@
             border-radius: 4px;
             background: #fff;
             cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            touch-action: manipulation;
         }
         .btn-primary-tool {
             background: #2563eb;
@@ -101,7 +106,8 @@
                 background: #fff !important;
                 height: auto !important;
                 min-height: 0 !important;
-                overflow: hidden !important;
+                overflow-x: hidden !important;
+                overflow-y: visible !important;
             }
             body.paper-58mm {
                 width: 48mm !important;
@@ -109,12 +115,16 @@
                 margin: 0 !important;
                 padding: 0 4mm 0 1mm !important;
                 box-sizing: border-box !important;
-                overflow: hidden !important;
+                overflow-x: hidden !important;
+                overflow-y: visible !important;
             }
         }
     </style>
 </head>
-<body id="ticketBody">
+@php
+    $initialPaper = request('paper') === '58' ? 'paper-58mm' : '';
+@endphp
+<body id="ticketBody" class="{{ $initialPaper }}">
 
     <div class="no-print toolbar">
         <a href="{{ route('order.pendingDue') }}" class="btn-tool" style="text-decoration: none; color: #1e293b; display: inline-flex; align-items: center;">
@@ -287,40 +297,74 @@
             }
         };
 
-        let is58mm = localStorage.getItem('zya_ticket_width') === '58';
+        function safeStorageGet(key) {
+            try { return window.localStorage ? window.localStorage.getItem(key) : null; } catch (e) { return null; }
+        }
+        function safeStorageSet(key, val) {
+            try { if (window.localStorage) window.localStorage.setItem(key, val); } catch (e) {}
+        }
+
+        let is58mm = (function () {
+            try {
+                const urlPaper = new URLSearchParams(window.location.search).get('paper');
+                if (urlPaper === '58') return true;
+                if (urlPaper === '80') return false;
+            } catch (e) {}
+            return safeStorageGet('zya_ticket_width') === '58';
+        })();
         function applyPaperWidth() {
             const body = document.getElementById('ticketBody');
             const lbl = document.getElementById('paperLabel');
             if (is58mm) {
                 body.classList.add('paper-58mm');
-                lbl.textContent = 'Modo: 58mm';
+                if (lbl) lbl.textContent = 'Modo: 58mm';
             } else {
                 body.classList.remove('paper-58mm');
-                lbl.textContent = 'Modo: 80mm';
+                if (lbl) lbl.textContent = 'Modo: 80mm';
             }
         }
         function togglePaperWidth() {
             is58mm = !is58mm;
-            localStorage.setItem('zya_ticket_width', is58mm ? '58' : '80');
+            safeStorageSet('zya_ticket_width', is58mm ? '58' : '80');
             applyPaperWidth();
         }
 
         window.addEventListener('load', async function () {
             applyPaperWidth();
 
+            let skipDrawer = false;
+            let isPreview = false;
+            try {
+                const q = new URLSearchParams(window.location.search);
+                skipDrawer = q.get('skip_drawer') === '1';
+                isPreview = q.get('preview') === '1';
+            } catch (e) {}
+
             @php
                 $isCash = ($history->method === 'HandCash' || $history->cash_amount > 0);
             @endphp
             @if($isCash)
-                if (window.ZyaPosHardware) {
+                if (!skipDrawer && !isPreview && window.ZyaPosHardware) {
                     try {
                         await ZyaPosHardware.autoOpenUsbDrawer();
                     } catch (e) {}
                 }
             @endif
 
-            if (window.self === window.top) {
-                window.print();
+            if (window.self === window.top && !isPreview) {
+                try {
+                    if (document.fonts && document.fonts.ready) {
+                        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 250))]);
+                    }
+                } catch (e) {}
+                await new Promise(r => {
+                    const raf = window.requestAnimationFrame || (cb => setTimeout(cb, 16));
+                    raf(() => raf(r));
+                });
+                try {
+                    window.focus();
+                    window.print();
+                } catch (e) {}
             }
         });
     </script>
