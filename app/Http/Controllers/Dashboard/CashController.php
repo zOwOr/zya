@@ -170,14 +170,15 @@ class CashController extends Controller
             $this->ensurePastDaysAutoClosed((int) $branchId);
         }
 
-        $cashFlows = CashFlow::with(['user', 'branch', 'expenseType'])
+        $cashFlows = CashFlow::with(['user', 'branch', 'expenseType', 'externalCustomer'])
             ->where('branch_id', $branchId)
             ->when($date, fn($q) => $q->whereDate('created_at', $date))
             ->orderByDesc('created_at')
             ->paginate($perPage)
             ->withQueryString();
 
-        $allForPeriod = CashFlow::where('branch_id', $branchId)
+        $allForPeriod = CashFlow::with('externalCustomer')
+            ->where('branch_id', $branchId)
             ->when($date, fn($q) => $q->whereDate('created_at', $date))
             ->get();
 
@@ -192,8 +193,11 @@ class CashController extends Controller
         // Desglose por cliente del día/periodo consultado
         $customerMovements = $allForPeriod->groupBy(fn($f) => $f->customer_display_name)
             ->map(function ($items, $customerName) {
+                $extId = $items->pluck('external_customer_id')->filter()->first();
                 return [
                     'customer_name' => $customerName,
+                    'external_customer_id' => $extId ? (int) $extId : null,
+                    'is_external_customer' => $extId !== null,
                     'count' => $items->count(),
                     'income' => $items->where('type', 'income')->sum('amount'),
                     'expense' => $items->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount),
@@ -316,36 +320,33 @@ class CashController extends Controller
             ->whereNotIn('order_id', $specialProviderOrderIds)
             ->get();
 
-        $cashFlows = CashFlow::with(['user', 'posTransaction', 'branch', 'expenseType'])
+        $applyCashSearch = function ($q) use ($search) {
+            $q->where(function ($sub) use ($search) {
+                $sub->where('customer_name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhere('module', 'like', "%{$search}%")
+                    ->orWhere('expense_type_name', 'like', "%{$search}%")
+                    ->orWhere('payment_method', 'like', "%{$search}%")
+                    ->orWhereHas('externalCustomer', function ($ext) use ($search) {
+                        $ext->where('tit_name', 'like', "%{$search}%")
+                            ->orWhere('tit_phone', 'like', "%{$search}%");
+                    });
+            });
+        };
+
+        $cashFlows = CashFlow::with(['user', 'posTransaction', 'branch', 'expenseType', 'externalCustomer'])
             ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($sub) use ($search) {
-                    $sub->where('customer_name', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhere('reference', 'like', "%{$search}%")
-                        ->orWhere('module', 'like', "%{$search}%")
-                        ->orWhere('expense_type_name', 'like', "%{$search}%")
-                        ->orWhere('payment_method', 'like', "%{$search}%");
-                });
-            })
+            ->when($search, $applyCashSearch)
             ->orderByDesc('created_at')
             ->paginate(100)
             ->withQueryString();
 
-        $allDailyCashFlows = CashFlow::with(['user', 'posTransaction', 'branch', 'expenseType'])
+        $allDailyCashFlows = CashFlow::with(['user', 'posTransaction', 'branch', 'expenseType', 'externalCustomer'])
             ->whereIn('branch_id', $branchIds)
             ->tap($dateScope)
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($sub) use ($search) {
-                    $sub->where('customer_name', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhere('reference', 'like', "%{$search}%")
-                        ->orWhere('module', 'like', "%{$search}%")
-                        ->orWhere('expense_type_name', 'like', "%{$search}%")
-                        ->orWhere('payment_method', 'like', "%{$search}%");
-                });
-            })
+            ->when($search, $applyCashSearch)
             ->orderByDesc('created_at')
             ->get();
 
@@ -419,8 +420,11 @@ class CashController extends Controller
             ->map(function ($group, $clientName) {
                 $inc = $group->where('type', 'income');
                 $exp = $group->where('type', 'expense');
+                $extId = $group->pluck('external_customer_id')->filter()->first();
                 return [
                     'customer_name' => $clientName,
+                    'external_customer_id' => $extId ? (int) $extId : null,
+                    'is_external_customer' => $extId !== null,
                     'movements_count' => $group->count(),
                     'total_income' => round((float) $inc->sum('amount'), 2),
                     'total_expense' => round((float) $exp->sum(fn($f) => $f->effective_cash_amount), 2),
@@ -600,7 +604,8 @@ class CashController extends Controller
         $today = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
         $branchId = $this->resolveBranchId($request);
 
-        $flows = CashFlow::where('branch_id', $branchId)
+        $flows = CashFlow::with('externalCustomer')
+            ->where('branch_id', $branchId)
             ->whereDate('created_at', $today)
             ->get();
 
@@ -673,7 +678,8 @@ class CashController extends Controller
             return back()->with('info', 'El Corte Final (Corte Z) ya fue aplicado para esta fecha en esta sucursal.');
         }
 
-        $flows = CashFlow::where('branch_id', $branchId)
+        $flows = CashFlow::with('externalCustomer')
+            ->where('branch_id', $branchId)
             ->whereDate('created_at', $today)
             ->get();
 
@@ -752,8 +758,11 @@ class CashController extends Controller
 
         $customerBreakdown = $flows->groupBy(fn($f) => $f->customer_display_name)
             ->map(function ($group, $clientName) {
+                $extId = $group->pluck('external_customer_id')->filter()->first();
                 return [
                     'customer_name' => $clientName,
+                    'external_customer_id' => $extId ? (int) $extId : null,
+                    'is_external_customer' => $extId !== null,
                     'movements_count' => $group->count(),
                     'total_income' => round((float) $group->where('type', 'income')->sum('amount'), 2),
                     'total_expense' => round((float) $group->where('type', 'expense')->sum(fn($f) => $f->effective_cash_amount), 2),
@@ -848,7 +857,7 @@ class CashController extends Controller
             $cutBranchId = (int) $dailyCut->branch_id;
             $date = $dailyCut->date ? $dailyCut->date->toDateString() : Carbon::parse($dailyCut->created_at)->toDateString();
 
-            $cashFlows = CashFlow::with(['user', 'posTransaction', 'expenseType'])
+            $cashFlows = CashFlow::with(['user', 'posTransaction', 'expenseType', 'externalCustomer'])
                 ->where('branch_id', $cutBranchId)
                 ->whereDate('created_at', $date)
                 ->orderBy('created_at')
@@ -908,7 +917,7 @@ class CashController extends Controller
             }
 
             $cutsQuery = DailyCut::with(['branch', 'user'])->whereIn('branch_id', $branchIds);
-            $flowsQuery = CashFlow::with(['user', 'posTransaction', 'expenseType'])->whereIn('branch_id', $branchIds);
+            $flowsQuery = CashFlow::with(['user', 'posTransaction', 'expenseType', 'externalCustomer'])->whereIn('branch_id', $branchIds);
 
             if ($filterType === 'rango' || $filterType === 'dia') {
                 $cutsQuery->whereBetween('date', [$startDate, $endDate]);
@@ -977,7 +986,7 @@ class CashController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        $cashFlows = CashFlow::with(['user', 'posTransaction', 'expenseType'])
+        $cashFlows = CashFlow::with(['user', 'posTransaction', 'expenseType', 'externalCustomer'])
             ->where('branch_id', $branchId)
             ->whereDate('created_at', $date)
             ->orderBy('created_at')
@@ -1417,6 +1426,8 @@ class CashController extends Controller
                 'created_at' => $flow->created_at,
                 'time' => $flow->created_at ? $flow->created_at->format('H:i') : '--:--',
                 'customer_name' => $flow->customer_display_name,
+                'external_customer_id' => $flow->external_customer_id ? (int) $flow->external_customer_id : null,
+                'is_external_customer' => !empty($flow->external_customer_id),
                 'payment_method' => $flow->payment_method ?? 'efectivo',
                 'total_amount' => (float) $flow->amount,
                 'type' => $flow->type,

@@ -65,7 +65,7 @@ class DashboardController extends Controller
         $branchId = $this->resolveBranchFilter($request);
         $search = $request->input('fin_search');
 
-        return FinSalePayment::with(['sale.financiera', 'financiera', 'branch', 'user', 'posTransaction'])
+        return FinSalePayment::with(['sale.financiera', 'financiera', 'branch', 'user', 'posTransaction', 'externalCustomer'])
             ->where(function ($q) {
                 $q->whereNull('pos_transaction_id')
                     ->orWhereHas('posTransaction', fn($pt) => $pt->where('status', '!=', 'cancelado'));
@@ -78,7 +78,11 @@ class DashboardController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->where('tag_contrato', 'like', "%{$search}%")
                         ->orWhere('imei', 'like', "%{$search}%")
-                        ->orWhere('customer_name', 'like', "%{$search}%");
+                        ->orWhere('customer_name', 'like', "%{$search}%")
+                        ->orWhereHas('externalCustomer', function ($ext) use ($search) {
+                            $ext->where('tit_name', 'like', "%{$search}%")
+                                ->orWhere('tit_phone', 'like', "%{$search}%");
+                        });
                 });
             })
             ->orderByDesc('payment_date')
@@ -317,7 +321,7 @@ class DashboardController extends Controller
                 ->get();
 
             if ($linkedFinPayments->isNotEmpty()) {
-                foreach ($linkedFinPayments->groupBy('fin_sale_id') as $finSaleId => $salePayments) {
+                foreach ($linkedFinPayments->filter(fn ($p) => !empty($p->fin_sale_id))->groupBy('fin_sale_id') as $finSaleId => $salePayments) {
                     $lockedFinSale = FinSale::where('id', $finSaleId)->lockForUpdate()->first();
                     if (!$lockedFinSale) {
                         continue;

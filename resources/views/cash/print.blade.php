@@ -377,7 +377,12 @@
                             @foreach($chronologicalOperations as $op)
                                 <tr>
                                     <td class="text-center">{{ $op['time'] }}</td>
-                                    <td class="font-weight-bold">{{ $op['customer_name'] }}</td>
+                                    <td class="font-weight-bold">
+                                        {{ $op['customer_name'] }}
+                                        @if(!empty($op['is_external_customer']))
+                                            <small class="badge badge-warning text-dark">[Externo]</small>
+                                        @endif
+                                    </td>
                                     <td class="text-center">{{ $op['type'] === 'income' ? 'Ingreso' : 'Egreso' }}</td>
                                     <td class="text-center text-uppercase">{{ $op['payment_method'] }}</td>
                                     <td class="text-right font-weight-bold text-{{ $op['type'] === 'income' ? 'success' : 'danger' }}">${{ number_format($op['total_amount'], 2) }}</td>
@@ -668,7 +673,12 @@
                             <tr>
                                 <td class="text-center text-muted font-weight-bold">{{ $op['time'] }}</td>
                                 <td>
-                                    <div class="font-weight-bold text-dark">{{ $op['customer_name'] }}</div>
+                                    <div class="font-weight-bold text-dark">
+                                        {{ $op['customer_name'] }}
+                                        @if(!empty($op['is_external_customer']))
+                                            <small class="badge badge-warning text-dark">[Externo]</small>
+                                        @endif
+                                    </div>
                                     @if($op['reference'])
                                         <small class="text-muted"><code>{{ $op['reference'] }}</code></small>
                                     @endif

@@ -234,6 +234,9 @@
                                 <tr>
                                     <td class="font-weight-bold text-dark">
                                         <i class="fa-solid fa-user text-muted mr-1 font-size-11"></i>{{ $cm['customer_name'] }}
+                                        @if(!empty($cm['is_external_customer']))
+                                            <span class="badge badge-warning text-dark font-size-10 ml-1">Cliente Externo</span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <span class="badge badge-light border font-weight-bold px-2 py-1">{{ $cm['count'] }}</span>
@@ -299,6 +302,15 @@
                                     <div class="font-weight-bold text-dark font-size-13">
                                         {{ $flow->customer_display_name }}
                                     </div>
+                                    @if($flow->external_customer_id)
+                                        @can('external_customer.read')
+                                            <a href="{{ route('external-customers.show', $flow->external_customer_id) }}" class="badge badge-warning text-dark font-size-10 mt-1">
+                                                <i class="fa-solid fa-user-tag mr-1"></i>Cliente Externo
+                                            </a>
+                                        @else
+                                            <span class="badge badge-warning text-dark font-size-10 mt-1">Cliente Externo</span>
+                                        @endcan
+                                    @endif
                                 </td>
                                 <td class="text-center" style="white-space: nowrap;">
                                     @if($flow->type === 'income')

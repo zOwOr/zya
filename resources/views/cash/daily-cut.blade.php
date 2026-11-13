@@ -957,7 +957,18 @@
                                 <tr>
                                     <td class="text-center align-middle font-weight-bold text-muted">{{ $op['time'] }}</td>
                                     <td class="align-middle">
-                                        <div class="font-weight-bold text-dark">{{ $op['customer_name'] }}</div>
+                                        <div class="font-weight-bold text-dark">
+                                            {{ $op['customer_name'] }}
+                                            @if(!empty($op['is_external_customer']))
+                                                @if(!empty($op['external_customer_id']) && auth()->user()->can('external_customer.read'))
+                                                    <a href="{{ route('external-customers.show', $op['external_customer_id']) }}" class="badge badge-warning text-dark font-size-10 ml-1">
+                                                        Externo
+                                                    </a>
+                                                @else
+                                                    <span class="badge badge-warning text-dark font-size-10 ml-1">Externo</span>
+                                                @endif
+                                            @endif
+                                        </div>
                                         @if($op['reference'])
                                             <small class="text-muted d-block font-size-11"><code>{{ $op['reference'] }}</code></small>
                                         @endif

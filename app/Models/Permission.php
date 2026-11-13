@@ -54,6 +54,8 @@ class Permission extends SpatiePermission
             'final_cut' => 'Aplicar Corte Final (Corte Z)',
             'all_branches' => 'Acceso a Todas las Sucursales',
             'deliver' => 'Registrar Entrega a Cliente',
+            'convert' => 'Promover / Convertir a Cliente Interno',
+            'external_customers' => 'Operar Clientes Externos en POS',
         ];
 
         $actionLabel = $actionTranslations[strtolower($action)] ?? ucfirst(str_replace('_', ' ', $action));
@@ -75,6 +77,7 @@ class Permission extends SpatiePermission
             'pos' => 'Punto de Venta (POS)',
             'employee' => 'Empleados',
             'customer' => 'Clientes',
+            'external_customer' => 'Clientes Externos',
             'supplier' => 'Proveedores',
             'salary' => 'Salarios y Nómina',
             'attendence' => 'Asistencias',

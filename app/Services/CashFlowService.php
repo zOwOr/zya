@@ -110,6 +110,7 @@ class CashFlowService
             [
                 'pos_transaction_id' => $transaction->id,
                 'customer_id' => $transaction->customer_id,
+                'external_customer_id' => $transaction->external_customer_id,
                 'customer_name' => $transaction->customer_name,
                 'payment_method' => 'efectivo',
                 'cash_amount' => $cashToRevert,
@@ -228,6 +229,7 @@ class CashFlowService
                         [
                             'pos_transaction_id' => $posTx->id,
                             'customer_id' => $order->customer_id,
+                            'external_customer_id' => $posTx->external_customer_id,
                             'customer_name' => $customerName,
                             'payment_method' => 'efectivo',
                             'cash_amount' => $orderShareCash,
@@ -274,6 +276,7 @@ class CashFlowService
             'user_id' => $userId,
             'pos_transaction_id' => $extra['pos_transaction_id'] ?? null,
             'customer_id' => $extra['customer_id'] ?? null,
+            'external_customer_id' => $extra['external_customer_id'] ?? null,
             'customer_name' => $extra['customer_name'] ?? null,
             'payment_method' => $method,
             'cash_amount' => $cashAmount,

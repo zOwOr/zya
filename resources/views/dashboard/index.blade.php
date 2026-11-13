@@ -221,7 +221,12 @@
                                 <td><span class="badge badge-primary">{{ $fp->financiera?->name ?? ($fp->finSupplier?->name ?? ($fp->sale?->financiera?->name ?? 'Financiera')) }}</span></td>
                                 <td class="font-weight-bold"><code>{{ $fp->device_tag ?? '-' }}</code></td>
                                 <td><small>{{ $fp->imei ?? '-' }}</small></td>
-                                <td>{{ $fp->customer_name ?? ($fp->finSale->customer_name ?? 'Cliente') }}</td>
+                                <td>
+                                    {{ $fp->customer_name ?? ($fp->finSale?->customer_name ?? ($fp->externalCustomer?->tit_name ?? 'Cliente')) }}
+                                    @if($fp->external_customer_id)
+                                        <span class="badge badge-warning text-dark font-size-10 ml-1">Externo</span>
+                                    @endif
+                                </td>
                                 <td>{{ $fp->branch->name ?? 'General' }}</td>
                                 <td>
                                     <span class="badge badge-secondary text-uppercase">{{ $fp->payment_method }}</span>
@@ -239,6 +244,8 @@
                                         <a href="{{ route('financieras.ventas.show', $fp->fin_sale_id) }}" class="btn btn-xs btn-outline-info py-0 px-2" title="Ver Venta en Financieras">
                                             <i class="las la-eye"></i> #{{ $fp->fin_sale_id }}
                                         </a>
+                                    @elseif($fp->is_external_company)
+                                        <span class="badge badge-light border text-dark">Equipo Externo</span>
                                     @else
                                         -
                                     @endif

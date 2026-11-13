@@ -13,6 +13,7 @@ class FinSalePayment extends Model
 
     protected $fillable = [
         'fin_sale_id',
+        'external_customer_id',
         'device_id',
         'financiera_id',
         'branch_id',
@@ -22,6 +23,7 @@ class FinSalePayment extends Model
         'tag_contrato',
         'imei',
         'customer_name',
+        'is_external_company',
         'installment_number',
         'amount',
         'commission_amount',
@@ -38,6 +40,7 @@ class FinSalePayment extends Model
         'total_amount' => 'decimal:2',
         'payment_breakdown' => 'array',
         'payment_date' => 'datetime',
+        'is_external_company' => 'boolean',
     ];
 
     public function sale()
@@ -78,6 +81,11 @@ class FinSalePayment extends Model
     public function posTransaction()
     {
         return $this->belongsTo(PosTransaction::class, 'pos_transaction_id');
+    }
+
+    public function externalCustomer()
+    {
+        return $this->belongsTo(ExternalCustomer::class, 'external_customer_id')->withTrashed();
     }
 
     public function getDeviceTagAttribute(): ?string

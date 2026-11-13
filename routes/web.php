@@ -5,6 +5,7 @@ use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\ProfileController;
 use App\Http\Controllers\Dashboard\CategoryController;
 use App\Http\Controllers\Dashboard\CustomerController;
+use App\Http\Controllers\Dashboard\ExternalCustomerController;
 use App\Http\Controllers\Dashboard\EmployeeController;
 use App\Http\Controllers\Dashboard\SupplierController;
 use App\Http\Controllers\Dashboard\DashboardController;
@@ -71,6 +72,8 @@ Route::middleware(['auth', 'permission:cobros.menu|cobros.read|pos.menu|pos.read
     Route::get('/lookup-tanda', [UnifiedPosController::class, 'lookupTanda'])->name('lookup-tanda');
     Route::get('/lookup-products', [UnifiedPosController::class, 'lookupProducts'])->name('lookup-products');
     Route::get('/lookup-gifts', [UnifiedPosController::class, 'lookupGifts'])->name('lookup-gifts');
+    Route::get('/external-customers', [UnifiedPosController::class, 'lookupExternalCustomers'])->name('external-customers.lookup');
+    Route::post('/external-customers', [UnifiedPosController::class, 'storeExternalCustomer'])->name('external-customers.store');
     Route::get('/recent-transactions', [UnifiedPosController::class, 'recentTransactions'])->name('recent-transactions');
     Route::post('/checkout', [UnifiedPosController::class, 'checkout'])->name('checkout');
     Route::get('/receipt/{transaction}', [UnifiedPosController::class, 'printReceipt'])->name('receipt');
@@ -143,6 +146,12 @@ Route::middleware(['permission:customer.menu|customer.read'])->group(function ()
     Route::get('/customers/search', [CustomerController::class, 'search'])->name('customers.search');
     Route::get('/customers/export', [CustomerController::class, 'exportData'])->name('customers.exportData');
     Route::resource('/customers', CustomerController::class);
+});
+
+// ====== EXTERNAL CUSTOMERS (CLIENTES EXTERNOS) ======
+Route::middleware(['permission:external_customer.menu|external_customer.read|external_customer.create|external_customer.edit|external_customer.delete|external_customer.convert'])->group(function () {
+    Route::post('/external-customers/{externalCustomer}/convert', [ExternalCustomerController::class, 'convert'])->name('external-customers.convert');
+    Route::resource('/external-customers', ExternalCustomerController::class);
 });
 
 // ====== SUPPLIERS ======

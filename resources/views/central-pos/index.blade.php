@@ -484,6 +484,60 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Pago de financiera por equipo comprado en empresa externa -->
+                            <div class="mt-3 pt-3 border-top">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="font-weight-bold text-warning text-dark mb-0 font-size-13">
+                                        <i class="fa-solid fa-building-circle-arrow-right text-warning mr-1"></i>Pago de Financiera (Equipo de Empresa Externa)
+                                    </h6>
+                                    <button type="button" class="btn btn-xs btn-outline-warning text-dark font-weight-bold" data-toggle="collapse" data-target="#finExternalCompanyBox">
+                                        <i class="fa-solid fa-plus mr-1"></i>Capturar Pago Externo
+                                    </button>
+                                </div>
+                                <div id="finExternalCompanyBox" class="collapse p-3 rounded border" style="background: #fffbeb; border-color: #fde68a !important;">
+                                    <div class="row">
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Financiera *</label>
+                                            <select id="finExtFinancieraSelect" class="form-control form-control-sm">
+                                                <option value="">-- Seleccionar --</option>
+                                                @foreach ($financieras as $fin)
+                                                    @if (strtolower((string) ($fin->code ?? $fin->name)) !== 'contado')
+                                                        <option value="{{ $fin->id }}">{{ $fin->name }}</option>
+                                                    @endif
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Referencia / TAG / Contrato *</label>
+                                            <input type="text" id="finExtReference" class="form-control form-control-sm" placeholder="Ej. PJ-99812 o Ref">
+                                        </div>
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">IMEI / Equipo (opcional)</label>
+                                            <input type="text" id="finExtImei" class="form-control form-control-sm" placeholder="IMEI o modelo...">
+                                        </div>
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Monto Abono ($) *</label>
+                                            <div class="input-group input-group-sm">
+                                                <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                                <input type="number" step="0.01" min="0" id="finExtAmount" class="form-control form-control-sm font-weight-bold" placeholder="0.00">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 form-group mb-2">
+                                            <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Comisión Extra ($)</label>
+                                            <div class="input-group input-group-sm">
+                                                <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                                <input type="number" step="0.01" min="0" id="finExtCommission" class="form-control form-control-sm" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 form-group mb-2 d-flex align-items-end">
+                                            <button type="button" id="btnAddExtFinToTab" class="btn btn-warning text-dark btn-sm btn-block font-weight-bold shadow-sm">
+                                                <i class="fa-solid fa-cart-plus mr-1"></i>Agregar Pago Externo
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         @endif
 
@@ -936,9 +990,37 @@
                             <!-- Datos del Cliente para el Desglose y Ticket -->
                             <div class="card border mb-3 bg-light shadow-none">
                                 <div class="card-body p-2">
-                                    <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">
-                                        <i class="fa-solid fa-user-check text-primary mr-1"></i>Cliente para Ticket y Caja
-                                    </label>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-0">
+                                            <i class="fa-solid fa-user-check text-primary mr-1"></i>Cliente para Ticket y Caja
+                                        </label>
+                                        @if ($canPosExternalCustomers)
+                                            <div id="posExternalCustomerTriggerWrap" class="d-none">
+                                                <button type="button" id="btnTriggerExternalCustomer" class="btn btn-xs btn-warning text-dark font-weight-bold shadow-sm" disabled>
+                                                    <i class="fa-solid fa-user-tag mr-1"></i>Cliente Externo
+                                                </button>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    @if ($canPosExternalCustomers)
+                                        <div id="posSelectedExternalBanner" class="alert alert-warning border-warning py-1 px-2 mb-2 d-none font-size-12">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <span class="badge badge-dark mr-1">Externo</span>
+                                                    <strong id="posSelectedExternalName"></strong>
+                                                    <small class="text-muted ml-1" id="posSelectedExternalPhone"></small>
+                                                </div>
+                                                <div class="d-flex align-items-center" style="gap: 4px;">
+                                                    <button type="button" id="btnChangeExternalCustomer" class="btn btn-xs btn-outline-dark py-0 px-1" title="Cambiar cliente externo">
+                                                        Cambiar
+                                                    </button>
+                                                    <button type="button" id="btnClearExternalCustomer" class="btn btn-xs btn-outline-danger py-0 px-1" title="Quitar cliente externo">
+                                                        &times;
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
                                     <div class="mb-2">
                                         <select id="posCartCustomerSelect" class="form-control form-control-sm select2-autocomplete" data-placeholder="-- Buscar cliente registrado en catálogo --">
                                             <option value="">-- Buscar cliente registrado en catálogo --</option>
@@ -1222,7 +1304,12 @@
                                         @endif
                                     </td>
                                     <td>{{ $rTx->created_at ? $rTx->created_at->format('d/m/Y H:i') : '' }}</td>
-                                    <td class="font-weight-bold">{{ $rTx->customer_name ?: 'Cliente Mostrador' }}</td>
+                                    <td class="font-weight-bold">
+                                        {{ $rTx->customer_name ?: 'Cliente Mostrador' }}
+                                        @if ($rTx->external_customer_id)
+                                            <span class="badge badge-warning text-dark font-size-10 ml-1">Externo</span>
+                                        @endif
+                                    </td>
                                     <td class="text-muted">{{ \Illuminate\Support\Str::limit($rTx->concepts_summary ?: '-', 60) }}</td>
                                     <td>{{ strtoupper((string) $rTx->payment_method) }}</td>
                                     <td class="text-right font-weight-bold">${{ number_format((float) $rTx->total_amount, 2) }}</td>
@@ -1248,6 +1335,139 @@
     </div>
 </div>
 
+@if ($canPosExternalCustomers)
+<!-- Modal Captura / Selección de Cliente Externo (exclusivo para pagos de Financieras) -->
+<div class="modal fade" id="posExternalCustomerModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning py-2">
+                <h6 class="modal-title font-weight-bold text-dark mb-0">
+                    <i class="fa-solid fa-user-tag mr-2"></i>Cliente Externo para Pago de Financiera
+                </h6>
+                <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-pills mb-3" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active font-weight-bold py-1 px-3 font-size-13" data-toggle="pill" href="#posExtPaneNew" role="tab">
+                            <i class="fa-solid fa-user-plus mr-1"></i>Nuevo Cliente Externo
+                        </a>
+                    </li>
+                    <li class="nav-item ml-2">
+                        <a class="nav-link font-weight-bold py-1 px-3 font-size-13" data-toggle="pill" href="#posExtPaneExisting" role="tab">
+                            <i class="fa-solid fa-address-book mr-1"></i>Seleccionar Existente
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="posExtPaneNew" role="tabpanel">
+                        <div id="posExtFormErrorBox" class="alert alert-danger py-2 px-3 d-none font-size-12"></div>
+                        <form id="posExternalCustomerForm">
+                            <div class="row">
+                                <div class="col-md-6 form-group mb-2">
+                                    <label class="font-size-12 font-weight-bold mb-1">Nombre completo <span class="text-danger">*</span></label>
+                                    <input type="text" name="tit_name" id="extTitName" class="form-control form-control-sm" required maxlength="100">
+                                </div>
+                                <div class="col-md-3 form-group mb-2">
+                                    <label class="font-size-12 font-weight-bold mb-1">Teléfono <span class="text-danger">*</span></label>
+                                    <input type="text" name="tit_phone" id="extTitPhone" class="form-control form-control-sm" required maxlength="15">
+                                </div>
+                                <div class="col-md-3 form-group mb-2">
+                                    <label class="font-size-12 mb-1">Teléfono alterno</label>
+                                    <input type="text" name="alternate_phone" id="extAlternatePhone" class="form-control form-control-sm" maxlength="15">
+                                </div>
+                                <div class="col-md-4 form-group mb-2">
+                                    <label class="font-size-12 font-weight-bold mb-1">Email <span class="text-danger">*</span></label>
+                                    <input type="email" name="tit_email" id="extTitEmail" class="form-control form-control-sm" required maxlength="100">
+                                </div>
+                                <div class="col-md-4 form-group mb-2">
+                                    <label class="font-size-12 font-weight-bold mb-1">Facebook <span class="text-danger">*</span></label>
+                                    <input type="text" name="tit_facebook" id="extTitFacebook" class="form-control form-control-sm" required maxlength="255">
+                                </div>
+                                <div class="col-md-4 form-group mb-2">
+                                    <label class="font-size-12 font-weight-bold mb-1">Status <span class="text-danger">*</span></label>
+                                    <select name="tit_status" id="extTitStatus" class="form-control form-control-sm" required>
+                                        @foreach ($extCustomerStatusOptions as $val => $label)
+                                            <option value="{{ $val }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4 form-group mb-2">
+                                    <label class="font-size-12 font-weight-bold mb-1">Ciudad <span class="text-danger">*</span></label>
+                                    <input type="text" name="tit_city" id="extTitCity" class="form-control form-control-sm" required maxlength="120">
+                                </div>
+                                <div class="col-md-8 form-group mb-2">
+                                    <label class="font-size-12 font-weight-bold mb-1">Dirección <span class="text-danger">*</span></label>
+                                    <input type="text" name="tit_address" id="extTitAddress" class="form-control form-control-sm" required maxlength="999">
+                                </div>
+                                <div class="col-12 mt-1 mb-2">
+                                    <a class="font-size-12 text-primary font-weight-bold" data-toggle="collapse" href="#posExtOptionalFields">
+                                        <i class="fa-solid fa-sliders mr-1"></i>Campos adicionales opcionales (empleo, ubicación, notas)
+                                    </a>
+                                    <div class="collapse mt-2" id="posExtOptionalFields">
+                                        <div class="row">
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-size-12 mb-1">Lugar de trabajo</label>
+                                                <input type="text" name="tit_work" class="form-control form-control-sm" maxlength="255">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-size-12 mb-1">Puesto</label>
+                                                <input type="text" name="position" class="form-control form-control-sm" maxlength="255">
+                                            </div>
+                                            <div class="col-md-4 form-group mb-2">
+                                                <label class="font-size-12 mb-1">Ingreso mensual ($)</label>
+                                                <input type="number" step="0.01" min="0" name="monthly_income" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="col-md-6 form-group mb-2">
+                                                <label class="font-size-12 mb-1">Link de ubicación</label>
+                                                <input type="text" name="tit_link_location" class="form-control form-control-sm" maxlength="999">
+                                            </div>
+                                            <div class="col-md-6 form-group mb-2">
+                                                <label class="font-size-12 mb-1">Notas</label>
+                                                <input type="text" name="notes" class="form-control form-control-sm" maxlength="1000">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end border-top pt-2 mt-2" style="gap: 8px;">
+                                <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancelar</button>
+                                <button type="submit" id="btnSaveExternalCustomerPos" class="btn btn-sm btn-warning text-dark font-weight-bold shadow-sm">
+                                    <i class="fa-solid fa-floppy-disk mr-1"></i>Guardar en Catálogo Externo y Asociar al Cobro
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="posExtPaneExisting" role="tabpanel">
+                        <div class="form-group mb-3">
+                            <label class="font-size-12 font-weight-bold">Seleccionar Cliente Externo Activo</label>
+                            <select id="posModalExtCustomerSelect" class="form-control form-control-sm">
+                                <option value="">-- Seleccionar del catálogo externo --</option>
+                                @foreach ($externalCustomers as $ec)
+                                    <option value="{{ $ec->id }}" data-name="{{ $ec->tit_name }}" data-phone="{{ $ec->tit_phone }}">
+                                        {{ $ec->tit_name }} ({{ $ec->tit_phone }}) — {{ $ec->tit_city }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-end border-top pt-2" style="gap: 8px;">
+                            <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancelar</button>
+                            <button type="button" id="btnUseSelectedExternalCustomer" class="btn btn-sm btn-primary font-weight-bold">
+                                <i class="fa-solid fa-check mr-1"></i>Usar Cliente Externo Seleccionado
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 <script>
 // Función global para el botón independiente de apertura física de cajón USB
 window.triggerPhysicalCashDrawer = async function () {
@@ -1267,6 +1487,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 id: 'tab-1',
                 name: 'Proceso #1',
                 customerId: '',
+                externalCustomerId: '',
                 customerName: '',
                 customerPhone: '',
                 paymentMethod: 'efectivo',
@@ -1297,6 +1518,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getActiveTab() {
         return state.tabs.find(t => t.id === state.activeTabId) || state.tabs[0];
+    }
+
+    function tabHasFinancieraConcept(tab) {
+        return Boolean(
+            tab
+            && Array.isArray(tab.items)
+            && tab.items.some(it => it.section === 'financiera_abono' || it.section === 'financiera_externa')
+        );
     }
 
     function calculateTabTotals(tab) {
@@ -1364,6 +1593,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: newId,
             name: 'Proceso #' + num,
             customerId: '',
+            externalCustomerId: '',
             customerName: '',
             customerPhone: '',
             paymentMethod: 'efectivo',
@@ -1576,12 +1806,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderActiveCart() {
         const tab = getActiveTab();
+        const hasFinItem = tabHasFinancieraConcept(tab);
+
+        if (!hasFinItem && tab.externalCustomerId) {
+            tab.externalCustomerId = '';
+            tab.customerName = '';
+            tab.customerPhone = '';
+            saveState();
+        }
+
         document.getElementById('activeTabTitleBadge').textContent = tab.name;
         document.getElementById('tabCustomerName').value = tab.customerName || '';
         document.getElementById('tabCustomerPhone').value = tab.customerPhone || '';
 
+        const extTriggerWrap = document.getElementById('posExternalCustomerTriggerWrap');
+        const extTriggerBtn = document.getElementById('btnTriggerExternalCustomer');
+        if (extTriggerWrap && extTriggerBtn) {
+            extTriggerWrap.classList.toggle('d-none', !hasFinItem);
+            extTriggerBtn.disabled = !hasFinItem;
+        }
+
+        const isUsingExtCustomer = Boolean(hasFinItem && tab.externalCustomerId);
+        const extBanner = document.getElementById('posSelectedExternalBanner');
+        const nameInput = document.getElementById('tabCustomerName');
+        const phoneInput = document.getElementById('tabCustomerPhone');
+        if (extBanner) {
+            extBanner.classList.toggle('d-none', !isUsingExtCustomer);
+            if (isUsingExtCustomer) {
+                const extNameEl = document.getElementById('posSelectedExternalName');
+                const extPhoneEl = document.getElementById('posSelectedExternalPhone');
+                if (extNameEl) extNameEl.textContent = tab.customerName || 'Cliente Externo';
+                if (extPhoneEl) extPhoneEl.textContent = tab.customerPhone ? `(${tab.customerPhone})` : '';
+            }
+        }
+        if (nameInput) nameInput.readOnly = isUsingExtCustomer;
+        if (phoneInput) phoneInput.readOnly = isUsingExtCustomer;
+
         const $custSelect = $('#posCartCustomerSelect');
-        if (tab.customerId) {
+        $custSelect.prop('disabled', isUsingExtCustomer);
+        if (tab.customerId && !isUsingExtCustomer) {
             if ($custSelect.val() != tab.customerId) {
                 $custSelect.val(tab.customerId).trigger('change.select2');
             }
@@ -1610,6 +1873,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tab.items.forEach((item, idx) => {
                 const badgeMap = {
                     'financiera_abono': '<span class="badge badge-primary">Financiera</span>',
+                    'financiera_externa': '<span class="badge badge-warning text-dark">Fin. Externa</span>',
                     'prestamo_abono': '<span class="badge badge-success">Préstamo</span>',
                     'prestamo_apertura': '<span class="badge badge-dark">Apertura</span>',
                     'tanda_abono': '<span class="badge text-white" style="background:#8b5cf6;">Tanda</span>',
@@ -1624,7 +1888,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const lineAmt = (item.section === 'prestamo_apertura' || isGift) ? 0 : (unitAmt * qty);
                 const commAmt = parseFloat(item.commission) || 0;
                 const isProduct = (item.section === 'producto_inventario' || item.section === 'producto_dinamico');
-                const isFinanciera = (item.section === 'financiera_abono');
+                const isFinanciera = (item.section === 'financiera_abono' || item.section === 'financiera_externa');
                 const isEditable = isProduct || isFinanciera;
 
                 const originalAmt = item.original_amount !== undefined ? parseFloat(item.original_amount) : unitAmt;
@@ -1685,7 +1949,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const partialDetails = document.getElementById('posPartialPayDetails');
         const paidTodayInput = document.getElementById('posPaidTodayInput');
         const dueText = document.getElementById('posDueBalanceText');
-        const hasFinAbonoItem = tab.items.some(it => it.section === 'financiera_abono');
+        const hasFinAbonoItem = tabHasFinancieraConcept(tab);
 
         if (hasFinAbonoItem && tab.isPartial) {
             tab.isPartial = false;
@@ -1822,10 +2086,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function addItemToCurrentTab(item) {
         const tab = getActiveTab();
-        if (!tab.customerName && item.customer_name) {
+        if (!tab.externalCustomerId && !tab.customerName && item.customer_name) {
             tab.customerName = item.customer_name;
         }
-        if (!tab.customerId && item.customer_id) {
+        if (!tab.externalCustomerId && !tab.customerId && item.customer_id) {
             tab.customerId = item.customer_id;
         }
         tab.items.push(item);
@@ -1895,6 +2159,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tab.customerName = '';
         tab.customerPhone = '';
         tab.customerId = '';
+        tab.externalCustomerId = '';
         saveState();
         renderAll();
     });
@@ -1933,6 +2198,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const opt = this.options[this.selectedIndex];
         tab.customerId = cid;
+        tab.externalCustomerId = '';
         tab.customerName = opt ? (opt.dataset.name || '') : '';
         tab.customerPhone = opt ? (opt.dataset.phone || '') : '';
         saveState();
@@ -2012,7 +2278,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('posPartialPayCheck').addEventListener('change', function () {
         const tab = getActiveTab();
-        if (this.checked && tab.items.some(it => it.section === 'financiera_abono')) {
+        if (this.checked && tabHasFinancieraConcept(tab)) {
             this.checked = false;
             tab.isPartial = false;
             alert('⚠️ Los abonos a financieras no permiten pago parcial ni saldo pendiente en nota. Ajusta directamente el monto del abono en el carrito si es menor.');
@@ -2317,6 +2583,198 @@ document.addEventListener('DOMContentLoaded', function () {
                 quantity: 1,
                 amount: amount,
                 commission: comm
+            });
+        });
+    }
+
+    const btnAddExtFin = document.getElementById('btnAddExtFinToTab');
+    if (btnAddExtFin) {
+        btnAddExtFin.addEventListener('click', function () {
+            const finSelect = document.getElementById('finExtFinancieraSelect');
+            const finId = finSelect ? finSelect.value : '';
+            const finName = (finSelect && finSelect.selectedIndex > 0) ? finSelect.options[finSelect.selectedIndex].text.trim() : '';
+            const ref = (document.getElementById('finExtReference')?.value || '').trim();
+            const imei = (document.getElementById('finExtImei')?.value || '').trim();
+            const amountVal = document.getElementById('finExtAmount')?.value?.trim() ?? '';
+            const amount = parseFloat(amountVal);
+            const comm = parseFloat(document.getElementById('finExtCommission')?.value) || 0;
+
+            if (!finId) {
+                alert('Selecciona una financiera (PayJoy, Credimás, Creditienda, etc.).');
+                return;
+            }
+            if (!ref) {
+                alert('Ingresa una referencia, TAG o contrato del equipo externo.');
+                document.getElementById('finExtReference')?.focus();
+                return;
+            }
+            if (amountVal === '' || isNaN(amount) || amount < 0) {
+                alert('Especifica un monto de abono válido (0.00 o mayor).');
+                return;
+            }
+            if (comm < 0) {
+                alert('La comisión no puede ser menor a 0.');
+                return;
+            }
+
+            const subtitleParts = [`Equipo Externo`, `Ref/TAG: ${ref}`];
+            if (imei) subtitleParts.push(`IMEI/Equipo: ${imei}`);
+
+            addItemToCurrentTab({
+                section: 'financiera_externa',
+                financiera_id: parseInt(finId, 10),
+                financiera_name: finName,
+                tag_contrato: ref,
+                imei: imei || null,
+                title: `Abono Financiera Externa (${finName}) Ref: ${ref}`,
+                subtitle: subtitleParts.join(' | '),
+                quantity: 1,
+                amount: amount,
+                commission: comm
+            });
+
+            document.getElementById('finExtReference').value = '';
+            document.getElementById('finExtImei').value = '';
+            document.getElementById('finExtAmount').value = '';
+            document.getElementById('finExtCommission').value = '0';
+        });
+    }
+
+    // ==================== CLIENTES EXTERNOS EN POS ====================
+    function applyExternalCustomerToTab(ext) {
+        if (!ext || !ext.id) return;
+        const tab = getActiveTab();
+        if (!tabHasFinancieraConcept(tab)) {
+            alert('La opción de Cliente Externo solo se habilita cuando existe un concepto de Financiera en el carrito.');
+            return;
+        }
+        tab.externalCustomerId = String(ext.id);
+        tab.customerId = '';
+        tab.customerName = ext.tit_name || '';
+        tab.customerPhone = ext.tit_phone || '';
+        saveState();
+        renderAll();
+    }
+
+    function openExternalCustomerModal() {
+        const tab = getActiveTab();
+        if (!tabHasFinancieraConcept(tab)) {
+            alert('Agrega primero un concepto de pago de Financiera al carrito para habilitar Clientes Externos.');
+            return;
+        }
+        const errBox = document.getElementById('posExtFormErrorBox');
+        if (errBox) {
+            errBox.classList.add('d-none');
+            errBox.innerHTML = '';
+        }
+        $('#posExternalCustomerModal').modal('show');
+    }
+
+    const btnTriggerExt = document.getElementById('btnTriggerExternalCustomer');
+    if (btnTriggerExt) {
+        btnTriggerExt.addEventListener('click', openExternalCustomerModal);
+    }
+    const btnChangeExt = document.getElementById('btnChangeExternalCustomer');
+    if (btnChangeExt) {
+        btnChangeExt.addEventListener('click', openExternalCustomerModal);
+    }
+    const btnClearExt = document.getElementById('btnClearExternalCustomer');
+    if (btnClearExt) {
+        btnClearExt.addEventListener('click', function () {
+            const tab = getActiveTab();
+            tab.externalCustomerId = '';
+            tab.customerName = '';
+            tab.customerPhone = '';
+            saveState();
+            renderAll();
+        });
+    }
+
+    const btnUseSelExt = document.getElementById('btnUseSelectedExternalCustomer');
+    if (btnUseSelExt) {
+        btnUseSelExt.addEventListener('click', function () {
+            const sel = document.getElementById('posModalExtCustomerSelect');
+            if (!sel || !sel.value) {
+                alert('Selecciona un cliente externo de la lista.');
+                return;
+            }
+            const opt = sel.options[sel.selectedIndex];
+            applyExternalCustomerToTab({
+                id: sel.value,
+                tit_name: opt.dataset.name || '',
+                tit_phone: opt.dataset.phone || ''
+            });
+            $('#posExternalCustomerModal').modal('hide');
+        });
+    }
+
+    const extCustomerForm = document.getElementById('posExternalCustomerForm');
+    if (extCustomerForm) {
+        extCustomerForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const errBox = document.getElementById('posExtFormErrorBox');
+            const submitBtn = document.getElementById('btnSaveExternalCustomerPos');
+            if (errBox) {
+                errBox.classList.add('d-none');
+                errBox.innerHTML = '';
+            }
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Guardando...';
+            }
+
+            const payload = Object.fromEntries(new FormData(extCustomerForm).entries());
+            payload.branch_id = '{{ $branchId }}';
+
+            fetch("{{ route('central-pos.external-customers.store') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(async (r) => {
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok || !data.success) {
+                    const errors = data.errors ? Object.values(data.errors).flat() : [];
+                    throw new Error(errors.length ? errors.join('<br>') : (data.message || 'No se pudo guardar el cliente externo.'));
+                }
+                return data;
+            })
+            .then(data => {
+                const ext = data.external_customer;
+                const sel = document.getElementById('posModalExtCustomerSelect');
+                if (sel && ext) {
+                    const opt = document.createElement('option');
+                    opt.value = ext.id;
+                    opt.dataset.name = ext.tit_name || '';
+                    opt.dataset.phone = ext.tit_phone || '';
+                    opt.textContent = `${ext.tit_name} (${ext.tit_phone}) — ${ext.tit_city || ''}`;
+                    sel.appendChild(opt);
+                    sel.value = String(ext.id);
+                }
+
+                extCustomerForm.reset();
+                applyExternalCustomerToTab(ext);
+                $('#posExternalCustomerModal').modal('hide');
+
+                if (data.internal_match) {
+                    alert(`Cliente externo guardado y asociado. Nota: el teléfono ya coincide con el cliente interno #${data.internal_match.id} (${data.internal_match.tit_name}).`);
+                }
+            })
+            .catch(err => {
+                if (errBox) {
+                    errBox.innerHTML = err.message || 'Error al registrar cliente externo.';
+                    errBox.classList.remove('d-none');
+                }
+            })
+            .finally(() => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i>Guardar en Catálogo Externo y Asociar al Cobro';
+                }
             });
         });
     }
@@ -2881,7 +3339,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const effectivePaidAmount = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
             const effectiveDueAmount = Math.max(0, totals.total - effectivePaidAmount);
-            const hasFinAbono = tab.items.some(it => it.section === 'financiera_abono');
+            const hasFinAbono = tabHasFinancieraConcept(tab);
 
             if (hasFinAbono && effectiveDueAmount > 0.01) {
                 alert('⚠️ Los abonos a financieras no permiten pago parcial ni dejar saldo pendiente. Cubre el total completo o edita directamente el monto del abono.');
@@ -2949,7 +3407,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     branch_id: '{{ $branchId }}',
-                    customer_id: tab.customerId || null,
+                    customer_id: tab.externalCustomerId ? null : (tab.customerId || null),
+                    external_customer_id: (tabHasFinancieraConcept(tab) && tab.externalCustomerId) ? tab.externalCustomerId : null,
                     customer_name: tab.customerName || 'Cliente Mostrador',
                     customer_phone: tab.customerPhone || null,
                     payment_method: tab.paymentMethod,
@@ -2981,6 +3440,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 tab.customerName = '';
                 tab.customerPhone = '';
                 tab.customerId = '';
+                tab.externalCustomerId = '';
                 tab.cashReceived = '';
                 tab.isPartial = false;
                 tab.paidToday = '';
@@ -3077,10 +3537,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     const statusBadge = tx.status === 'cancelado'
                         ? '<span class="badge badge-danger ml-1">Cancelado</span>'
                         : '';
+                    const extBadge = tx.is_external_customer
+                        ? '<span class="badge badge-warning text-dark font-size-10 ml-1">Externo</span>'
+                        : '';
                     tr.innerHTML = `
                         <td><span class="badge badge-dark">${tx.transaction_code}</span>${statusBadge}</td>
                         <td>${tx.created_at}</td>
-                        <td class="font-weight-bold">${tx.customer_name}</td>
+                        <td class="font-weight-bold">${tx.customer_name}${extBadge}</td>
                         <td class="text-muted">${tx.concepts || '-'}</td>
                         <td>${tx.payment_method}</td>
                         <td class="text-right font-weight-bold">$${tx.total_amount}</td>

@@ -223,7 +223,7 @@
                 @endif
 
                 {{-- ===================== 5. DIRECTORIO & RRHH ===================== --}}
-                @if (auth()->user()->can('customer.menu') || auth()->user()->can('customer.read') || auth()->user()->can('supplier.menu') || auth()->user()->can('supplier.read') || auth()->user()->can('employee.menu') || auth()->user()->can('employee.read') || auth()->user()->can('salary.menu') || auth()->user()->can('salary.read') || auth()->user()->can('salary.create') || auth()->user()->can('attendence.menu') || auth()->user()->can('attendence.read') || auth()->user()->can('attendence.create'))
+                @if (auth()->user()->can('customer.menu') || auth()->user()->can('customer.read') || auth()->user()->can('external_customer.menu') || auth()->user()->can('external_customer.read') || auth()->user()->can('supplier.menu') || auth()->user()->can('supplier.read') || auth()->user()->can('employee.menu') || auth()->user()->can('employee.read') || auth()->user()->can('salary.menu') || auth()->user()->can('salary.read') || auth()->user()->can('salary.create') || auth()->user()->can('attendence.menu') || auth()->user()->can('attendence.read') || auth()->user()->can('attendence.create'))
                     <li class="sidebar-section-title">
                         <span>Directorio & Personal</span>
                     </li>
@@ -233,6 +233,15 @@
                             <a href="{{ route('customers.index') }}" class="svg-icon">
                                 <i class="fa-solid fa-users text-success"></i>
                                 <span class="ml-3">Clientes</span>
+                            </a>
+                        </li>
+                    @endif
+
+                    @if (auth()->user()->can('external_customer.menu') || auth()->user()->can('external_customer.read'))
+                        <li class="{{ Request::is('external-customers*') ? 'active' : '' }}">
+                            <a href="{{ route('external-customers.index') }}" class="svg-icon">
+                                <i class="fa-solid fa-user-tag text-warning"></i>
+                                <span class="ml-3">Clientes Externos</span>
                             </a>
                         </li>
                     @endif
