@@ -149,24 +149,24 @@ class DateFilterServiceTest extends TestCase
     {
         $today = Carbon::parse('2026-11-13');
 
-        // Prefijo bit_ ignora parámetros fin_ sin prefijo ni viceversa
+        // Prefijo mov_ ignora parámetros fin_ sin prefijo ni viceversa
         $req = Request::create('/test', 'GET', [
             'fin_filter_type' => 'dia',
             'fin_date' => '2026-11-10',
-            'bit_filter_type' => 'rango',
-            'bit_start_date' => 'invalid-date',
-            'bit_end_date' => '2026-11-12',
+            'mov_filter_type' => 'rango',
+            'mov_start_date' => 'invalid-date',
+            'mov_end_date' => '2026-11-12',
         ]);
 
-        $bit = DateFilterService::resolve($req, [
-            'prefix' => 'bit_',
+        $mov = DateFilterService::resolve($req, [
+            'prefix' => 'mov_',
             'can_all_dates' => true,
             'today' => $today,
         ]);
 
-        $this->assertSame('rango', $bit['filter_type']);
-        $this->assertSame('2026-11-12', $bit['start_date']); // invalid start falls back to today (13) then swapped <= 12
-        $this->assertSame('2026-11-13', $bit['end_date']);
+        $this->assertSame('rango', $mov['filter_type']);
+        $this->assertSame('2026-11-12', $mov['start_date']); // invalid start falls back to today (13) then swapped <= 12
+        $this->assertSame('2026-11-13', $mov['end_date']);
 
         // Period aliases (mes / semana) en Gastos cuando no tiene permiso histórico
         $mesReq = Request::create('/test', 'GET', [

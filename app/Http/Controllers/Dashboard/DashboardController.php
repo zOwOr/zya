@@ -15,7 +15,6 @@ use App\Models\PosTransaction;
 use App\Models\Product;
 use App\Services\CashFlowService;
 use App\Services\DateFilterService;
-use App\Services\FinBitacoraService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -177,13 +176,6 @@ class DashboardController extends Controller
             'transfer' => round((float) $completedMovements->sum('transfer_amount'), 2),
         ];
 
-        $bitacora = FinBitacoraService::build($request, [
-            'prefix' => 'bit_',
-            'paginate' => true,
-            'per_page' => 15,
-            'history_permissions' => ['dashboard.filter_all_dates', 'financieras.filter_all_dates'],
-        ]);
-
         $financieras = FinFinanciera::where('is_active', true)->orderBy('name')->get(['id', 'name']);
         if ($financieras->isEmpty()) {
             $financieras = FinFinanciera::orderBy('name')->get(['id', 'name']);
@@ -217,8 +209,7 @@ class DashboardController extends Controller
             'movSearch' => (string) $request->input('mov_search', ''),
             'canDashboardAllDates' => $finDateFilter['can_all_dates'],
             'minAllowedDate' => $finDateFilter['min_allowed_date'],
-            'dateRestrictionTriggered' => $finDateFilter['was_restricted'] || $movDateFilter['was_restricted'] || ($bitacora['dateFilter']['was_restricted'] ?? false),
-            'bitacora' => $bitacora,
+            'dateRestrictionTriggered' => $finDateFilter['was_restricted'] || $movDateFilter['was_restricted'],
             'financieras' => $financieras,
             'branches' => $branches,
             'branchId' => $branchId,

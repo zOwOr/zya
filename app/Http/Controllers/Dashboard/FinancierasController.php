@@ -14,7 +14,6 @@ use App\Models\FinWarranty;
 use App\Models\FinWarrantyStage;
 use App\Models\FinTheftReport;
 use App\Models\User;
-use App\Services\FinBitacoraService;
 use Illuminate\Http\Request;
 
 class FinancierasController extends Controller
@@ -48,7 +47,6 @@ class FinancierasController extends Controller
                         'financieras.garantias.menu',
                         'financieras.robos.menu',
                         'financieras.catalogos.menu',
-                        'financieras.bitacora.read',
                     ])
                 );
                 if (!$allowed) {
@@ -69,7 +67,7 @@ class FinancierasController extends Controller
     public function index(Request $request)
     {
         $activeTab = $request->query('tab', 'ventas');
-        $validTabs = ['ventas', 'inventario', 'garantias', 'robos', 'bitacora'];
+        $validTabs = ['ventas', 'inventario', 'garantias', 'robos'];
         if (!in_array($activeTab, $validTabs)) {
             $activeTab = 'ventas';
         }
@@ -130,7 +128,6 @@ class FinancierasController extends Controller
         $salesDateFilter = null;
         $warranties = null;
         $thefts = null;
-        $bitacora = null;
 
         if ($activeTab === 'inventario') {
             $deviceFilters = $request->only(['search', 'branch_id', 'status', 'brand_id', 'supplier_id', 'model', 'tag']);
@@ -157,13 +154,6 @@ class FinancierasController extends Controller
                 ->with(['device.brand', 'sale', 'branch'])
                 ->latest('incident_date')
                 ->paginate(15)->appends(array_merge($theftFilters, ['tab' => 'robos']));
-        } elseif ($activeTab === 'bitacora') {
-            $bitacora = FinBitacoraService::build($request, [
-                'prefix' => '',
-                'paginate' => true,
-                'per_page' => 20,
-                'history_permissions' => ['financieras.filter_all_dates'],
-            ]);
         }
 
         return view('financieras.index', compact(
@@ -181,7 +171,6 @@ class FinancierasController extends Controller
             'salesDateFilter',
             'warranties',
             'thefts',
-            'bitacora',
             'selectedBranch',
             'canAllBranches'
         ));

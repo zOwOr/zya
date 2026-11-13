@@ -322,16 +322,6 @@
     {{-- ========================================================================= --}}
     {{-- SECCIÓN 2: GESTIÓN DE MOVIMIENTOS (PROCESOS DE VENTA CON VARIOS PAGOS)    --}}
     {{-- ========================================================================= --}}
-    @if(auth()->user()->isSuperAdmin() || auth()->user()->canAny(['financieras.bitacora.read', 'financieras.read', 'financieras.ventas.read', 'dashboard.read']))
-        @include('financieras.bitacora.partial', [
-            'bitacora' => $bitacora,
-            'formAction' => route('dashboard'),
-            'preserveParams' => collect(request()->query())
-                ->reject(fn ($v, $k) => is_array($v) || str_starts_with($k, 'bit_') || in_array($k, ['page', 'bit_page'], true))
-                ->toArray(),
-        ])
-    @endif
-
     <div class="card shadow-sm mb-4 border-dark">
         <div class="card-header bg-dark text-white d-flex flex-wrap justify-content-between align-items-center">
             <div>

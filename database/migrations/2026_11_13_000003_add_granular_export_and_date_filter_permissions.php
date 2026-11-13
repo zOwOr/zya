@@ -35,19 +35,7 @@ return new class extends Migration
                 'display_name' => 'Dashboard: Filtrar Fechas Históricas (> 2 días) y Todos los Registros',
             ],
 
-            // Financieras (Bitácora Abonos y Enganches, Ventas e Histórico de Fechas)
-            'financieras.bitacora.read' => [
-                'group' => 'financieras',
-                'display_name' => 'Financieras - Bitácora de Abonos y Enganches: Ver / Consultar',
-            ],
-            'financieras.bitacora.export_pdf' => [
-                'group' => 'financieras',
-                'display_name' => 'Financieras - Bitácora de Abonos y Enganches: Exportar PDF',
-            ],
-            'financieras.bitacora.export_excel' => [
-                'group' => 'financieras',
-                'display_name' => 'Financieras - Bitácora de Abonos y Enganches: Exportar Excel',
-            ],
+            // Financieras (Ventas e Histórico de Fechas)
             'financieras.ventas.export_pdf' => [
                 'group' => 'financieras',
                 'display_name' => 'Financieras - Ventas: Exportar Listado PDF',
@@ -150,9 +138,6 @@ return new class extends Migration
             'dashboard.ventas.export_pdf',
             'dashboard.ventas.export_excel',
             'dashboard.filter_all_dates',
-            'financieras.bitacora.read',
-            'financieras.bitacora.export_pdf',
-            'financieras.bitacora.export_excel',
             'financieras.ventas.export_pdf',
             'financieras.ventas.export_excel',
             'financieras.filter_all_dates',
