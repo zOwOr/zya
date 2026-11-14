@@ -285,6 +285,11 @@
         </div>
     </div>
 
+    {{-- Formulario de Registro Manual --}}
+    @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.create'))
+        @include('cash.partials.form')
+    @endif
+
     {{-- Desglose por Cliente del Día / Periodo --}}
     @if(isset($customerMovements) && $customerMovements->count())
         <div class="card border-0 shadow-sm cash-table-wrapper mb-4">
@@ -507,11 +512,6 @@
             </div>
         </div>
     </div>
-
-    {{-- Formulario de Registro Manual --}}
-    @if(auth()->user()->isSuperAdmin() || auth()->user()->can('cash.create'))
-        @include('cash.partials.form')
-    @endif
 </div>
 
 @if(session('open_cash_drawer'))

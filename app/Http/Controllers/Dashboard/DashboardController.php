@@ -20,6 +20,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -191,10 +192,15 @@ class DashboardController extends Controller
             $canMultiFilterFinancieras
         );
 
+        $ordersQuery = Order::query();
+        if ($branchId && Schema::hasColumn('orders', 'branch_id')) {
+            $ordersQuery->where('branch_id', $branchId);
+        }
+
         return view('dashboard.index', [
-            'total_paid' => Order::sum('pay'),
-            'total_due' => Order::sum('due'),
-            'complete_orders' => Order::where('order_status', 'complete')->get(),
+            'total_paid' => (clone $ordersQuery)->sum('pay'),
+            'total_due' => (clone $ordersQuery)->sum('due'),
+            'complete_orders' => (clone $ordersQuery)->where('order_status', 'complete')->get(),
             'products' => Product::orderBy('product_store')->take(5)->get(),
             'new_products' => Product::orderBy('buying_date')->take(2)->get(),
             'financieraPayments' => $financieraPayments,
@@ -465,13 +471,27 @@ class DashboardController extends Controller
     }
 
     /**
+     * Valida que el usuario pueda cancelar el movimiento y que corresponda a su sucursal.
+     */
+    protected function authorizeTransactionCancellation(PosTransaction $transaction): void
+    {
+        $user = auth()->user();
+
+        if (!$user || (!$user->isSuperAdmin() && !$user->can('dashboard.cancel_transaction') && !$user->can('cobros.cancel_transaction'))) {
+            abort(403, 'No tienes permisos para cancelar movimientos de cobro centralizado.');
+        }
+
+        if (!$this->canAccessAllBranches() && $transaction->branch_id && (int) $transaction->branch_id !== (int) ($user->branch_id ?? 1)) {
+            abort(403, 'No tienes permisos para cancelar movimientos de otra sucursal.');
+        }
+    }
+
+    /**
      * Cancelar / Gestionar un movimiento diario (PosTransaction).
      */
     public function cancelTransaction(Request $request, PosTransaction $transaction)
     {
-        if (!auth()->user()->isSuperAdmin() && !auth()->user()->can('dashboard.cancel_transaction') && !auth()->user()->can('cobros.cancel_transaction')) {
-            abort(403, 'No tienes permisos para cancelar movimientos de cobro centralizado.');
-        }
+        $this->authorizeTransactionCancellation($transaction);
 
         $result = DB::transaction(function () use ($request, $transaction) {
             $lockedTx = PosTransaction::where('id', $transaction->id)->lockForUpdate()->firstOrFail();

@@ -407,12 +407,12 @@
                                                 <input type="number" step="0.01" min="0" name="cash_amount" class="form-control form-control-sm" value="0">
                                             </div>
                                             <div class="col-4">
-                                                <label class="font-size-11 font-weight-bold">Tarjeta</label>
-                                                <input type="number" step="0.01" min="0" name="card_amount" class="form-control form-control-sm" value="0">
-                                            </div>
-                                            <div class="col-4">
                                                 <label class="font-size-11 font-weight-bold">Transferencia</label>
                                                 <input type="number" step="0.01" min="0" name="transfer_amount" class="form-control form-control-sm" value="0">
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="font-size-11 font-weight-bold">Tarjeta</label>
+                                                <input type="number" step="0.01" min="0" name="card_amount" class="form-control form-control-sm" value="0">
                                             </div>
                                         </div>
                                         <div class="form-group mb-0">

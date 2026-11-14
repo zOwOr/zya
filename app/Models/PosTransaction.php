@@ -115,6 +115,44 @@ class PosTransaction extends Model
     }
 
     /**
+     * Elimina cualquier referencia de saldo pendiente o restante en subtítulos de abonos a notas
+     * para evitar imprimir montos desfasados por moras, multas, abonos o notas vencidas.
+     */
+    public static function sanitizePendingNoteSubtitle(?string $subtitle): ?string
+    {
+        if ($subtitle === null) {
+            return null;
+        }
+
+        $parts = preg_split('/\s*\|\s*/', trim($subtitle)) ?: [];
+        $kept = [];
+
+        foreach ($parts as $part) {
+            $segment = trim((string) $part);
+            if ($segment === '') {
+                continue;
+            }
+
+            if (preg_match('/^(?:Resta(?:\s+en\s+nota)?\b|Nota\s+\S+\s+LIQUIDADA\b|(?:Nuevo\s+)?Saldo\s+(?:pendiente|anterior|inicial|restante)\b)/iu', $segment)) {
+                continue;
+            }
+
+            $segment = preg_replace('/\bResta\s+en\s+nota\b[^|]*/iu', '', $segment);
+            $segment = preg_replace('/\bNota\s+\S+\s+LIQUIDADA\s*\([^)]*restante[^)]*\)/iu', '', (string) $segment);
+            $segment = preg_replace('/\b(?:Nuevo\s+)?Saldo\s+(?:pendiente|anterior|inicial|restante)\b[^|]*/iu', '', (string) $segment);
+            $segment = trim((string) $segment, " \t\n\r\0\x0B|•-");
+
+            if ($segment !== '') {
+                $kept[] = $segment;
+            }
+        }
+
+        $cleaned = implode(' | ', $kept);
+
+        return $cleaned !== '' ? $cleaned : null;
+    }
+
+    /**
      * Secciones de carrito consideradas conceptos de pago de financiera.
      */
     public static function isFinancieraSection(?string $section): bool

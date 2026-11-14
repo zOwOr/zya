@@ -57,7 +57,7 @@ class FinSaleController extends Controller
     }
 
     /**
-     * Construye la consulta filtrada de ventas de financieras respetando el filtro de fecha y el tope de 2 días.
+     * Construye la consulta filtrada de ventas/pólizas de financieras con el filtro de fecha seleccionado.
      */
     public static function buildFilteredSalesQuery(Request $request): array
     {
@@ -65,7 +65,7 @@ class FinSaleController extends Controller
             'default_type' => 'rango',
             'default_start_date' => now()->startOfMonth()->toDateString(),
             'default_end_date' => now()->endOfMonth()->toDateString(),
-            'history_permissions' => ['financieras.filter_all_dates'],
+            'can_all_dates' => true,
         ]);
 
         $filters = array_merge(

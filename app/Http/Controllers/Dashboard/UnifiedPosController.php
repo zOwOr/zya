@@ -1494,13 +1494,11 @@ class UnifiedPosController extends Controller
                             $resolvedCustomerName
                         );
 
-                        $statusSummary = $newDue <= 0
-                            ? "Nota {$pendingOrder->invoice_no} LIQUIDADA ($0.00 restante)"
-                            : "Resta en nota {$pendingOrder->invoice_no}: $" . number_format($newDue, 2);
-                        $baseSub = trim((string) ($updatedPayload[$idx]['subtitle'] ?? ''));
+                        // Omitir cualquier saldo pendiente/restante en el subtítulo impreso del ticket (puede variar por moras, multas o notas vencidas)
+                        $baseSub = PosTransaction::sanitizePendingNoteSubtitle($updatedPayload[$idx]['subtitle'] ?? null);
                         $updatedPayload[$idx]['amount'] = $appliedAbono;
                         $updatedPayload[$idx]['balance_after'] = $newDue;
-                        $updatedPayload[$idx]['subtitle'] = $baseSub !== '' ? "{$baseSub} | {$statusSummary}" : $statusSummary;
+                        $updatedPayload[$idx]['subtitle'] = $baseSub ?? '';
                         $payloadUpdated = true;
                         continue;
                     }

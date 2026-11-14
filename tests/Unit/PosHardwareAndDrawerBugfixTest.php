@@ -69,6 +69,18 @@ class PosHardwareAndDrawerBugfixTest extends TestCase
         $this->assertStringContainsString('Abrir Cajón Físico', $cashIndex);
         $this->assertStringContainsString("session('open_cash_drawer')", $cashIndex);
         $this->assertStringContainsString('autoOpenUsbDrawer', $cashIndex);
+        $this->assertSame(1, substr_count($cashIndex, "@include('cash.partials.form')"));
+        $historialPos = strpos($cashIndex, 'Historial y Control de Caja');
+        $manualFormPos = strpos($cashIndex, "@include('cash.partials.form')");
+        $desglosePos = strpos($cashIndex, 'Desglose de Movimientos por Cliente');
+        $bitacoraPos = strpos($cashIndex, 'Bitácora Detallada de Movimientos de Caja');
+        $this->assertNotFalse($historialPos);
+        $this->assertNotFalse($manualFormPos);
+        $this->assertNotFalse($desglosePos);
+        $this->assertNotFalse($bitacoraPos);
+        $this->assertLessThan($manualFormPos, $historialPos);
+        $this->assertLessThan($desglosePos, $manualFormPos);
+        $this->assertLessThan($bitacoraPos, $desglosePos);
 
         $dailyCut = file_get_contents(resource_path('views/cash/daily-cut.blade.php'));
         $this->assertNotEmpty(Blade::compileString($dailyCut));

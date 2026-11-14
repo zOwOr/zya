@@ -296,9 +296,11 @@
             $qty = max(1, (int) ($item['quantity'] ?? 1));
             $amt = in_array($sec, ['prestamo_apertura', 'gift'], true) ? 0 : ((float) ($item['amount'] ?? 0) * $qty);
             $comm = (float) ($item['commission'] ?? 0);
-            $itemSubtitle = $sec === 'gift'
-                ? \App\Models\PosTransaction::sanitizeGiftSubtitle($item['subtitle'] ?? null)
-                : ($item['subtitle'] ?? null);
+            $itemSubtitle = match ($sec) {
+                'gift' => \App\Models\PosTransaction::sanitizeGiftSubtitle($item['subtitle'] ?? null),
+                'nota_abono' => \App\Models\PosTransaction::sanitizePendingNoteSubtitle($item['subtitle'] ?? null),
+                default => $item['subtitle'] ?? null,
+            };
         @endphp
         <div class="concept-block">
             <div class="bold">{{ $qty }}x {{ $item['title'] ?? 'Concepto' }}@if($sec === 'gift') <span style="font-size:10px;">(REGALO)</span>@endif</div>
@@ -358,26 +360,11 @@
             <span class="bold">PAGO INICIAL / ABONADO HOY:</span>
             <span class="bold">${{ number_format($paidToday, 2) }} MXN</span>
         </div>
-        @if ($updatedDue > 0)
-            <div class="row-flex bold" style="font-size: 13px; color: #dc2626; border: 1px dashed #dc2626; padding: 3px 5px; margin: 4px 0; background: #fff5f5;">
-                <span class="bold">SALDO PENDIENTE ACTUALIZADO:</span>
-                <span class="bold">${{ number_format($updatedDue, 2) }} MXN</span>
-            </div>
-            @if (abs($updatedDue - $dueAtSale) >= 0.01)
-                <div class="row-flex" style="font-size: 10.5px; color: #444;">
-                    <span>Saldo inicial de esta nota:</span>
-                    <span>${{ number_format($dueAtSale, 2) }} MXN</span>
-                </div>
-            @endif
-            <div class="center bold" style="font-size: 10px; color: #dc2626; margin-bottom: 4px;">
-                *** NOTA CON SALDO PENDIENTE POR LIQUIDAR ***
-            </div>
-        @else
-            <div class="row-flex bold" style="font-size: 12px; color: #16a34a; margin: 2px 0;">
-                <span class="bold">SALDO PENDIENTE ACTUALIZADO:</span>
-                <span class="bold">$0.00 MXN (LIQUIDADO)</span>
-            </div>
-        @endif
+        {{-- Regla de negocio: NO imprimir montos de saldo pendiente ni liquidación automática en tickets (puede diferir por moras, multas, abonos o notas vencidas) --}}
+        <div class="row-flex bold" style="font-size: 11.5px;">
+            <span class="bold">ESTADO:</span>
+            <span class="bold">PAGO PARCIAL REGISTRADO</span>
+        </div>
     @else
         <div class="row-flex bold" style="font-size: 12px; color: #16a34a;">
             <span class="bold">ESTADO:</span>

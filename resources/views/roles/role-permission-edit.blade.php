@@ -51,12 +51,12 @@
                             $permissions = App\Models\User::getPermissionByGroupName($permission_group->group_name);
                         @endphp
 
-                        <div class="row">
+                        <div class="row permission-group-row">
                             <div class="form-group col-md-3">
                                 <div class="custom-control custom-checkbox custom-control-inline">
                                     <input
                                         type="checkbox"
-                                        class="custom-control-input"
+                                        class="custom-control-input permission-group-checkbox"
                                         id="permission_group_id[{{ $loop->iteration }}]"
                                         name="permission_group_id[]"
                                         {{ App\Models\User::roleHasPermission($role, $permissions) ? 'checked' : '' }}
@@ -75,7 +75,7 @@
                                     <div class="custom-control custom-checkbox custom-control-inline my-2 mr-3">
                                         <input
                                             type="checkbox"
-                                            class="custom-control-input"
+                                            class="custom-control-input permission-item-checkbox"
                                             id="permission_id[{{ $permission->id }}]"
                                             name="permission_id[]"
                                             value="{{ $permission->id }}"
@@ -109,13 +109,54 @@
 </div>
 
 <script>
-    $('#check-all').click(function() {
-        if($(this).is(':checked')) {
-            $('input[type = checkbox]').prop('checked', true);
-        } else {
-            $('input[type = checkbox]').prop('checked', false);
+    (function () {
+        var checkAll = document.getElementById('check-all');
+        var groupBoxes = document.querySelectorAll('.permission-group-checkbox');
+        var itemBoxes = document.querySelectorAll('.permission-item-checkbox');
+
+        function syncCheckAll() {
+            if (!checkAll) return;
+            var allItems = Array.prototype.slice.call(itemBoxes);
+            checkAll.checked = allItems.length > 0 && allItems.every(function (cb) { return cb.checked; });
         }
-    });
+
+        function syncGroupBox(row) {
+            if (!row) return;
+            var groupCb = row.querySelector('.permission-group-checkbox');
+            var rowItems = Array.prototype.slice.call(row.querySelectorAll('.permission-item-checkbox'));
+            if (groupCb) {
+                groupCb.checked = rowItems.length > 0 && rowItems.every(function (cb) { return cb.checked; });
+            }
+        }
+
+        if (checkAll) {
+            checkAll.addEventListener('change', function () {
+                var checked = checkAll.checked;
+                groupBoxes.forEach(function (cb) { cb.checked = checked; });
+                itemBoxes.forEach(function (cb) { cb.checked = checked; });
+            });
+        }
+
+        groupBoxes.forEach(function (groupCb) {
+            groupCb.addEventListener('change', function () {
+                var row = groupCb.closest('.permission-group-row');
+                if (!row) return;
+                row.querySelectorAll('.permission-item-checkbox').forEach(function (cb) {
+                    cb.checked = groupCb.checked;
+                });
+                syncCheckAll();
+            });
+        });
+
+        itemBoxes.forEach(function (itemCb) {
+            itemCb.addEventListener('change', function () {
+                syncGroupBox(itemCb.closest('.permission-group-row'));
+                syncCheckAll();
+            });
+        });
+
+        syncCheckAll();
+    })();
 </script>
 
 
