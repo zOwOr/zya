@@ -856,6 +856,24 @@
                                 </a>
                             </div>
 
+                            <div class="row mb-2">
+                                <div class="col-md-12 form-group mb-1">
+                                    <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">
+                                        Buscar Cliente / Participante o Tanda (Fecha más reciente primero)
+                                    </label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="posTandaSearchInput" class="form-control" placeholder="Escribe nombre o teléfono del cliente, o nombre de la tanda...">
+                                        <div class="input-group-append">
+                                            <button type="button" id="btnSearchTandaCustomer" class="btn btn-primary font-weight-bold">
+                                                <i class="fa-solid fa-magnifying-glass mr-1"></i>Buscar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="posTandaSearchResults" class="mb-2"></div>
+
                             <div class="row">
                                 <div class="col-md-6 form-group mb-2">
                                     <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-1">Seleccionar Tanda Activa *</label>
@@ -863,6 +881,7 @@
                                         <option value="">-- Elige una tanda --</option>
                                         @foreach ($tandas as $tanda)
                                             @php
+                                                $tandaDateFormatted = \App\Services\DateFilterService::formatDisplayDate($tanda->start_date, $tanda->created_at);
                                                 $tandaParticipants = $tanda->participants->map(function ($p) {
                                                     return [
                                                         'id' => $p->id,
@@ -875,8 +894,9 @@
                                             <option value="{{ $tanda->id }}"
                                                 data-name="{{ $tanda->description }}"
                                                 data-amount="{{ $tanda->payment_amount }}"
+                                                data-date="{{ $tandaDateFormatted }}"
                                                 data-participants='@json($tandaParticipants)'>
-                                                {{ $tanda->description }} (Aportación: ${{ number_format($tanda->payment_amount, 2) }})
+                                                {{ $tanda->description }} ({{ $tandaDateFormatted }} · Aportación: ${{ number_format($tanda->payment_amount, 2) }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -3615,10 +3635,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 let rows = data.results.map(r => `
                     <tr>
-                        <td><strong>${r.tag_contrato}</strong><small class="d-block text-muted">ID: #${r.device_id} | IMEI: ${r.imei}</small></td>
-                        <td>${r.financiera_name}<small class="d-block text-muted">Suc: ${r.branch_name || 'General'}</small></td>
-                        <td><strong>${r.customer_name}</strong><small class="d-block text-muted">${r.device_model}</small></td>
-                        <td>$${r.abono_semanal.toFixed(2)}<small class="d-block text-success font-size-11">Abonado: $${r.total_abonos_paid.toFixed(2)}</small></td>
+                        <td><strong>${escapeHtml(r.tag_contrato)}</strong><small class="d-block text-muted">ID: #${escapeHtml(r.device_id)} | IMEI: ${escapeHtml(r.imei)}</small></td>
+                        <td>${escapeHtml(r.financiera_name)}<small class="d-block text-muted">Suc: ${escapeHtml(r.branch_name || 'General')}</small></td>
+                        <td><strong>${escapeHtml(r.customer_name)}</strong><small class="d-block text-muted">${escapeHtml(r.device_model)}</small><small class="d-block text-primary font-size-11"><i class="fa-regular fa-calendar mr-1"></i>Fecha: ${escapeHtml(r.sale_date_formatted || '-')}</small></td>
+                        <td>$${Number(r.abono_semanal || 0).toFixed(2)}<small class="d-block text-success font-size-11">Abonado: $${Number(r.total_abonos_paid || 0).toFixed(2)}</small></td>
                         <td class="text-right">
                             <button type="button" class="btn btn-xs btn-primary btn-select-fin shadow-sm"
                                 data-sale-id="${r.sale_id}"
@@ -3993,8 +4013,8 @@ document.addEventListener('DOMContentLoaded', function () {
             html += `
                 <div class="card border mb-2 shadow-sm">
                     <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center font-size-12">
-                        <span><strong>${loan.loan_code}</strong> (${loan.type_name}) — Saldo Pendiente: <strong class="text-danger">$${loan.balance_amount.toFixed(2)}</strong></span>
-                        <a href="/loans/${loan.id}" target="_blank" class="font-weight-bold text-primary">Ver / Pagaré <i class="fa-solid fa-arrow-up-right-from-square ml-1"></i></a>
+                        <span><strong>${escapeHtml(loan.loan_code)}</strong> (${escapeHtml(loan.type_name)}) <span class="badge badge-light border text-muted ml-1"><i class="fa-regular fa-calendar mr-1"></i>Fecha: ${escapeHtml(loan.sale_date_formatted || '-')}</span> — Saldo Pendiente: <strong class="text-danger">$${Number(loan.balance_amount || 0).toFixed(2)}</strong></span>
+                        <a href="/loans/${Number(loan.id)}" target="_blank" class="font-weight-bold text-primary">Ver / Pagaré <i class="fa-solid fa-arrow-up-right-from-square ml-1"></i></a>
                     </div>
                     <div class="card-body p-2">
                         <table class="table table-sm mb-0 font-size-12">
@@ -4244,6 +4264,146 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         $('#posTandaParticipantSelect').trigger('change.select2');
     });
+
+    const posTandaSearchInput = document.getElementById('posTandaSearchInput');
+    const btnSearchTandaCustomer = document.getElementById('btnSearchTandaCustomer');
+    const posTandaSearchResults = document.getElementById('posTandaSearchResults');
+    const posTandaPeriodNo = document.getElementById('posTandaPeriodNo');
+    let lastTandaModelsById = {};
+
+    function ensureTandaOptionExists(tandaId, tandaObj) {
+        if (!posTandaSelect || !tandaId) return;
+        const alreadyExists = Array.from(posTandaSelect.options).some(opt => String(opt.value) === String(tandaId));
+        if (alreadyExists || !tandaObj) return;
+
+        const option = document.createElement('option');
+        option.value = String(tandaObj.id);
+        option.dataset.name = tandaObj.description || '';
+        option.dataset.amount = String(tandaObj.payment_amount ?? 0);
+        option.dataset.date = tandaObj.tanda_date_formatted || '-';
+
+        const mappedParticipants = (Array.isArray(tandaObj.participants) ? tandaObj.participants : []).map(p => ({
+            id: p.id,
+            name: (p.customer && p.customer.tit_name) ? p.customer.tit_name : (p.customer_name || 'Sin nombre'),
+            phone: (p.customer && p.customer.tit_phone) ? p.customer.tit_phone : (p.customer_phone || 'Sin teléfono'),
+            position: p.position
+        }));
+        option.dataset.participants = JSON.stringify(mappedParticipants);
+        option.textContent = `${tandaObj.description || 'Tanda'} (${tandaObj.tanda_date_formatted || '-'} · Aportación: $${Number(tandaObj.payment_amount || 0).toFixed(2)})`;
+        posTandaSelect.appendChild(option);
+    }
+
+    function renderTandaSearchResults(results) {
+        if (!posTandaSearchResults) return;
+        if (!Array.isArray(results) || results.length === 0) {
+            posTandaSearchResults.innerHTML = '<div class="alert alert-warning font-size-12 py-2 mb-0">No se encontraron tandas ni clientes con esa búsqueda.</div>';
+            return;
+        }
+
+        const rowsHtml = results.map(r => {
+            const detailHtml = r.matched_by === 'participant'
+                ? `<strong>${escapeHtml(r.participant_name)}</strong><small class="d-block text-muted">Turno #${escapeHtml(r.position || '-')} · ${escapeHtml(r.participant_phone || 'Sin tel')} · Sig. periodo: #${Number(r.next_period || 1)}</small>`
+                : `<span class="text-muted">${escapeHtml(r.participant_name)}</span><small class="d-block text-muted">Elige participante al seleccionar</small>`;
+
+            return `
+                <tr>
+                    <td>
+                        <strong>${escapeHtml(r.tanda_description)}</strong>
+                        <small class="d-block text-primary font-size-11"><i class="fa-regular fa-calendar mr-1"></i>Fecha: ${escapeHtml(r.tanda_date_formatted || '-')}</small>
+                    </td>
+                    <td>${detailHtml}</td>
+                    <td>
+                        $${Number(r.payment_amount || 0).toFixed(2)}
+                        <small class="d-block text-muted font-size-11">${r.duration ? escapeHtml(r.duration) + ' periodos' : 'Activa'}</small>
+                    </td>
+                    <td class="text-right">
+                        <button type="button"
+                            class="btn btn-xs btn-info font-weight-bold btn-select-tanda-result"
+                            data-tanda-id="${Number(r.tanda_id)}"
+                            data-participant-id="${r.participant_id ? Number(r.participant_id) : ''}"
+                            data-next-period="${Number(r.next_period || 1)}"
+                            data-amount="${Number(r.payment_amount || 0)}">
+                            Seleccionar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        posTandaSearchResults.innerHTML = `
+            <div class="table-responsive border rounded bg-white" style="max-height: 210px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0 font-size-12">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Tanda / Fecha</th>
+                            <th>Cliente / Participante</th>
+                            <th>Aportación</th>
+                            <th class="text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function searchTandas() {
+        if (!posTandaSearchResults) return;
+        const q = (posTandaSearchInput?.value || '').trim();
+        posTandaSearchResults.innerHTML = '<div class="text-muted font-size-12 py-1"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Buscando tandas y participantes...</div>';
+
+        posFetchJson(`{{ route('central-pos.lookup-tanda', [], false) }}?q=${encodeURIComponent(q)}`, { timeoutMs: 15000 })
+            .then(data => {
+                lastTandaModelsById = {};
+                if (Array.isArray(data.tandas)) {
+                    data.tandas.forEach(t => {
+                        if (t && t.id) lastTandaModelsById[String(t.id)] = t;
+                    });
+                }
+                renderTandaSearchResults(data.results || []);
+            })
+            .catch(err => {
+                posTandaSearchResults.innerHTML = `<div class="alert alert-danger font-size-12 py-2 mb-0">${escapeHtml(err.message || 'No se pudieron consultar las tandas.')}</div>`;
+            });
+    }
+
+    if (btnSearchTandaCustomer) {
+        btnSearchTandaCustomer.addEventListener('click', searchTandas);
+    }
+    if (posTandaSearchInput) {
+        posTandaSearchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchTandas();
+            }
+        });
+    }
+    if (posTandaSearchResults) {
+        posTandaSearchResults.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-select-tanda-result');
+            if (!btn) return;
+            const tandaId = btn.dataset.tandaId || '';
+            const participantId = btn.dataset.participantId || '';
+            const nextPeriod = parseInt(btn.dataset.nextPeriod, 10) || 1;
+            const amount = parseFloat(btn.dataset.amount) || 0;
+
+            ensureTandaOptionExists(tandaId, lastTandaModelsById[String(tandaId)]);
+            if (posTandaSelect && tandaId) {
+                posTandaSelect.value = tandaId;
+                $('#posTandaSelect').trigger('change');
+            }
+            if (posTandaParticipantSelect && participantId) {
+                posTandaParticipantSelect.value = participantId;
+                $('#posTandaParticipantSelect').trigger('change.select2');
+            }
+            if (posTandaPeriodNo) {
+                posTandaPeriodNo.value = String(nextPeriod);
+            }
+            if (posTandaAmount && amount > 0) {
+                posTandaAmount.value = amount.toFixed(2);
+            }
+        });
+    }
 
     const btnAddTandaEl = document.getElementById('btnAddTandaToTab');
     if (btnAddTandaEl) {

@@ -196,29 +196,42 @@
                     </div>
                 </div>
                 <div class="col-md-3 mb-2">
-                    @if($canMultiFinFilter)
-                        <label class="small font-weight-bold mb-1">
-                            Catálogo Financiera: <span class="badge badge-info ml-1">Múltiple</span>
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <label for="dashFinancieraSelect" class="small font-weight-bold mb-0">
+                            Catálogo Financiera:
+                            @if($canMultiFinFilter)
+                                <span class="badge badge-info ml-1">Múltiple</span>
+                            @endif
                         </label>
+                        <button type="button"
+                                class="btn btn-link p-0 font-weight-bold fin-clear-select-btn {{ empty($selectedFinFilterIds) ? 'd-none' : '' }}"
+                                data-clear-select="#dashFinancieraSelect"
+                                title="Limpiar selección y volver a Todas las Financieras">
+                            Todas
+                        </button>
+                    </div>
+                    @if($canMultiFinFilter)
                         <select name="financiera_id[]"
                                 id="dashFinancieraSelect"
                                 class="form-control form-control-sm select2-autocomplete select2-multi-sm"
                                 multiple="multiple"
+                                data-allow-clear="true"
+                                data-search-placeholder="Buscar financiera..."
                                 data-placeholder="Todas las Financieras (selección múltiple)">
                             @foreach($financieras as $fin)
-                                <option value="{{ $fin->id }}" {{ in_array((int) $fin->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>
-                                    {{ $fin->name }}
-                                </option>
+                                <option value="{{ $fin->id }}" {{ in_array((int) $fin->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $fin->name }}</option>
                             @endforeach
                         </select>
                     @else
-                        <label class="small font-weight-bold mb-1">Catálogo Financiera:</label>
-                        <select name="financiera_id" class="form-control form-control-sm">
+                        <select name="financiera_id"
+                                id="dashFinancieraSelect"
+                                class="form-control form-control-sm select2-autocomplete"
+                                data-allow-clear="true"
+                                data-search-placeholder="Escribe para buscar financiera..."
+                                data-placeholder="-- Todas las Financieras --">
                             <option value="">-- Todas las Financieras --</option>
                             @foreach($financieras as $fin)
-                                <option value="{{ $fin->id }}" {{ in_array((int) $fin->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>
-                                    {{ $fin->name }}
-                                </option>
+                                <option value="{{ $fin->id }}" {{ in_array((int) $fin->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $fin->name }}</option>
                             @endforeach
                         </select>
                     @endif

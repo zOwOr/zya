@@ -12,6 +12,7 @@ use App\Models\LoanInstallment;
 use App\Models\LoanPayment;
 use App\Models\LoanType;
 use App\Services\CashFlowService;
+use App\Services\DateFilterService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -193,12 +194,13 @@ class LoanController extends Controller
             return response()->json(['has_open_loans' => false, 'open_loans' => [], 'pending_installments' => []]);
         }
 
-        $openLoans = Loan::with(['loanType', 'branch', 'installments' => function ($q) {
+        $openLoansQuery = Loan::with(['loanType', 'branch', 'installments' => function ($q) {
                 $q->whereIn('status', ['pendiente', 'parcial', 'vencido'])->orderBy('scheduled_date');
             }])
             ->where('customer_id', $customerId)
-            ->whereIn('status', ['activo', 'mora'])
-            ->get();
+            ->whereIn('status', ['activo', 'mora']);
+
+        $openLoans = DateFilterService::applyRecentOrder($openLoansQuery, 'start_date', true)->get();
 
         $pendingInstallments = [];
         $overdueCount = 0;
@@ -231,6 +233,8 @@ class LoanController extends Controller
                 'loan_code' => $l->loan_code,
                 'type_name' => $l->loanType?->name ?? 'General',
                 'branch_name' => $l->branch?->name ?? 'Sucursal',
+                'start_date' => $l->start_date ? $l->start_date->format('Y-m-d') : ($l->created_at ? $l->created_at->format('Y-m-d') : null),
+                'sale_date_formatted' => DateFilterService::formatDisplayDate($l->start_date, $l->created_at),
                 'total_amount' => number_format((float) $l->total_amount, 2),
                 'paid_amount' => number_format((float) $l->paid_amount, 2),
                 'balance_amount' => number_format((float) $l->balance_amount, 2),

@@ -81,25 +81,40 @@
                     );
                 @endphp
                 <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
-                    <label class="fin-filter-label">
-                        <i class="fa-solid fa-building-columns fin-ico-bank"></i>
-                        <span>Financiera</span>
-                        @if($canMultiFinFilter)
-                            <span class="badge badge-info text-capitalize" style="font-size: 9.5px; padding: 2px 6px; border-radius: 6px;">Múltiple</span>
-                        @endif
+                    <label class="fin-filter-label justify-content-between">
+                        <span class="d-inline-flex align-items-center" style="gap: 6px;">
+                            <i class="fa-solid fa-building-columns fin-ico-bank"></i>
+                            <span>Financiera</span>
+                            @if($canMultiFinFilter)
+                                <span class="badge badge-info text-capitalize" style="font-size: 9.5px; padding: 2px 6px; border-radius: 6px;">Múltiple</span>
+                            @endif
+                        </span>
+                        <button type="button"
+                                class="btn btn-link p-0 font-weight-bold fin-clear-select-btn {{ empty($selectedFinFilterIds) ? 'd-none' : '' }}"
+                                data-clear-select="#ventasFinancieraSelect"
+                                title="Limpiar selección y volver a Todas las financieras">
+                            Todas
+                        </button>
                     </label>
                     @if($canMultiFinFilter)
                         <select name="financiera_id[]"
                                 id="ventasFinancieraSelect"
                                 class="form-control form-control-sm select2-autocomplete select2-multi-sm"
                                 multiple="multiple"
+                                data-allow-clear="true"
+                                data-search-placeholder="Buscar financiera..."
                                 data-placeholder="Todas las financieras...">
                             @foreach ($financieras as $f)
                                 <option value="{{ $f->id }}" {{ in_array((int) $f->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $f->name }}</option>
                             @endforeach
                         </select>
                     @else
-                        <select name="financiera_id" class="form-control custom-select fin-filter-control">
+                        <select name="financiera_id"
+                                id="ventasFinancieraSelect"
+                                class="form-control custom-select fin-filter-control select2-autocomplete"
+                                data-allow-clear="true"
+                                data-search-placeholder="Escribe para buscar financiera..."
+                                data-placeholder="Todas las financieras">
                             <option value="">Todas las financieras</option>
                             @foreach ($financieras as $f)
                                 <option value="{{ $f->id }}" {{ in_array((int) $f->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $f->name }}</option>
