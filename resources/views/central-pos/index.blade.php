@@ -1817,31 +1817,37 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function createDefaultTab(id, name) {
+        return {
+            id: id,
+            name: name,
+            customerId: '',
+            externalCustomerId: '',
+            customerName: '',
+            customerPhone: '',
+            paymentMethod: 'efectivo',
+            cashAmount: '',
+            cardAmount: '',
+            transferAmount: '',
+            cashTouched: false,
+            cardTouched: false,
+            transferTouched: false,
+            mixTouched: false,
+            cardRef: '',
+            transferRef: '',
+            mixCash: 0,
+            mixCard: 0,
+            mixTransfer: 0,
+            mixCashReceived: '',
+            items: []
+        };
+    }
+
     let state = {
         activeTabId: 'tab-1',
         nextTabNumber: 2,
         tabs: [
-            {
-                id: 'tab-1',
-                name: 'Proceso #1',
-                customerId: '',
-                externalCustomerId: '',
-                customerName: '',
-                customerPhone: '',
-                paymentMethod: 'efectivo',
-                cashAmount: '',
-                cardAmount: '',
-                transferAmount: '',
-                cashTouched: false,
-                cardTouched: false,
-                transferTouched: false,
-                mixTouched: false,
-                mixCash: 0,
-                mixCard: 0,
-                mixTransfer: 0,
-                mixCashReceived: '',
-                items: []
-            }
+            createDefaultTab('tab-1', 'Proceso #1')
         ]
     };
 
@@ -1941,6 +1947,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (t.cardTouched === undefined) t.cardTouched = false;
         if (t.transferTouched === undefined) t.transferTouched = false;
         if (t.mixTouched === undefined) t.mixTouched = false;
+        if (t.cardRef === undefined) t.cardRef = '';
+        if (t.transferRef === undefined) t.transferRef = '';
+        if (t.mixCash === undefined) t.mixCash = 0;
+        if (t.mixCard === undefined) t.mixCard = 0;
+        if (t.mixTransfer === undefined) t.mixTransfer = 0;
         // Limpiar banderas heredadas del flujo anterior con toggle manual
         delete t.isPartial;
         delete t.paidToday;
@@ -2108,27 +2119,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function addNewTab() {
         const num = state.nextTabNumber++;
         const newId = 'tab-' + Date.now();
-        state.tabs.push({
-            id: newId,
-            name: 'Proceso #' + num,
-            customerId: '',
-            externalCustomerId: '',
-            customerName: '',
-            customerPhone: '',
-            paymentMethod: 'efectivo',
-            cashAmount: '',
-            cardAmount: '',
-            transferAmount: '',
-            cashTouched: false,
-            cardTouched: false,
-            transferTouched: false,
-            mixTouched: false,
-            mixCash: 0,
-            mixCard: 0,
-            mixTransfer: 0,
-            mixCashReceived: '',
-            items: []
-        });
+        state.tabs.push(createDefaultTab(newId, 'Proceso #' + num));
         state.activeTabId = newId;
         saveState();
         renderAll();
@@ -2750,9 +2741,10 @@ document.addEventListener('DOMContentLoaded', function () {
             tab.cardTouched = false;
             tab.transferTouched = false;
             tab.mixTouched = false;
-            tab.cashAmount = saleTotal > 0 ? saleTotal.toFixed(2) : '0.00';
-            tab.cardAmount = saleTotal > 0 ? saleTotal.toFixed(2) : '0.00';
-            tab.transferAmount = saleTotal > 0 ? saleTotal.toFixed(2) : '0.00';
+            const emptyOrZero = tab.items.length > 0 ? '0.00' : '';
+            tab.cashAmount = emptyOrZero;
+            tab.cardAmount = emptyOrZero;
+            tab.transferAmount = emptyOrZero;
             tab.mixCash = 0;
             tab.mixCard = 0;
             tab.mixTransfer = 0;
@@ -2781,25 +2773,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Mostrar u ocultar cajas según el método de pago activo y sincronizar valores pre-cargados
         $('#posBoxEfectivo, #posBoxTarjeta, #posBoxTransferencia, #posBoxMixto').addClass('d-none');
+        const defaultAmountFallback = tab.items.length > 0 ? saleTotal.toFixed(2) : '';
 
         if (tab.paymentMethod === 'efectivo') {
             $('#posBoxEfectivo').removeClass('d-none');
             const cashInput = document.getElementById('posCashAmountInput');
-            if (cashInput && document.activeElement !== cashInput) {
-                cashInput.value = (tab.cashAmount !== undefined && tab.cashAmount !== '') ? tab.cashAmount : saleTotal.toFixed(2);
+            if (cashInput && (document.activeElement !== cashInput || tab.items.length === 0)) {
+                cashInput.value = (tab.cashAmount !== undefined && tab.cashAmount !== '') ? tab.cashAmount : defaultAmountFallback;
             }
         } else if (tab.paymentMethod === 'tarjeta') {
             $('#posBoxTarjeta').removeClass('d-none');
             const cardInput = document.getElementById('posCardAmountInput');
-            if (cardInput && document.activeElement !== cardInput) {
-                cardInput.value = (tab.cardAmount !== undefined && tab.cardAmount !== '') ? tab.cardAmount : saleTotal.toFixed(2);
+            if (cardInput && (document.activeElement !== cardInput || tab.items.length === 0)) {
+                cardInput.value = (tab.cardAmount !== undefined && tab.cardAmount !== '') ? tab.cardAmount : defaultAmountFallback;
             }
             document.getElementById('posCardRefInput').value = tab.cardRef || '';
         } else if (tab.paymentMethod === 'transferencia') {
             $('#posBoxTransferencia').removeClass('d-none');
             const transInput = document.getElementById('posTransferAmountInput');
-            if (transInput && document.activeElement !== transInput) {
-                transInput.value = (tab.transferAmount !== undefined && tab.transferAmount !== '') ? tab.transferAmount : saleTotal.toFixed(2);
+            if (transInput && (document.activeElement !== transInput || tab.items.length === 0)) {
+                transInput.value = (tab.transferAmount !== undefined && tab.transferAmount !== '') ? tab.transferAmount : defaultAmountFallback;
             }
             document.getElementById('posTransferRefInput').value = tab.transferRef || '';
         } else if (tab.paymentMethod === 'mixto') {
@@ -3031,6 +3024,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (payState.method === 'mixto') {
             renderMixFaltanteAlert(payState);
+        } else {
+            const mixAlertEl = document.getElementById('posMixFaltanteAlertContainer');
+            if (mixAlertEl) mixAlertEl.innerHTML = '';
         }
 
         // 3. Mostrar botón rápido "100%" solo cuando el monto difiere del total
@@ -3304,29 +3300,58 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    function resetPaymentDomInputs() {
+        const valueResetIds = [
+            'posCashAmountInput',
+            'posCardAmountInput',
+            'posCardRefInput',
+            'posTransferAmountInput',
+            'posTransferRefInput',
+            'posMixCashReceivedInput',
+            'mixTransferRefInput',
+            'mixCardRefInput',
+        ];
+        valueResetIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        ['mixCashInput', 'mixTransferInput', 'mixCardInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '0';
+        });
+
+        ['posChangeOutput', 'posMixChangeOutput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '$0.00';
+        });
+
+        const mixTargetEl = document.getElementById('lblMixTargetAmount');
+        if (mixTargetEl) mixTargetEl.textContent = '$0.00';
+
+        const mixAlertEl = document.getElementById('posMixFaltanteAlertContainer');
+        if (mixAlertEl) mixAlertEl.innerHTML = '';
+    }
+
+    function resetTabState(tab) {
+        if (!tab) return;
+        Object.assign(tab, createDefaultTab(tab.id, tab.name));
+        highlightedCartIndex = -1;
+        clearTimeout(pendingNotesDebounceTimer);
+        lastPendingNotesKey = '';
+        lastPendingNotesList = [];
+        pendingNotesRequestSeq++;
+        const fb = document.getElementById('posCartFeedbackBanner');
+        if (fb) {
+            fb.className = 'd-none mb-2';
+            fb.innerHTML = '';
+        }
+        resetPaymentDomInputs();
+    }
+
     document.getElementById('btnClearCurrentTab').addEventListener('click', function () {
         const tab = getActiveTab();
-        tab.items = [];
-        tab.customerName = '';
-        tab.customerPhone = '';
-        tab.customerId = '';
-        tab.externalCustomerId = '';
-        tab.cashAmount = '';
-        tab.cardAmount = '';
-        tab.transferAmount = '';
-        tab.cashTouched = false;
-        tab.cardTouched = false;
-        tab.transferTouched = false;
-        tab.mixTouched = false;
-        tab.mixCash = 0;
-        tab.mixCard = 0;
-        tab.mixTransfer = 0;
-        tab.mixCashReceived = '';
-        tab.cardRef = '';
-        tab.transferRef = '';
-        highlightedCartIndex = -1;
-        const fb = document.getElementById('posCartFeedbackBanner');
-        if (fb) fb.className = 'd-none mb-2';
+        resetTabState(tab);
         saveState();
         renderAll();
     });
@@ -3621,14 +3646,18 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ==================== 1. BÚSQUEDA Y ABONO DE FINANCIERAS ====================
+    let finLookupRequestSeq = 0;
+
     function searchFinancieras() {
         const q = document.getElementById('finSearchInput').value.trim();
         const finId = document.getElementById('finCatalogSelect').value;
         const container = document.getElementById('finSearchResults');
+        const mySeq = ++finLookupRequestSeq;
         container.innerHTML = '<div class="text-muted font-size-12"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Buscando contratos por Device ID / TAG...</div>';
 
         posFetchJson(`{{ route('central-pos.lookup-financiera', [], false) }}?q=${encodeURIComponent(q)}&financiera_id=${encodeURIComponent(finId)}`, { timeoutMs: 15000 })
             .then(data => {
+                if (mySeq !== finLookupRequestSeq) return;
                 if (!data.results || data.results.length === 0) {
                     container.innerHTML = '<div class="alert alert-light border py-2 font-size-12 mb-0">No se encontraron equipos con ese TAG / Device ID / IMEI.</div>';
                     return;
@@ -3673,6 +3702,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
             })
             .catch(err => {
+                if (mySeq !== finLookupRequestSeq) return;
                 container.innerHTML = `<div class="alert alert-danger py-2 font-size-12 mb-0">${err.message || 'No se pudo consultar el catálogo de financieras.'}</div>`;
             });
     }
@@ -3949,6 +3979,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const posLoanAlertBanner = document.getElementById('posLoanAlertBanner');
     const posOpenLoansContainer = document.getElementById('posCustomerOpenLoansContainer');
     let currentCustomerLoansData = null;
+    let loanLookupRequestSeq = 0;
 
     function renderOpenLoansList() {
         if (!currentCustomerLoansData) return;
@@ -4039,10 +4070,16 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#posLoanCustomerSelect').on('change', function () {
         const customerId = $(this).val();
         const opt = this.options[this.selectedIndex];
+        const mySeq = ++loanLookupRequestSeq;
         if (!customerId) {
             currentCustomerLoansData = null;
-            posLoanAlertBanner.classList.add('d-none');
-            posOpenLoansContainer.innerHTML = '';
+            if (posLoanAlertBanner) {
+                posLoanAlertBanner.classList.add('d-none');
+                posLoanAlertBanner.innerHTML = '';
+            }
+            if (posOpenLoansContainer) {
+                posOpenLoansContainer.innerHTML = '';
+            }
             return;
         }
 
@@ -4055,10 +4092,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         posFetchJson(`{{ route('central-pos.lookup-loans', [], false) }}?customer_id=${encodeURIComponent(customerId)}`, { timeoutMs: 15000 })
             .then(data => {
+                if (mySeq !== loanLookupRequestSeq) return;
                 currentCustomerLoansData = data;
                 renderOpenLoansList();
             })
             .catch(() => {
+                if (mySeq !== loanLookupRequestSeq) return;
                 currentCustomerLoansData = null;
                 if (posOpenLoansContainer) {
                     posOpenLoansContainer.innerHTML = '<div class="alert alert-danger py-2 font-size-12 mb-0">No se pudieron cargar los préstamos del cliente.</div>';
@@ -4270,6 +4309,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const posTandaSearchResults = document.getElementById('posTandaSearchResults');
     const posTandaPeriodNo = document.getElementById('posTandaPeriodNo');
     let lastTandaModelsById = {};
+    let tandaLookupRequestSeq = 0;
 
     function ensureTandaOptionExists(tandaId, tandaObj) {
         if (!posTandaSelect || !tandaId) return;
@@ -4350,10 +4390,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function searchTandas() {
         if (!posTandaSearchResults) return;
         const q = (posTandaSearchInput?.value || '').trim();
+        const mySeq = ++tandaLookupRequestSeq;
         posTandaSearchResults.innerHTML = '<div class="text-muted font-size-12 py-1"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Buscando tandas y participantes...</div>';
 
         posFetchJson(`{{ route('central-pos.lookup-tanda', [], false) }}?q=${encodeURIComponent(q)}`, { timeoutMs: 15000 })
             .then(data => {
+                if (mySeq !== tandaLookupRequestSeq) return;
                 lastTandaModelsById = {};
                 if (Array.isArray(data.tandas)) {
                     data.tandas.forEach(t => {
@@ -4363,6 +4405,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderTandaSearchResults(data.results || []);
             })
             .catch(err => {
+                if (mySeq !== tandaLookupRequestSeq) return;
                 posTandaSearchResults.innerHTML = `<div class="alert alert-danger font-size-12 py-2 mb-0">${escapeHtml(err.message || 'No se pudieron consultar las tandas.')}</div>`;
             });
     }
@@ -4470,6 +4513,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function resetDynamicProductInputs() {
+        const defaults = {
+            dynProdName: '',
+            dynProdPrice: '0.00',
+            dynProdQty: '1',
+            dynProdStatus: 'Nuevo',
+            dynProdBrand: '',
+            dynProdModel: '',
+            dynProdImei: '',
+            dynProdWarranty: '',
+            dynProdObs: '',
+        };
+        Object.keys(defaults).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = defaults[id];
+        });
+    }
+
     const btnAddDynEl = document.getElementById('btnAddDynamicProductToTab');
     if (btnAddDynEl) {
         btnAddDynEl.addEventListener('click', function () {
@@ -4508,11 +4569,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 commission: 0
             });
 
-            if (nameEl) nameEl.value = '';
-            if (priceEl) priceEl.value = '0.00';
-            if (qtyEl) qtyEl.value = '1';
-            if (document.getElementById('dynProdImei')) document.getElementById('dynProdImei').value = '';
-            if (document.getElementById('dynProdObs')) document.getElementById('dynProdObs').value = '';
+            resetDynamicProductInputs();
         });
 
         // Soporte tecla Enter en nombre y precio de producto libre
@@ -4564,11 +4621,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    let giftLookupRequestSeq = 0;
+
     function searchPosGifts(query) {
         if (!posGiftsBody) return;
+        const mySeq = ++giftLookupRequestSeq;
         const url = `{{ route('central-pos.lookup-gifts', [], false) }}?branch_id={{ $branchId }}&q=${encodeURIComponent(query || '')}`;
         posFetchJson(url, { timeoutMs: 15000 })
             .then(data => {
+                if (mySeq !== giftLookupRequestSeq) return;
                 const gifts = data.gifts || [];
                 posGiftsBody.innerHTML = '';
                 if (!gifts.length) {
@@ -4734,6 +4795,230 @@ document.addEventListener('DOMContentLoaded', function () {
         return Boolean(result && result.isConfirmed);
     }
 
+    function clearSelectControl(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = '';
+        if (window.jQuery && $(el).hasClass('select2-hidden-accessible')) {
+            $(el).val('').trigger('change.select2');
+            if (typeof window.syncSelect2ClearButton === 'function') {
+                window.syncSelect2ClearButton(el);
+            }
+        }
+    }
+
+    function hideCollapsibleSection(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (window.jQuery && $.fn && typeof $.fn.collapse === 'function') {
+            try {
+                $(el).collapse('hide');
+            } catch (_) {}
+        }
+        el.classList.remove('show');
+    }
+
+    function resetFinancieraSectionInputs() {
+        finLookupRequestSeq++;
+        clearSelectControl('finCatalogSelect');
+
+        const searchInp = document.getElementById('finSearchInput');
+        if (searchInp) searchInp.value = '';
+        const searchRes = document.getElementById('finSearchResults');
+        if (searchRes) searchRes.innerHTML = '';
+
+        const selBox = document.getElementById('finSelectedContractBox');
+        if (selBox) selBox.classList.add('d-none');
+
+        ['finSelSaleId', 'finSelTitle', 'finSelCustomerName', 'finAbonoAmount'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        const commEl = document.getElementById('finCommissionAmount');
+        if (commEl) commEl.value = '0';
+
+        ['finSelFinanciera', 'finSelCustomer', 'finSelDevice'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '';
+        });
+        const branchBadgeEl = document.getElementById('finSelBranchBadge');
+        if (branchBadgeEl) {
+            branchBadgeEl.textContent = '';
+            branchBadgeEl.classList.add('d-none');
+        }
+        const suggestedEl = document.getElementById('finSelSuggested');
+        if (suggestedEl) suggestedEl.textContent = '$0.00';
+
+        clearSelectControl('finExtFinancieraSelect');
+        ['finExtReference', 'finExtImei', 'finExtAmount'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        const extCommEl = document.getElementById('finExtCommission');
+        if (extCommEl) extCommEl.value = '0';
+        hideCollapsibleSection('finExternalCompanyBox');
+    }
+
+    function resetLoansSectionInputs() {
+        loanLookupRequestSeq++;
+        currentCustomerLoansData = null;
+        clearSelectControl('posLoanCustomerSelect');
+
+        if (posLoanAlertBanner) {
+            posLoanAlertBanner.classList.add('d-none');
+            posLoanAlertBanner.innerHTML = '';
+        }
+        if (posOpenLoansContainer) {
+            posOpenLoansContainer.innerHTML = '';
+        }
+
+        clearSelectControl('posNewLoanType');
+        const loanDefaults = {
+            posNewLoanPrincipal: '5000',
+            posNewLoanInstallment: '854',
+            posNewLoanPeriods: '8',
+            posNewLoanFreq: '12_26',
+            posNewLoanRate: '36.64',
+            posNewLoanComm: '150',
+        };
+        Object.keys(loanDefaults).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = loanDefaults[id];
+        });
+        const freqEl = document.getElementById('posNewLoanFreq');
+        if (freqEl) freqEl.selectedIndex = 0;
+
+        if (typeof recalcPosNewLoanFromInstallment === 'function' && posNewLoanInstallment) {
+            recalcPosNewLoanFromInstallment();
+        }
+        hideCollapsibleSection('collapseNewLoan');
+    }
+
+    function resetTandasSectionInputs() {
+        tandaLookupRequestSeq++;
+        lastTandaModelsById = {};
+        const tandaSearchInp = document.getElementById('posTandaSearchInput');
+        if (tandaSearchInp) tandaSearchInp.value = '';
+        if (posTandaSearchResults) posTandaSearchResults.innerHTML = '';
+
+        clearSelectControl('posTandaSelect');
+        if (posTandaParticipantSelect) {
+            posTandaParticipantSelect.innerHTML = '<option value="">-- Selecciona participante existente --</option>';
+            clearSelectControl('posTandaParticipantSelect');
+        }
+
+        ['posTandaNewName', 'posTandaNewPhone', 'posTandaNewPos'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        if (posTandaPeriodNo) posTandaPeriodNo.value = '1';
+        if (posTandaAmount) posTandaAmount.value = '0';
+    }
+
+    function decrementSoldStockInDom(soldItems) {
+        if (!Array.isArray(soldItems) || soldItems.length === 0) return;
+
+        const qtyByProductId = {};
+        soldItems.forEach(it => {
+            if (it && it.section === 'producto_inventario' && it.product_id) {
+                const pid = String(it.product_id);
+                qtyByProductId[pid] = (qtyByProductId[pid] || 0) + Math.max(1, parseInt(it.quantity, 10) || 1);
+            }
+        });
+
+        const soldIds = Object.keys(qtyByProductId);
+        if (soldIds.length === 0) return;
+
+        const catalogSelect = document.getElementById('posCatalogProductSelect');
+        if (catalogSelect) {
+            soldIds.forEach(pid => {
+                const opt = catalogSelect.querySelector(`option[value="${CSS.escape(pid)}"]`);
+                if (!opt) return;
+                const prevStock = parseInt(opt.dataset.stock || '0', 10) || 0;
+                const nextStock = Math.max(0, prevStock - qtyByProductId[pid]);
+                opt.dataset.stock = String(nextStock);
+                opt.disabled = nextStock <= 0;
+                opt.textContent = opt.textContent.replace(/\(Stock:\s*\d+\)/, `(Stock: ${nextStock})`);
+            });
+            if (window.jQuery && $(catalogSelect).hasClass('select2-hidden-accessible')) {
+                $(catalogSelect).trigger('change.select2');
+            }
+        }
+
+        if (catalogBodyEl) {
+            soldIds.forEach(pid => {
+                const addBtn = catalogBodyEl.querySelector(`.btn-add-stock-product[data-id="${CSS.escape(pid)}"]`);
+                if (!addBtn) return;
+                const prevStock = parseInt(addBtn.dataset.stock || '0', 10) || 0;
+                const nextStock = Math.max(0, prevStock - qtyByProductId[pid]);
+                addBtn.dataset.stock = String(nextStock);
+                addBtn.disabled = nextStock <= 0;
+
+                const row = addBtn.closest('tr');
+                const badge = row ? row.querySelector('.badge-pill') : null;
+                if (badge) {
+                    badge.textContent = String(nextStock);
+                    badge.classList.toggle('badge-success', nextStock > 0);
+                    badge.classList.toggle('badge-danger', nextStock <= 0);
+                }
+            });
+        }
+    }
+
+    function resetProductsSectionInputs(soldItems) {
+        decrementSoldStockInDom(soldItems);
+        clearSelectControl('posCatalogProductSelect');
+
+        const prodSearchInp = document.getElementById('posProductSearchInput');
+        if (prodSearchInp) {
+            prodSearchInp.value = '';
+            if (typeof filterCatalogTable === 'function') {
+                filterCatalogTable();
+            }
+        }
+
+        resetDynamicProductInputs();
+
+        const giftSearchInp = document.getElementById('posGiftSearchInput');
+        if (giftSearchInp) giftSearchInp.value = '';
+        if (posGiftsBody) {
+            searchPosGifts('');
+        }
+    }
+
+    function resetModalsAfterSale() {
+        const extSel = document.getElementById('posModalExtCustomerSelect');
+        if (extSel) extSel.value = '';
+
+        const extForm = document.getElementById('posExternalCustomerForm');
+        if (extForm) extForm.reset();
+
+        const extErrBox = document.getElementById('posExtFormErrorBox');
+        if (extErrBox) {
+            extErrBox.classList.add('d-none');
+            extErrBox.innerHTML = '';
+        }
+        hideCollapsibleSection('posExtOptionalFields');
+
+        const histSearchInp = document.getElementById('posHistorySearchInput');
+        if (histSearchInp) histSearchInp.value = '';
+        const histDateInp = document.getElementById('posHistoryDateInput');
+        if (histDateInp && histDateInp.defaultValue) {
+            histDateInp.value = histDateInp.defaultValue;
+        }
+    }
+
+    function resetPosWorkspaceAfterSale(tab, soldItems) {
+        resetTabState(tab);
+        resetFinancieraSectionInputs();
+        resetLoansSectionInputs();
+        resetTandasSectionInputs();
+        resetProductsSectionInputs(soldItems);
+        resetModalsAfterSale();
+        saveState();
+        renderAll();
+    }
+
     const btnCompleteSaleEl = document.getElementById('btnCompleteUnifiedSale');
     let isCheckoutInFlight = false;
     if (btnCompleteSaleEl) {
@@ -4814,6 +5099,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const shouldAutoPrint = !!document.getElementById('posAutoPrintCheck')?.checked;
 
             const btn = this;
+            const soldItemsSnapshot = Array.isArray(tab.items) ? tab.items.map(it => Object.assign({}, it)) : [];
             isCheckoutInFlight = true;
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Procesando Cobro...';
@@ -4844,27 +5130,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
-                // Limpiar el proceso actual tras cerrarlo exitosamente
-                tab.items = [];
-                tab.customerName = '';
-                tab.customerPhone = '';
-                tab.customerId = '';
-                tab.externalCustomerId = '';
-                tab.cashAmount = '';
-                tab.cardAmount = '';
-                tab.transferAmount = '';
-                tab.cashTouched = false;
-                tab.cardTouched = false;
-                tab.transferTouched = false;
-                tab.mixTouched = false;
-                tab.cardRef = '';
-                tab.transferRef = '';
-                tab.mixCash = 0;
-                tab.mixCard = 0;
-                tab.mixTransfer = 0;
-                tab.mixCashReceived = '';
-                saveState();
-                renderAll();
+                // Limpiar por completo el proceso actual, secciones de búsqueda/captura y modales tras cerrar la venta
+                resetPosWorkspaceAfterSale(tab, soldItemsSnapshot);
 
                 // Apertura AUTOMÁTICA del cajón por USB esperando cierre limpio del puerto antes de mandar imprimir al spooler
                 if (shouldAutoOpenDrawer && window.ZyaPosHardware) {
