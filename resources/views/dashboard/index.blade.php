@@ -559,7 +559,7 @@
                                             <i class="las la-print"></i> Ticket
                                         </button>
                                         @php
-                                            $canCancelTx = auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.cancel_transaction') || auth()->user()->can('cobros.cancel_transaction');
+                                            $canCancelTx = auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.cancel_transaction');
                                             $isTodayCorteZClosed = in_array((int) $tx->branch_id, $todayClosedBranchIds ?? [], true);
                                         @endphp
                                         @if($tx->status === 'completado' && $canCancelTx)
