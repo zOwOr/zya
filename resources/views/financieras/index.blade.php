@@ -55,6 +55,7 @@
         100% { transform: scale(0.95); opacity: 0.9; }
     }
 </style>
+@include('financieras.partials.filter-styles')
 @endsection
 
 @section('container')
