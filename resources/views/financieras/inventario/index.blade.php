@@ -1,11 +1,13 @@
+@include('financieras.partials.filter-styles')
+
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <div class="row align-items-center mb-3">
+        <div class="row align-items-center fin-section-header">
             <div class="col-md-6 col-12">
-                <h5 class="font-weight-bold text-primary mb-1">
+                <h5 class="fin-section-title mb-1">
                     <i class="fa-solid fa-boxes-stacked mr-2"></i>Inventario de Dispositivos (Control por IMEI)
                 </h5>
-                <p class="text-muted font-size-13 mb-0">Control de equipos en almacén y sucursales, traspasos y trazabilidad.</p>
+                <p class="fin-section-subtitle">Control de equipos en almacén y sucursales, traspasos y trazabilidad.</p>
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
                 @can('financieras.inventario.delete')
@@ -30,23 +32,24 @@
         </div>
 
         <!-- Filters Form -->
-        <form id="filter-inventory-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-4 rounded border bg-light shadow-xs">
+        <form id="filter-inventory-form" method="GET" action="{{ route('financieras.index') }}" class="fin-filter-shell">
             <input type="hidden" name="tab" value="inventario">
-            
+
             <!-- Fila 1: Búsqueda Principal, Sucursal, Estado y Device ID / TAG -->
             @php
                 $showTagFilter = in_array(request('status'), ['vendido', 'todos']) || request()->filled('tag');
             @endphp
-            <div class="row align-items-end mb-3">
+            <div class="row fin-grid-row align-items-end">
                 <div class="{{ $showTagFilter ? 'col-lg-4' : 'col-lg-5' }} col-md-12 mb-2 mb-lg-0" id="col-search-main">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-magnifying-glass mr-1 text-primary"></i>Buscar Dispositivo
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-magnifying-glass fin-ico-search"></i>
+                        <span>Buscar Dispositivo</span>
                     </label>
-                    <div class="input-group input-group-sm">
-                        <input type="text" name="search" class="form-control" placeholder="Buscar por IMEI, color, capacidad o notas..." value="{{ request('search') }}">
+                    <div class="input-group fin-filter-input-group">
+                        <input type="text" name="search" class="form-control fin-filter-control" placeholder="Buscar por IMEI, color, capacidad o notas..." value="{{ request('search') }}">
                         @if(request('search'))
                             <div class="input-group-append">
-                                <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'inventario'])) }}" class="btn btn-outline-secondary" title="Limpiar búsqueda">
+                                <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'inventario'])) }}" class="fin-input-clear-btn" title="Limpiar búsqueda">
                                     <i class="fa-solid fa-xmark"></i>
                                 </a>
                             </div>
@@ -55,42 +58,45 @@
                 </div>
 
                 <div class="{{ $showTagFilter ? 'col-lg-3' : 'col-lg-4' }} col-md-6 col-sm-6 mb-2 mb-lg-0" id="col-branch-main">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-store mr-1 text-info"></i>Sucursal / Ubicación
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-store fin-ico-branch"></i>
+                        <span>Sucursal / Ubicación</span>
                     </label>
                     @can('financieras.inventario.all_branches')
-                        <select name="branch_id" class="form-control form-control-sm custom-select custom-select-sm">
+                        <select name="branch_id" class="form-control custom-select fin-filter-control">
                             <option value="">Todas las sucursales</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                             @endforeach
                         </select>
                     @else
-                        <input type="text" class="form-control form-control-sm bg-light" value="{{ auth()->user()->branch?->name ?? 'Sucursal no asignada' }}" readonly title="Tu sucursal asignada">
+                        <input type="text" class="form-control fin-filter-control" value="{{ auth()->user()->branch?->name ?? 'Sucursal no asignada' }}" readonly title="Tu sucursal asignada">
                         <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
                     @endcan
                 </div>
 
                 <div class="{{ $showTagFilter ? 'col-lg-2' : 'col-lg-3' }} col-md-6 col-sm-6 mb-2 mb-lg-0" id="col-status-main">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-tags mr-1 text-success"></i>Estado
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-tag fin-ico-status"></i>
+                        <span>Estado</span>
                     </label>
-                    <select name="status" id="statusFilterSelect" class="form-control form-control-sm custom-select custom-select-sm">
+                    <select name="status" id="statusFilterSelect" class="form-control custom-select fin-filter-control">
                         <option value="disponible" {{ request('status', 'disponible') == 'disponible' ? 'selected' : '' }}>Disponible (Por defecto)</option>
                         <option value="vendido" {{ request('status') == 'vendido' ? 'selected' : '' }}>Vendido</option>
                         <option value="todos" {{ request('status') == 'todos' ? 'selected' : '' }}>Todos</option>
                     </select>
                 </div>
 
-                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0" id="container-filter-tag" style="{{ $showTagFilter ? '' : 'display: none;' }}">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-tag mr-1 text-primary"></i>Device ID / TAG
+                <div class="col-lg-3 col-md-6 col-sm-6 mb-0" id="container-filter-tag" style="{{ $showTagFilter ? '' : 'display: none;' }}">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-hashtag fin-ico-tag"></i>
+                        <span>Device ID / TAG</span>
                     </label>
-                    <div class="input-group input-group-sm">
-                        <input type="text" name="tag" id="input-filter-tag" class="form-control" placeholder="Buscar por TAG o Contrato..." value="{{ request('tag') }}">
+                    <div class="input-group fin-filter-input-group">
+                        <input type="text" name="tag" id="input-filter-tag" class="form-control fin-filter-control" placeholder="Buscar por TAG o Contrato..." value="{{ request('tag') }}">
                         @if(request('tag'))
                             <div class="input-group-append">
-                                <a href="{{ route('financieras.index', array_merge(request()->except('tag'), ['tab' => 'inventario'])) }}" class="btn btn-outline-secondary" title="Limpiar filtro TAG">
+                                <a href="{{ route('financieras.index', array_merge(request()->except('tag'), ['tab' => 'inventario'])) }}" class="fin-input-clear-btn" title="Limpiar filtro TAG">
                                     <i class="fa-solid fa-xmark"></i>
                                 </a>
                             </div>
@@ -99,120 +105,136 @@
                 </div>
             </div>
 
-            <!-- Fila 2: Marca, Modelo, Proveedor y Acciones -->
-            <div class="row align-items-end">
-                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-copyright mr-1 text-secondary"></i>Marca
-                    </label>
-                    <select name="brand_id" class="form-control form-control-sm custom-select custom-select-sm">
-                        <option value="">Todas las marcas</option>
-                        @foreach ($brands as $br)
-                            <option value="{{ $br->id }}" {{ request('brand_id') == $br->id ? 'selected' : '' }}>{{ $br->name }}</option>
-                        @endforeach
-                    </select>
+            <!-- Fila 2: Tarjeta blanca de especificaciones (Marca, Modelo, Proveedor) y Acciones -->
+            <div class="fin-filter-subcard fin-filter-subcard-compact">
+                <div class="fin-subcard-header mb-2">
+                    <div class="fin-subcard-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>Especificaciones y búsqueda avanzada</span>
+                    </div>
                 </div>
 
-                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-mobile-screen mr-1 text-warning"></i>Modelo
-                    </label>
-                    <input type="text" name="model" list="modelsDatalist" class="form-control form-control-sm" placeholder="Todos o escribir modelo..." value="{{ request('model') }}" autocomplete="off">
-                    <datalist id="modelsDatalist">
-                        @if(isset($models))
-                            @foreach ($models as $m)
-                                <option value="{{ $m }}"></option>
+                <div class="row fin-grid-row align-items-end">
+                    <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                        <label class="fin-filter-label">
+                            <i class="fa-solid fa-copyright fin-ico-brand"></i>
+                            <span>Marca</span>
+                        </label>
+                        <select name="brand_id" class="form-control custom-select fin-filter-control">
+                            <option value="">Todas las marcas</option>
+                            @foreach ($brands as $br)
+                                <option value="{{ $br->id }}" {{ request('brand_id') == $br->id ? 'selected' : '' }}>{{ $br->name }}</option>
                             @endforeach
-                        @endif
-                    </datalist>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                        <label class="fin-filter-label">
+                            <i class="fa-solid fa-mobile-screen fin-ico-model"></i>
+                            <span>Modelo</span>
+                        </label>
+                        <input type="text" name="model" list="modelsDatalist" class="form-control fin-filter-control" placeholder="Todos o escribir modelo..." value="{{ request('model') }}" autocomplete="off">
+                        <datalist id="modelsDatalist">
+                            @if(isset($models))
+                                @foreach ($models as $m)
+                                    <option value="{{ $m }}"></option>
+                                @endforeach
+                            @endif
+                        </datalist>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
+                        <label class="fin-filter-label">
+                            <i class="fa-solid fa-truck-field fin-ico-supp"></i>
+                            <span>Proveedor</span>
+                        </label>
+                        <select name="supplier_id" class="form-control custom-select fin-filter-control">
+                            <option value="">Todos los proveedores</option>
+                            @if(isset($suppliers))
+                                @foreach ($suppliers as $sup)
+                                    <option value="{{ $sup->id }}" {{ request('supplier_id') == $sup->id ? 'selected' : '' }}>{{ $sup->name }}</option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 col-sm-6">
+                        <div class="fin-actions-wrap w-100 justify-content-lg-end">
+                            <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="fin-filter-reset" title="Restablecer todos los filtros">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                <span>Limpiar</span>
+                            </a>
+                            <button type="submit" class="fin-filter-submit flex-grow-1 flex-lg-grow-0">
+                                <i class="fa-solid fa-filter"></i>
+                                <span>Filtrar</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="col-lg-3 col-md-6 col-sm-6 mb-2 mb-lg-0">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-truck-field mr-1 text-danger"></i>Proveedor
-                    </label>
-                    <select name="supplier_id" class="form-control form-control-sm custom-select custom-select-sm">
-                        <option value="">Todos los proveedores</option>
-                        @if(isset($suppliers))
-                            @foreach ($suppliers as $sup)
-                                <option value="{{ $sup->id }}" {{ request('supplier_id') == $sup->id ? 'selected' : '' }}>{{ $sup->name }}</option>
-                            @endforeach
+                <!-- Resumen de Filtros Activos (Pills) -->
+                @php
+                    $canAllBranches = auth()->user()->can('financieras.inventario.all_branches');
+                    $activeFiltersCount = collect(['search', $canAllBranches ? 'branch_id' : null, 'brand_id', 'model', 'supplier_id', 'tag'])
+                        ->filter(fn($key) => !empty($key) && request()->filled($key))
+                        ->count();
+                    if (request('status') && request('status') !== 'disponible') {
+                        $activeFiltersCount++;
+                    }
+                @endphp
+                @if($activeFiltersCount > 0)
+                    <div class="fin-active-filters-bar">
+                        <span class="font-size-12 text-muted mr-1 font-weight-bold">
+                            <i class="fa-solid fa-sliders mr-1 text-primary"></i>Filtros aplicados ({{ $activeFiltersCount }}):
+                        </span>
+                        @if(request('search'))
+                            <span class="fin-active-pill">
+                                Búsqueda: <strong>{{ request('search') }}</strong>
+                                <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'inventario'])) }}">&times;</a>
+                            </span>
                         @endif
-                    </select>
-                </div>
-
-                <div class="col-lg-3 col-md-6 col-sm-6 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary btn-sm font-weight-bold flex-grow-1 mr-2 shadow-xs">
-                        <i class="fa-solid fa-filter mr-1"></i>Filtrar
-                    </button>
-                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-outline-secondary btn-sm px-3" title="Restablecer todos los filtros">
-                        <i class="fa-solid fa-rotate-left mr-1"></i>Limpiar
-                    </a>
-                </div>
+                        @if($canAllBranches && request('branch_id'))
+                            <span class="fin-active-pill">
+                                Sucursal: <strong>{{ $branches->firstWhere('id', request('branch_id'))?->name ?? request('branch_id') }}</strong>
+                                <a href="{{ route('financieras.index', array_merge(request()->except('branch_id'), ['tab' => 'inventario'])) }}">&times;</a>
+                            </span>
+                        @endif
+                        @if(request('brand_id'))
+                            <span class="fin-active-pill">
+                                Marca: <strong>{{ $brands->firstWhere('id', request('brand_id'))?->name ?? request('brand_id') }}</strong>
+                                <a href="{{ route('financieras.index', array_merge(request()->except('brand_id'), ['tab' => 'inventario'])) }}">&times;</a>
+                            </span>
+                        @endif
+                        @if(request('model'))
+                            <span class="fin-active-pill">
+                                Modelo: <strong>{{ request('model') }}</strong>
+                                <a href="{{ route('financieras.index', array_merge(request()->except('model'), ['tab' => 'inventario'])) }}">&times;</a>
+                            </span>
+                        @endif
+                        @if(request('supplier_id'))
+                            <span class="fin-active-pill">
+                                Proveedor: <strong>{{ (isset($suppliers) ? $suppliers->firstWhere('id', request('supplier_id'))?->name : null) ?? request('supplier_id') }}</strong>
+                                <a href="{{ route('financieras.index', array_merge(request()->except('supplier_id'), ['tab' => 'inventario'])) }}">&times;</a>
+                            </span>
+                        @endif
+                        @if(request('tag'))
+                            <span class="fin-active-pill">
+                                Device ID / TAG: <strong>{{ request('tag') }}</strong>
+                                <a href="{{ route('financieras.index', array_merge(request()->except('tag'), ['tab' => 'inventario'])) }}">&times;</a>
+                            </span>
+                        @endif
+                        @if(request('status') && request('status') !== 'disponible')
+                            <span class="fin-active-pill">
+                                Estado: <strong>{{ ucfirst(str_replace('_', ' ', request('status'))) }}</strong>
+                                <a href="{{ route('financieras.index', array_merge(request()->except('status'), ['tab' => 'inventario'])) }}">&times;</a>
+                            </span>
+                        @endif
+                        <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-link btn-xs text-danger font-weight-bold ml-auto p-0">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Quitar todos los filtros
+                        </a>
+                    </div>
+                @endif
             </div>
-
-            <!-- Resumen de Filtros Activos (Pills) -->
-            @php
-                $canAllBranches = auth()->user()->can('financieras.inventario.all_branches');
-                $activeFiltersCount = collect(['search', $canAllBranches ? 'branch_id' : null, 'brand_id', 'model', 'supplier_id', 'tag'])
-                    ->filter(fn($key) => !empty($key) && request()->filled($key))
-                    ->count();
-                if (request('status') && request('status') !== 'disponible') {
-                    $activeFiltersCount++;
-                }
-            @endphp
-            @if($activeFiltersCount > 0)
-                <div class="d-flex flex-wrap align-items-center mt-3 pt-2 border-top">
-                    <span class="font-size-12 text-muted mr-2 font-weight-bold">
-                        <i class="fa-solid fa-sliders mr-1 text-primary"></i>Filtros aplicados ({{ $activeFiltersCount }}):
-                    </span>
-                    @if(request('search'))
-                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
-                            Búsqueda: <strong>{{ request('search') }}</strong>
-                            <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
-                        </span>
-                    @endif
-                    @if($canAllBranches && request('branch_id'))
-                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
-                            Sucursal: <strong>{{ $branches->firstWhere('id', request('branch_id'))?->name ?? request('branch_id') }}</strong>
-                            <a href="{{ route('financieras.index', array_merge(request()->except('branch_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
-                        </span>
-                    @endif
-                    @if(request('brand_id'))
-                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
-                            Marca: <strong>{{ $brands->firstWhere('id', request('brand_id'))?->name ?? request('brand_id') }}</strong>
-                            <a href="{{ route('financieras.index', array_merge(request()->except('brand_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
-                        </span>
-                    @endif
-                    @if(request('model'))
-                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
-                            Modelo: <strong>{{ request('model') }}</strong>
-                            <a href="{{ route('financieras.index', array_merge(request()->except('model'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
-                        </span>
-                    @endif
-                    @if(request('supplier_id'))
-                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
-                            Proveedor: <strong>{{ (isset($suppliers) ? $suppliers->firstWhere('id', request('supplier_id'))?->name : null) ?? request('supplier_id') }}</strong>
-                            <a href="{{ route('financieras.index', array_merge(request()->except('supplier_id'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
-                        </span>
-                    @endif
-                    @if(request('tag'))
-                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
-                            Device ID / TAG: <strong>{{ request('tag') }}</strong>
-                            <a href="{{ route('financieras.index', array_merge(request()->except('tag'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
-                        </span>
-                    @endif
-                    @if(request('status') && request('status') !== 'disponible')
-                        <span class="badge badge-white border text-dark mr-1 py-1 px-2 font-size-12 mb-1">
-                            Estado: <strong>{{ ucfirst(str_replace('_', ' ', request('status'))) }}</strong>
-                            <a href="{{ route('financieras.index', array_merge(request()->except('status'), ['tab' => 'inventario'])) }}" class="text-danger ml-1 font-weight-bold">&times;</a>
-                        </span>
-                    @endif
-                    <a href="{{ route('financieras.index', ['tab' => 'inventario']) }}" class="btn btn-link btn-xs text-danger font-weight-bold ml-auto mb-1">
-                        <i class="fa-solid fa-trash-can mr-1"></i>Quitar todos los filtros
-                    </a>
-                </div>
-            @endif
         </form>
 
         <!-- Table Container -->

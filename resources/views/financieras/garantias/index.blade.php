@@ -1,11 +1,13 @@
+@include('financieras.partials.filter-styles')
+
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <div class="row align-items-center mb-3">
+        <div class="row align-items-center fin-section-header">
             <div class="col-md-6 col-12">
-                <h5 class="font-weight-bold text-primary mb-1">
+                <h5 class="fin-section-title mb-1">
                     <i class="fa-solid fa-screwdriver-wrench mr-2"></i>Gestión de Garantías y Etapas
                 </h5>
-                <p class="text-muted font-size-13 mb-0">Seguimiento de reparaciones, etapas de servicio y resoluciones técnicas.</p>
+                <p class="fin-section-subtitle">Seguimiento de reparaciones, etapas de servicio y resoluciones técnicas.</p>
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
                 @can('financieras.garantias.export')
@@ -22,39 +24,51 @@
         </div>
 
         <!-- Filters Form -->
-        <form id="filter-warranties-form" method="GET" action="{{ route('financieras.index') }}" class="bg-light p-3 rounded mb-3">
+        <form id="filter-warranties-form" method="GET" action="{{ route('financieras.index') }}" class="fin-filter-shell">
             <input type="hidden" name="tab" value="garantias">
-            <div class="row">
-                <div class="col-md-3 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Buscar (Código, IMEI, Falla, Cliente)</label>
-                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar..." value="{{ request('search') }}">
+            <div class="row fin-grid-row align-items-end">
+                <div class="col-lg-4 col-md-6 mb-2 mb-lg-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-magnifying-glass fin-ico-search"></i>
+                        <span>Buscar</span>
+                    </label>
+                    <input type="text" name="search" class="form-control fin-filter-control" placeholder="Código, IMEI, falla o cliente..." value="{{ request('search') }}">
                 </div>
-                <div class="col-md-3 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Etapa de Garantía</label>
-                    <select name="stage_id" class="form-control form-control-sm">
+                <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-layer-group fin-ico-type"></i>
+                        <span>Etapa de Garantía</span>
+                    </label>
+                    <select name="stage_id" class="form-control custom-select fin-filter-control">
                         <option value="">Todas las etapas</option>
                         @foreach (($stages ?? $warrantyStages ?? []) as $st)
                             <option value="{{ $st->id }}" {{ request('stage_id') == $st->id ? 'selected' : '' }}>{{ $st->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Sucursal</label>
+                <div class="col-lg-3 col-md-6 mb-2 mb-md-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-store fin-ico-branch"></i>
+                        <span>Sucursal</span>
+                    </label>
                     @can('financieras.inventario.all_branches')
-                        <select name="branch_id" class="form-control form-control-sm">
+                        <select name="branch_id" class="form-control custom-select fin-filter-control">
                             <option value="">Todas</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                             @endforeach
                         </select>
                     @else
-                        <input type="text" class="form-control form-control-sm bg-light" value="{{ auth()->user()->branch?->name ?? 'Sucursal asignada' }}" readonly title="Tu sucursal asignada">
+                        <input type="text" class="form-control fin-filter-control" value="{{ auth()->user()->branch?->name ?? 'Sucursal asignada' }}" readonly title="Tu sucursal asignada">
                         <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
                     @endcan
                 </div>
-                <div class="col-md-2 col-sm-6 mb-2">
-                    <label class="font-size-12 font-weight-bold text-muted mb-1">Estado</label>
-                    <select name="status" class="form-control form-control-sm">
+                <div class="col-lg-2 col-md-6 mb-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-tag fin-ico-status"></i>
+                        <span>Estado</span>
+                    </label>
+                    <select name="status" class="form-control custom-select fin-filter-control">
                         <option value="">Todos</option>
                         <option value="abierta" {{ request('status') == 'abierta' ? 'selected' : '' }}>Abierta</option>
                         <option value="en_proceso" {{ request('status') == 'en_proceso' ? 'selected' : '' }}>En Proceso</option>
@@ -62,13 +76,60 @@
                         <option value="rechazada" {{ request('status') == 'rechazada' ? 'selected' : '' }}>Rechazada</option>
                     </select>
                 </div>
-                <div class="col-md-2 col-sm-12 d-flex align-items-end mb-2">
-                    <button type="submit" class="btn btn-primary btn-sm mr-2 flex-grow-1">
-                        <i class="fa-solid fa-filter mr-1"></i>Filtrar
-                    </button>
-                    <a href="{{ route('financieras.index', ['tab' => 'garantias']) }}" class="btn btn-light btn-sm border">
-                        <i class="fa-solid fa-rotate-left"></i>
-                    </a>
+            </div>
+
+            <div class="fin-filter-subcard fin-filter-subcard-compact">
+                <div class="fin-period-footer">
+                    <div class="d-flex flex-wrap align-items-center" style="gap: 6px;">
+                        @php
+                            $canAllWarrantyBranches = auth()->user()->can('financieras.inventario.all_branches');
+                            $hasWarrantyFilters = request()->filled('search') || request()->filled('stage_id') || ($canAllWarrantyBranches && request()->filled('branch_id')) || request()->filled('status');
+                        @endphp
+                        @if($hasWarrantyFilters)
+                            <span class="font-size-12 text-muted font-weight-bold mr-1">
+                                <i class="fa-solid fa-sliders mr-1 text-primary"></i>Filtros activos:
+                            </span>
+                            @if(request('search'))
+                                <span class="fin-active-pill">
+                                    Buscar: <strong>{{ request('search') }}</strong>
+                                    <a href="{{ route('financieras.index', array_merge(request()->except('search'), ['tab' => 'garantias'])) }}">&times;</a>
+                                </span>
+                            @endif
+                            @if(request('stage_id'))
+                                <span class="fin-active-pill">
+                                    Etapa: <strong>{{ collect($stages ?? $warrantyStages ?? [])->firstWhere('id', request('stage_id'))?->name ?? request('stage_id') }}</strong>
+                                    <a href="{{ route('financieras.index', array_merge(request()->except('stage_id'), ['tab' => 'garantias'])) }}">&times;</a>
+                                </span>
+                            @endif
+                            @if($canAllWarrantyBranches && request('branch_id'))
+                                <span class="fin-active-pill">
+                                    Sucursal: <strong>{{ $branches->firstWhere('id', request('branch_id'))?->name ?? request('branch_id') }}</strong>
+                                    <a href="{{ route('financieras.index', array_merge(request()->except('branch_id'), ['tab' => 'garantias'])) }}">&times;</a>
+                                </span>
+                            @endif
+                            @if(request('status'))
+                                <span class="fin-active-pill">
+                                    Estado: <strong>{{ ucfirst(str_replace('_', ' ', request('status'))) }}</strong>
+                                    <a href="{{ route('financieras.index', array_merge(request()->except('status'), ['tab' => 'garantias'])) }}">&times;</a>
+                                </span>
+                            @endif
+                        @else
+                            <span class="font-size-12 text-muted">
+                                <i class="fa-solid fa-circle-info mr-1 text-primary"></i>Filtra por código, IMEI, etapa técnica, sucursal o estado de la garantía.
+                            </span>
+                        @endif
+                    </div>
+
+                    <div class="fin-actions-wrap">
+                        <a href="{{ route('financieras.index', ['tab' => 'garantias']) }}" class="fin-filter-reset" title="Restablecer filtros">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>Limpiar</span>
+                        </a>
+                        <button type="submit" class="fin-filter-submit">
+                            <i class="fa-solid fa-filter"></i>
+                            <span>Filtrar</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </form>

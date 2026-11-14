@@ -1,11 +1,13 @@
+@include('financieras.partials.filter-styles')
+
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <div class="row align-items-center mb-3">
+        <div class="row align-items-center fin-section-header">
             <div class="col-md-6 col-12">
-                <h5 class="font-weight-bold text-primary mb-1">
-                    <i class="fa-solid fa-file-invoice-dollar mr-2"></i>Ventas y Créditos de Financieras
+                <h5 class="fin-section-title mb-1">
+                    <i class="fa-solid fa-chart-simple mr-2"></i>Ventas y Créditos de Financieras
                 </h5>
-                <p class="text-muted font-size-13 mb-0">Gestión de operaciones, financiamientos y seguimiento de clientes.</p>
+                <p class="fin-section-subtitle">Gestión de operaciones, financiamientos y seguimiento de clientes.</p>
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
                 @if(auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.export_pdf'))
@@ -47,22 +49,24 @@
         @endif
 
         <!-- Filters Form -->
-        <form id="filter-sales-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-3 rounded border bg-light shadow-xs">
+        <form id="filter-sales-form" method="GET" action="{{ route('financieras.index') }}" class="fin-filter-shell">
             <input type="hidden" name="tab" value="ventas">
 
             <!-- Fila 1: Búsqueda, Tipo Venta, Financiera, Sucursal, Estado -->
-            <div class="row align-items-end mb-2">
-                <div class="col-lg-3 col-md-6 mb-2">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-magnifying-glass mr-1 text-primary"></i>Buscar (Folio, TAG, Cliente, Tel, IMEI)
+            <div class="row fin-grid-row align-items-start">
+                <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-magnifying-glass fin-ico-search"></i>
+                        <span>Buscar</span>
                     </label>
-                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar por cliente, folio, TAG, teléfono o IMEI..." value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control fin-filter-control" placeholder="Buscar por cliente, folio, TAG, teléfono o IMEI..." value="{{ request('search') }}">
                 </div>
-                <div class="col-lg-2 col-md-6 mb-2">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-layer-group mr-1 text-warning"></i>Tipo Venta
+                <div class="col-lg-2 col-md-6 mb-2 mb-lg-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-layer-group fin-ico-type"></i>
+                        <span>Tipo de Venta</span>
                     </label>
-                    <select name="sale_type" class="form-control form-control-sm custom-select custom-select-sm">
+                    <select name="sale_type" class="form-control custom-select fin-filter-control">
                         <option value="">Todos</option>
                         <option value="credito" {{ request('sale_type') == 'credito' ? 'selected' : '' }}>A Crédito</option>
                         <option value="contado" {{ request('sale_type') == 'contado' ? 'selected' : '' }}>De Contado</option>
@@ -76,11 +80,12 @@
                         $canMultiFinFilter
                     );
                 @endphp
-                <div class="col-lg-3 col-md-6 mb-2">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-building-columns mr-1 text-info"></i>Financiera
+                <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-building-columns fin-ico-bank"></i>
+                        <span>Financiera</span>
                         @if($canMultiFinFilter)
-                            <span class="badge badge-info ml-1 text-capitalize">Múltiple</span>
+                            <span class="badge badge-info text-capitalize" style="font-size: 9.5px; padding: 2px 6px; border-radius: 6px;">Múltiple</span>
                         @endif
                     </label>
                     @if($canMultiFinFilter)
@@ -88,13 +93,13 @@
                                 id="ventasFinancieraSelect"
                                 class="form-control form-control-sm select2-autocomplete select2-multi-sm"
                                 multiple="multiple"
-                                data-placeholder="Todas las financieras (selección múltiple)">
+                                data-placeholder="Todas las financieras...">
                             @foreach ($financieras as $f)
                                 <option value="{{ $f->id }}" {{ in_array((int) $f->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $f->name }}</option>
                             @endforeach
                         </select>
                     @else
-                        <select name="financiera_id" class="form-control form-control-sm custom-select custom-select-sm">
+                        <select name="financiera_id" class="form-control custom-select fin-filter-control">
                             <option value="">Todas las financieras</option>
                             @foreach ($financieras as $f)
                                 <option value="{{ $f->id }}" {{ in_array((int) $f->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $f->name }}</option>
@@ -102,27 +107,29 @@
                         </select>
                     @endif
                 </div>
-                <div class="col-lg-2 col-md-6 mb-2">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-store mr-1 text-success"></i>Sucursal
+                <div class="col-lg-2 col-md-6 mb-2 mb-lg-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-store fin-ico-branch"></i>
+                        <span>Sucursal</span>
                     </label>
                     @can('financieras.inventario.all_branches')
-                        <select name="branch_id" class="form-control form-control-sm custom-select custom-select-sm">
-                            <option value="">Todas las sucursales</option>
+                        <select name="branch_id" class="form-control custom-select fin-filter-control">
+                            <option value="">Todas</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                             @endforeach
                         </select>
                     @else
-                        <input type="text" class="form-control form-control-sm bg-light" value="{{ auth()->user()->branch?->name ?? 'Sucursal asignada' }}" readonly title="Tu sucursal asignada">
+                        <input type="text" class="form-control fin-filter-control" value="{{ auth()->user()->branch?->name ?? 'Sucursal asignada' }}" readonly title="Tu sucursal asignada">
                         <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
                     @endcan
                 </div>
-                <div class="col-lg-2 col-md-6 mb-2">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-tag mr-1 text-secondary"></i>Estado
+                <div class="col-lg-2 col-md-6 mb-0">
+                    <label class="fin-filter-label">
+                        <i class="fa-solid fa-tag fin-ico-status"></i>
+                        <span>Estado</span>
                     </label>
-                    <select name="status" class="form-control form-control-sm custom-select custom-select-sm">
+                    <select name="status" class="form-control custom-select fin-filter-control">
                         <option value="">Todos</option>
                         <option value="activa" {{ request('status') == 'activa' ? 'selected' : '' }}>Activa</option>
                         <option value="cancelada" {{ request('status') == 'cancelada' ? 'selected' : '' }}>Cancelada</option>
@@ -130,72 +137,137 @@
                 </div>
             </div>
 
-            <!-- Fila 2: Vendedor, Intervalo de Fechas, Botones -->
-            <div class="row align-items-end">
-                <div class="col-lg-3 col-md-4 mb-2 mb-lg-0">
-                    <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
-                        <i class="fa-solid fa-user-tie mr-1 text-primary"></i>Vendedor
-                    </label>
-                    <select name="seller_id" class="form-control form-control-sm custom-select custom-select-sm">
-                        <option value="">Todos los vendedores</option>
-                        @if(isset($sellers))
-                            @foreach ($sellers as $s)
-                                <option value="{{ $s->id }}" {{ request('seller_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
-                            @endforeach
-                        @endif
-                    </select>
-                </div>
-                <div class="col-lg-6 col-md-8 mb-2 mb-lg-0">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-0">
-                            <i class="fa-solid fa-calendar-days mr-1 text-primary"></i>Intervalo de Fechas (Venta)
-                        </label>
-                        <div class="btn-group btn-group-sm">
-                            @php
-                                $finSalesDf = $salesDateFilter ?? ['filter_type' => 'rango', 'date' => date('Y-m-d'), 'start_date' => now()->startOfMonth()->format('Y-m-d'), 'end_date' => now()->endOfMonth()->format('Y-m-d')];
-                                $finSalesType = $finSalesDf['filter_type'] ?? 'rango';
-                            @endphp
-                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('current_month')">Mes actual</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('prev_month')">Mes anterior</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('all')">Todo</button>
-                        </div>
+            <!-- Fila 2: Tarjeta Blanca de Periodo de Búsqueda, Vendedor y Acciones -->
+            @php
+                $finSalesDf = $salesDateFilter ?? [
+                    'filter_type' => 'rango',
+                    'date' => date('Y-m-d'),
+                    'start_date' => now()->startOfMonth()->format('Y-m-d'),
+                    'end_date' => now()->endOfMonth()->format('Y-m-d'),
+                ];
+                $finSalesType = $finSalesDf['filter_type'] ?? 'rango';
+                $currentMonthStart = now()->startOfMonth()->format('Y-m-d');
+                $currentMonthEnd = now()->endOfMonth()->format('Y-m-d');
+                $prevMonthStart = now()->subMonthNoOverflow()->startOfMonth()->format('Y-m-d');
+                $prevMonthEnd = now()->subMonthNoOverflow()->endOfMonth()->format('Y-m-d');
+                $activeDatePreset = '';
+                if ($finSalesType === 'todos') {
+                    $activeDatePreset = 'all';
+                } elseif (
+                    $finSalesType === 'rango'
+                    && ($finSalesDf['start_date'] ?? '') === $currentMonthStart
+                    && ($finSalesDf['end_date'] ?? '') === $currentMonthEnd
+                ) {
+                    $activeDatePreset = 'current_month';
+                } elseif (
+                    $finSalesType === 'rango'
+                    && ($finSalesDf['start_date'] ?? '') === $prevMonthStart
+                    && ($finSalesDf['end_date'] ?? '') === $prevMonthEnd
+                ) {
+                    $activeDatePreset = 'prev_month';
+                }
+            @endphp
+
+            <div class="fin-filter-subcard">
+                <div class="fin-subcard-header">
+                    <div class="fin-subcard-title">
+                        <i class="fa-regular fa-calendar"></i>
+                        <span>Periodo de búsqueda</span>
                     </div>
-                    <div class="row align-items-end no-gutters" style="gap: 6px;">
-                        <div style="min-width: 145px;">
-                            <select name="filter_type" id="filter_sale_type" class="form-control form-control-sm font-weight-bold">
-                                <option value="dia" {{ $finSalesType === 'dia' ? 'selected' : '' }}>Día en específico</option>
-                                <option value="rango" {{ $finSalesType === 'rango' ? 'selected' : '' }}>Entre fechas</option>
-                                <option value="todos" {{ $finSalesType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                    <div class="fin-mode-inline">
+                        <label for="filter_sale_type" class="fin-mode-inline-label">Modo:</label>
+                        <select name="filter_type" id="filter_sale_type" class="form-control custom-select fin-filter-control fin-mode-select">
+                            <option value="dia" {{ $finSalesType === 'dia' ? 'selected' : '' }}>Día en específico</option>
+                            <option value="rango" {{ $finSalesType === 'rango' ? 'selected' : '' }}>Entre fechas</option>
+                            <option value="todos" {{ $finSalesType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="fin-period-presets">
+                    <button type="button"
+                            class="fin-period-btn {{ $activeDatePreset === 'current_month' ? 'is-active' : '' }}"
+                            data-date-preset="current_month"
+                            onclick="setDateRange('current_month')">
+                        <i class="fa-regular fa-calendar-check"></i>
+                        <span>Mes actual</span>
+                    </button>
+                    <button type="button"
+                            class="fin-period-btn {{ $activeDatePreset === 'prev_month' ? 'is-active' : '' }}"
+                            data-date-preset="prev_month"
+                            onclick="setDateRange('prev_month')">
+                        <i class="fa-solid fa-calendar-day"></i>
+                        <span>Mes anterior</span>
+                    </button>
+                    <button type="button"
+                            class="fin-period-btn {{ $activeDatePreset === 'all' ? 'is-active' : '' }}"
+                            data-date-preset="all"
+                            onclick="setDateRange('all')">
+                        <i class="fa-solid fa-box-archive"></i>
+                        <span>Todo</span>
+                    </button>
+                </div>
+
+                <div class="fin-period-footer">
+                    <div class="fin-date-inputs-wrap">
+                        <div id="finSaleDiaBox" style="{{ $finSalesType === 'dia' ? '' : 'display:none;' }}">
+                            <div class="fin-inline-field">
+                                <label for="filter_sale_date" class="fin-inline-field-label">Fecha</label>
+                                <input type="date" name="date" id="filter_sale_date" class="form-control fin-filter-control fin-date-input"
+                                    value="{{ $finSalesDf['date'] ?? date('Y-m-d') }}"
+                                    {{ $finSalesType === 'dia' ? '' : 'disabled' }}>
+                            </div>
+                        </div>
+
+                        <div id="finSaleRangoBox" style="{{ $finSalesType === 'rango' ? '' : 'display:none;' }}">
+                            <div class="d-flex flex-wrap align-items-center" style="gap: 12px;">
+                                <div class="fin-inline-field">
+                                    <label for="filter_sale_start_date" class="fin-inline-field-label">Desde</label>
+                                    <input type="date" name="start_date" id="filter_sale_start_date" class="form-control fin-filter-control fin-date-input"
+                                        value="{{ $finSalesDf['start_date'] ?? $currentMonthStart }}"
+                                        {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
+                                </div>
+                                <div class="fin-inline-field">
+                                    <label for="filter_sale_end_date" class="fin-inline-field-label">Hasta</label>
+                                    <input type="date" name="end_date" id="filter_sale_end_date" class="form-control fin-filter-control fin-date-input"
+                                        value="{{ $finSalesDf['end_date'] ?? $currentMonthEnd }}"
+                                        {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="finSaleTodosBox" style="{{ $finSalesType === 'todos' ? '' : 'display:none;' }}">
+                            <span class="fin-todos-pill">
+                                <i class="fa-solid fa-infinity"></i>
+                                <span>Mostrando historial completo sin límite de fechas</span>
+                            </span>
+                        </div>
+
+                        <div class="fin-inline-field fin-seller-inline">
+                            <label for="filter_sale_seller" class="fin-inline-field-label">
+                                <i class="fa-solid fa-user-tie fin-ico-seller mr-1"></i>Vendedor
+                            </label>
+                            <select name="seller_id" id="filter_sale_seller" class="form-control custom-select fin-filter-control">
+                                <option value="">Todos los vendedores</option>
+                                @if(isset($sellers))
+                                    @foreach ($sellers as $s)
+                                        <option value="{{ $s->id }}" {{ request('seller_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                                    @endforeach
+                                @endif
                             </select>
                         </div>
-                        <div class="flex-grow-1" id="finSaleDiaBox" style="{{ $finSalesType === 'dia' ? '' : 'display:none;' }}">
-                            <input type="date" name="date" id="filter_sale_date" class="form-control form-control-sm"
-                                value="{{ $finSalesDf['date'] ?? date('Y-m-d') }}"
-                                {{ $finSalesType === 'dia' ? '' : 'disabled' }}>
-                        </div>
-                        <div class="input-group input-group-sm flex-grow-1" id="finSaleRangoBox" style="{{ $finSalesType === 'rango' ? '' : 'display:none;' }}">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text font-size-11 bg-white">Desde</span>
-                            </div>
-                            <input type="date" name="start_date" id="filter_sale_start_date" class="form-control form-control-sm"
-                                value="{{ $finSalesDf['start_date'] ?? now()->startOfMonth()->format('Y-m-d') }}"
-                                {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
-                            <div class="input-group-prepend input-group-append">
-                                <span class="input-group-text font-size-11 bg-white">Hasta</span>
-                            </div>
-                            <input type="date" name="end_date" id="filter_sale_end_date" class="form-control form-control-sm"
-                                value="{{ $finSalesDf['end_date'] ?? now()->endOfMonth()->format('Y-m-d') }}"
-                                {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
-                        </div>
                     </div>
-                </div>
-                <div class="col-lg-3 col-md-12 d-flex align-items-end mb-2 mb-lg-0">
-                    <button type="submit" class="btn btn-primary btn-sm font-weight-bold flex-grow-1 mr-2 shadow-xs">
-                        <i class="fa-solid fa-filter mr-1"></i>Filtrar
-                    </button>
-                    <a href="{{ route('financieras.index', ['tab' => 'ventas']) }}" class="btn btn-outline-secondary btn-sm px-3" title="Restablecer al mes en curso">
-                        <i class="fa-solid fa-rotate-left mr-1"></i>Limpiar
-                    </a>
+
+                    <div class="fin-actions-wrap">
+                        <a href="{{ route('financieras.index', ['tab' => 'ventas']) }}" class="fin-filter-reset" title="Restablecer al mes en curso">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>Limpiar</span>
+                        </a>
+                        <button type="submit" class="fin-filter-submit">
+                            <i class="fa-solid fa-filter"></i>
+                            <span>Filtrar</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </form>
@@ -315,6 +387,40 @@
 </div>
 
 <script>
+    function syncFinSalePresetActive() {
+        var sel = document.getElementById('filter_sale_type');
+        var startInput = document.getElementById('filter_sale_start_date');
+        var endInput = document.getElementById('filter_sale_end_date');
+        var buttons = document.querySelectorAll('.fin-period-btn[data-date-preset]');
+        if (!buttons.length) return;
+
+        var val = sel ? sel.value : 'rango';
+        var now = new Date();
+        var curStart = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
+        var curEnd = formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+        var prevStart = formatLocalDate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+        var prevEnd = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 0));
+
+        var activePreset = '';
+        if (val === 'todos') {
+            activePreset = 'all';
+        } else if (val === 'rango' && startInput && endInput) {
+            if (startInput.value === curStart && endInput.value === curEnd) {
+                activePreset = 'current_month';
+            } else if (startInput.value === prevStart && endInput.value === prevEnd) {
+                activePreset = 'prev_month';
+            }
+        }
+
+        buttons.forEach(function (btn) {
+            if (btn.getAttribute('data-date-preset') === activePreset) {
+                btn.classList.add('is-active');
+            } else {
+                btn.classList.remove('is-active');
+            }
+        });
+    }
+
     function syncFinSaleDateMode() {
         var sel = document.getElementById('filter_sale_type');
         if (!sel) return;
@@ -322,6 +428,7 @@
         var diaBox = document.getElementById('finSaleDiaBox');
         var diaInput = document.getElementById('filter_sale_date');
         var rangoBox = document.getElementById('finSaleRangoBox');
+        var todosBox = document.getElementById('finSaleTodosBox');
         var startInput = document.getElementById('filter_sale_start_date');
         var endInput = document.getElementById('filter_sale_end_date');
 
@@ -331,14 +438,22 @@
         if (rangoBox) rangoBox.style.display = (val === 'rango') ? '' : 'none';
         if (startInput) startInput.disabled = (val !== 'rango');
         if (endInput) endInput.disabled = (val !== 'rango');
+
+        if (todosBox) todosBox.style.display = (val === 'todos') ? '' : 'none';
+
+        syncFinSalePresetActive();
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         var sel = document.getElementById('filter_sale_type');
+        var startInput = document.getElementById('filter_sale_start_date');
+        var endInput = document.getElementById('filter_sale_end_date');
         if (sel) {
             sel.addEventListener('change', syncFinSaleDateMode);
             syncFinSaleDateMode();
         }
+        if (startInput) startInput.addEventListener('change', syncFinSalePresetActive);
+        if (endInput) endInput.addEventListener('change', syncFinSalePresetActive);
     });
 
     function setDateRange(type) {
@@ -359,7 +474,6 @@
 
         if (sel) {
             sel.value = 'rango';
-            syncFinSaleDateMode();
         }
 
         if (type === 'current_month') {
@@ -373,6 +487,8 @@
             startInput.value = formatLocalDate(firstDay);
             endInput.value = formatLocalDate(lastDay);
         }
+
+        syncFinSaleDateMode();
     }
 
     function formatLocalDate(date) {
