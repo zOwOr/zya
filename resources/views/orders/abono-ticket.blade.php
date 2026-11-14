@@ -193,19 +193,11 @@
     </div>
 
     <div class="divider"></div>
-    <div class="bold" style="margin-bottom: 3px;">RESUMEN DE CUENTA:</div>
-
-    @php
-        $prevDue = (float) $order->due + (float) $history->amount;
-    @endphp
+    <div class="bold" style="margin-bottom: 3px;">DETALLE DEL ABONO:</div>
 
     <div class="row-flex">
         <span class="bold">Total Original de la Nota:</span>
         <span class="bold">${{ number_format($order->total, 2) }}</span>
-    </div>
-    <div class="row-flex">
-        <span>Saldo Anterior:</span>
-        <span class="bold">${{ number_format($prevDue, 2) }}</span>
     </div>
     <div class="divider"></div>
 
@@ -246,23 +238,11 @@
 
     <div class="divider"></div>
 
-    @if ((float) $order->due <= 0)
-        <div class="center bold" style="font-size: 13px; color: #16a34a; border: 1px solid #16a34a; padding: 4px; margin: 6px 0; background: #f0fdf4;">
-            🎉 ¡NOTA COMPLETAMENTE LIQUIDADA! 🎉
-        </div>
-        <div class="row-flex bold" style="font-size: 12px;">
-            <span>SALDO PENDIENTE:</span>
-            <span>$0.00 MXN</span>
-        </div>
-    @else
-        <div class="row-flex bold" style="font-size: 13px; color: #dc2626; border: 1px dashed #dc2626; padding: 4px; margin: 4px 0; background: #fff5f5;">
-            <span>NUEVO SALDO PENDIENTE:</span>
-            <span>${{ number_format($order->due, 2) }} MXN</span>
-        </div>
-        <div class="center" style="font-size: 10px; color: #dc2626;">
-            Favor de conservar su ticket para futuros abonos.
-        </div>
-    @endif
+    {{-- Regla de negocio: NO imprimir saldo anterior, saldo pendiente ni liquidación automática en tickets de notas (puede diferir por moras, multas o notas vencidas) --}}
+    <div class="center" style="font-size: 10.5px;">
+        Comprobante válido únicamente por el abono registrado.<br>
+        Favor de conservar su ticket para futuras referencias.
+    </div>
 
     <div class="divider"></div>
     <div class="center" style="font-size: 11px; margin-top: 6px;">

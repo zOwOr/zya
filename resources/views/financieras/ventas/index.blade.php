@@ -47,13 +47,6 @@
         @endif
 
         <!-- Filters Form -->
-        @if(!empty($salesDateFilter['was_restricted']))
-            <div class="alert alert-warning py-2 px-3 small mb-2">
-                <i class="las la-exclamation-triangle mr-1"></i>
-                Tu rol permite consultar o exportar ventas financieras de hasta <strong>2 días de anterioridad</strong>
-                (desde el <strong>{{ \Carbon\Carbon::parse($salesDateFilter['min_allowed_date'])->format('d/m/Y') }}</strong>).
-            </div>
-        @endif
         <form id="filter-sales-form" method="GET" action="{{ route('financieras.index') }}" class="p-3 mb-3 rounded border bg-light shadow-xs">
             <input type="hidden" name="tab" value="ventas">
 
@@ -159,18 +152,12 @@
                         </label>
                         <div class="btn-group btn-group-sm">
                             @php
-                                $finSalesDf = $salesDateFilter ?? ['filter_type' => 'rango', 'can_all_dates' => false, 'min_allowed_date' => \Carbon\Carbon::today()->subDays(2)->toDateString(), 'date' => date('Y-m-d'), 'start_date' => date('Y-m-d'), 'end_date' => date('Y-m-d'), 'was_restricted' => false];
-                                $finSalesCanAll = $finSalesDf['can_all_dates'] ?? false;
-                                $finSalesMinDate = $finSalesDf['min_allowed_date'] ?? \Carbon\Carbon::today()->subDays(2)->toDateString();
+                                $finSalesDf = $salesDateFilter ?? ['filter_type' => 'rango', 'date' => date('Y-m-d'), 'start_date' => now()->startOfMonth()->format('Y-m-d'), 'end_date' => now()->endOfMonth()->format('Y-m-d')];
                                 $finSalesType = $finSalesDf['filter_type'] ?? 'rango';
                             @endphp
-                            @if($finSalesCanAll)
-                                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('current_month')">Mes actual</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('prev_month')">Mes anterior</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('all')">Todo</button>
-                            @else
-                                <span class="badge badge-light border text-muted"><i class="las la-lock"></i> Máx. 2 días atrás ({{ \Carbon\Carbon::parse($finSalesMinDate)->format('d/m/Y') }})</span>
-                            @endif
+                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('current_month')">Mes actual</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('prev_month')">Mes anterior</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0" onclick="setDateRange('all')">Todo</button>
                         </div>
                     </div>
                     <div class="row align-items-end no-gutters" style="gap: 6px;">
@@ -178,15 +165,12 @@
                             <select name="filter_type" id="filter_sale_type" class="form-control form-control-sm font-weight-bold">
                                 <option value="dia" {{ $finSalesType === 'dia' ? 'selected' : '' }}>Día en específico</option>
                                 <option value="rango" {{ $finSalesType === 'rango' ? 'selected' : '' }}>Entre fechas</option>
-                                @if($finSalesCanAll)
-                                    <option value="todos" {{ $finSalesType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
-                                @endif
+                                <option value="todos" {{ $finSalesType === 'todos' ? 'selected' : '' }}>Todos los registros</option>
                             </select>
                         </div>
                         <div class="flex-grow-1" id="finSaleDiaBox" style="{{ $finSalesType === 'dia' ? '' : 'display:none;' }}">
                             <input type="date" name="date" id="filter_sale_date" class="form-control form-control-sm"
                                 value="{{ $finSalesDf['date'] ?? date('Y-m-d') }}"
-                                @if(!$finSalesCanAll) min="{{ $finSalesMinDate }}" @endif
                                 {{ $finSalesType === 'dia' ? '' : 'disabled' }}>
                         </div>
                         <div class="input-group input-group-sm flex-grow-1" id="finSaleRangoBox" style="{{ $finSalesType === 'rango' ? '' : 'display:none;' }}">
@@ -195,14 +179,12 @@
                             </div>
                             <input type="date" name="start_date" id="filter_sale_start_date" class="form-control form-control-sm"
                                 value="{{ $finSalesDf['start_date'] ?? now()->startOfMonth()->format('Y-m-d') }}"
-                                @if(!$finSalesCanAll) min="{{ $finSalesMinDate }}" @endif
                                 {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
                             <div class="input-group-prepend input-group-append">
                                 <span class="input-group-text font-size-11 bg-white">Hasta</span>
                             </div>
                             <input type="date" name="end_date" id="filter_sale_end_date" class="form-control form-control-sm"
                                 value="{{ $finSalesDf['end_date'] ?? now()->endOfMonth()->format('Y-m-d') }}"
-                                @if(!$finSalesCanAll) min="{{ $finSalesMinDate }}" @endif
                                 {{ $finSalesType === 'rango' ? '' : 'disabled' }}>
                         </div>
                     </div>

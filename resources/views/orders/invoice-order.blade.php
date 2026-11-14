@@ -90,7 +90,6 @@
                                     <h4 class="inv-title-1">Detalles</h4>
                                     <p class="inv-from-1">Estatus de Pago: {{ $order->payment_status }}</p>
                                     <p class="inv-from-1">Total Pagado: ${{ $order->pay }}</p>
-                                    <p class="inv-from-1">Debido: ${{ $order->due }}</p>
                                 </div>
                             </div>
                         </div>

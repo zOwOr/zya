@@ -2,12 +2,14 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\Dashboard\FinSaleController;
 use App\Models\Branch;
 use App\Models\FinFinanciera;
 use App\Models\FinSale;
 use App\Models\FinSalePayment;
 use App\Models\User;
 use App\Services\FinancieraFilterService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -305,5 +307,84 @@ class FinancieraFilterServiceTest extends TestCase
 
         $this->assertStringContainsString('name="financiera_id[]"', $esmeVentasHtml);
         $this->assertStringContainsString('multiple="multiple"', $esmeVentasHtml);
+    }
+
+    public function test_fin_sales_policy_consultation_has_no_two_day_limit(): void
+    {
+        Auth::setUser($this->makeFakeUser(false));
+        Gate::before(function ($user, $ability) {
+            return method_exists($user, 'can') ? $user->can($ability) : false;
+        });
+
+        $pastDate = Carbon::today()->subDays(30)->toDateString();
+        $diaRequest = Request::create('/financieras/ventas', 'GET', [
+            'filter_type' => 'dia',
+            'date' => $pastDate,
+        ]);
+        $diaResult = FinSaleController::buildFilteredSalesQuery($diaRequest);
+
+        $this->assertTrue($diaResult['dateFilter']['can_all_dates']);
+        $this->assertFalse($diaResult['dateFilter']['was_restricted']);
+        $this->assertSame('dia', $diaResult['dateFilter']['filter_type']);
+        $this->assertSame($pastDate, $diaResult['dateFilter']['start_date']);
+        $this->assertSame($pastDate, $diaResult['dateFilter']['end_date']);
+        $this->assertSame($pastDate, $diaResult['filters']['start_date']);
+        $this->assertSame($pastDate, $diaResult['filters']['end_date']);
+
+        $pastStart = Carbon::today()->subDays(90)->toDateString();
+        $pastEnd = Carbon::today()->subDays(45)->toDateString();
+        $rangoRequest = Request::create('/financieras/ventas', 'GET', [
+            'filter_type' => 'rango',
+            'start_date' => $pastStart,
+            'end_date' => $pastEnd,
+        ]);
+        $rangoResult = FinSaleController::buildFilteredSalesQuery($rangoRequest);
+
+        $this->assertTrue($rangoResult['dateFilter']['can_all_dates']);
+        $this->assertFalse($rangoResult['dateFilter']['was_restricted']);
+        $this->assertSame('rango', $rangoResult['dateFilter']['filter_type']);
+        $this->assertSame($pastStart, $rangoResult['dateFilter']['start_date']);
+        $this->assertSame($pastEnd, $rangoResult['dateFilter']['end_date']);
+        $this->assertSame($pastStart, $rangoResult['filters']['start_date']);
+        $this->assertSame($pastEnd, $rangoResult['filters']['end_date']);
+
+        $todosRequest = Request::create('/financieras/ventas', 'GET', [
+            'filter_type' => 'todos',
+        ]);
+        $todosResult = FinSaleController::buildFilteredSalesQuery($todosRequest);
+
+        $this->assertTrue($todosResult['dateFilter']['can_all_dates']);
+        $this->assertFalse($todosResult['dateFilter']['was_restricted']);
+        $this->assertSame('todos', $todosResult['dateFilter']['filter_type']);
+        $this->assertNull($todosResult['dateFilter']['start_date']);
+        $this->assertNull($todosResult['dateFilter']['end_date']);
+        $this->assertNull($todosResult['filters']['start_date']);
+        $this->assertNull($todosResult['filters']['end_date']);
+
+        $branches = collect([new Branch(['id' => 1, 'name' => 'Allende'])]);
+        $financieras = collect([new FinFinanciera(['id' => 1, 'name' => 'PayJoy', 'is_active' => true])]);
+        $emptyPaginator = (new LengthAwarePaginator([], 0, 15, 1, [
+            'path' => '/financieras',
+            'pageName' => 'page',
+        ]))->withQueryString();
+
+        $this->app->instance('request', $todosRequest);
+        $ventasHtml = view('financieras.ventas.index', [
+            'sales' => $emptyPaginator,
+            'branches' => $branches,
+            'financieras' => $financieras,
+            'sellers' => collect(),
+            'salesDateFilter' => $todosResult['dateFilter'],
+            'canMultiFilterFinancieras' => false,
+            'selectedFinancieraIds' => [1],
+        ])->render();
+
+        $this->assertStringContainsString("onclick=\"setDateRange('current_month')\"", $ventasHtml);
+        $this->assertStringContainsString("onclick=\"setDateRange('prev_month')\"", $ventasHtml);
+        $this->assertStringContainsString("onclick=\"setDateRange('all')\"", $ventasHtml);
+        $this->assertStringContainsString('<option value="todos" selected>Todos los registros</option>', $ventasHtml);
+        $this->assertStringNotContainsString('Máx. 2 días atrás', $ventasHtml);
+        $this->assertStringNotContainsString('2 días de anterioridad', $ventasHtml);
+        $this->assertDoesNotMatchRegularExpression('/<input[^>]*type="date"[^>]*min="/', $ventasHtml);
     }
 }

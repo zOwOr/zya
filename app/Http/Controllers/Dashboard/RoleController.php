@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\ModulePermissionTrait;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -48,6 +48,29 @@ class RoleController extends Controller
     {
         return $this->permissionMapping[$action] ?? null;
     }
+
+    /**
+     * Limpia la cache de permisos de Spatie tras cualquier cambio en roles o permisos.
+     */
+    protected function forgetPermissionCache(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * Valida y normaliza los IDs de permisos enviados desde los formularios de roles.
+     *
+     * @return array<int, int>
+     */
+    protected function extractPermissionIds(Request $request): array
+    {
+        $validated = $request->validate([
+            'permission_id' => 'nullable|array',
+            'permission_id.*' => 'integer|exists:permissions,id',
+        ]);
+
+        return array_values(array_unique(array_map('intval', $validated['permission_id'] ?? [])));
+    }
     // Permission Controller
     public function permissionIndex()
     {
@@ -74,6 +97,7 @@ class RoleController extends Controller
         $validatedData = $request->validate($rules);
 
         Permission::create($validatedData);
+        $this->forgetPermissionCache();
 
         return Redirect::route('permission.index')->with('success', 'Permission has been created!');
     }
@@ -98,6 +122,7 @@ class RoleController extends Controller
         $validatedData = $request->validate($rules);
 
         Permission::findOrFail($id)->update($validatedData);
+        $this->forgetPermissionCache();
 
         return Redirect::route('permission.index')->with('success', 'Permission has been updated!');
     }
@@ -105,6 +130,7 @@ class RoleController extends Controller
     public function permissionDestroy(Int $id)
     {
         Permission::destroy($id);
+        $this->forgetPermissionCache();
 
         return Redirect::route('permission.index')->with('success', 'Permission has been deleted!');
     }
@@ -155,6 +181,7 @@ class RoleController extends Controller
         $validatedData = $request->validate($rules);
 
         Role::findOrFail($id)->update($validatedData);
+        $this->forgetPermissionCache();
 
         return Redirect::route('role.index')->with('success', 'Role has been updated!');
     }
@@ -162,6 +189,7 @@ class RoleController extends Controller
     public function roleDestroy(Int $id)
     {
         Role::destroy($id);
+        $this->forgetPermissionCache();
 
         return Redirect::route('role.index')->with('success', 'Role has been deleted!');
     }
@@ -192,16 +220,13 @@ class RoleController extends Controller
 
     public function rolePermissionStore(Request $request)
     {
-        $data = [];
+        $validated = $request->validate([
+            'role_id' => 'required|integer|exists:roles,id',
+        ]);
 
-        $permissions = $request->permission_id;
-
-        foreach ($permissions as $permission) {
-            $data['role_id'] = $request->role_id;
-            $data['permission_id'] = $permission;
-
-            DB::table('role_has_permissions')->insert($data);
-        }
+        $role = Role::findOrFail((int) $validated['role_id']);
+        $role->syncPermissions($this->extractPermissionIds($request));
+        $this->forgetPermissionCache();
 
         return Redirect::route('rolePermission.index')->with('success', 'Role Permission has been created!');
     }
@@ -222,11 +247,8 @@ class RoleController extends Controller
     public function rolePermissionUpdate(Request $request, Int $id)
     {
         $role = Role::findOrFail($id);
-        $permissions = $request->permission_id;
-
-        if(!empty($permissions)) {
-            $role->syncPermissions($permissions);
-        }
+        $role->syncPermissions($this->extractPermissionIds($request));
+        $this->forgetPermissionCache();
 
         return Redirect::route('rolePermission.index')->with('success', 'Role Permission has been updated!');
     }
@@ -235,9 +257,10 @@ class RoleController extends Controller
     {
         $role = Role::findOrFail($id);
 
-        if(!is_null($role)) {
+        if (!is_null($role)) {
             $role->delete();
         }
+        $this->forgetPermissionCache();
 
         return Redirect::route('rolePermission.index')->with('success', 'Role Permission has been deleted!');
     }

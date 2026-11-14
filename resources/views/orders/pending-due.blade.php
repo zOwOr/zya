@@ -496,15 +496,15 @@
                                 </div>
                             </div>
                             <div class="col-3 px-1">
-                                <div class="border rounded p-2 pay-method-choice cursor-pointer bg-white" data-val="tarjeta">
-                                    <i class="fa-solid fa-credit-card text-primary font-size-18 d-block mb-1"></i>
-                                    <span class="font-size-12 font-weight-bold text-dark d-block">Tarjeta</span>
-                                </div>
-                            </div>
-                            <div class="col-3 px-1">
                                 <div class="border rounded p-2 pay-method-choice cursor-pointer bg-white" data-val="transferencia">
                                     <i class="fa-solid fa-mobile-screen-button text-transfer font-size-18 d-block mb-1"></i>
                                     <span class="font-size-12 font-weight-bold text-dark d-block">Transf.</span>
+                                </div>
+                            </div>
+                            <div class="col-3 px-1">
+                                <div class="border rounded p-2 pay-method-choice cursor-pointer bg-white" data-val="tarjeta">
+                                    <i class="fa-solid fa-credit-card text-primary font-size-18 d-block mb-1"></i>
+                                    <span class="font-size-12 font-weight-bold text-dark d-block">Tarjeta</span>
                                 </div>
                             </div>
                             <div class="col-3 pl-1">
@@ -535,21 +535,7 @@
                         </div>
                     </div>
 
-                    {{-- 2. Detalle para Tarjeta --}}
-                    <div id="modalBoxTarjeta" class="p-2 rounded border mb-3 bg-light d-none">
-                        <div class="row">
-                            <div class="col-6 pr-1">
-                                <label class="font-size-11 font-weight-bold text-primary mb-0 text-uppercase">Monto Tarjeta ($)</label>
-                                <input type="number" step="0.01" min="0" name="card_amount" id="modalCardAmount" class="form-control form-control-sm font-weight-bold text-primary font-size-14" placeholder="0.00">
-                            </div>
-                            <div class="col-6 pl-1">
-                                <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">No. Autoriz. / Voucher</label>
-                                <input type="text" name="card_ref" id="modalCardRef" class="form-control form-control-sm font-size-13" placeholder="Opcional">
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- 3. Detalle para Transferencia --}}
+                    {{-- 2. Detalle para Transferencia --}}
                     <div id="modalBoxTransferencia" class="p-2 rounded border mb-3 bg-light d-none">
                         <div class="row">
                             <div class="col-6 pr-1">
@@ -559,6 +545,20 @@
                             <div class="col-6 pl-1">
                                 <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Folio SPEI / Rastreo</label>
                                 <input type="text" name="transfer_ref" id="modalTransferRef" class="form-control form-control-sm font-size-13" placeholder="Opcional">
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- 3. Detalle para Tarjeta --}}
+                    <div id="modalBoxTarjeta" class="p-2 rounded border mb-3 bg-light d-none">
+                        <div class="row">
+                            <div class="col-6 pr-1">
+                                <label class="font-size-11 font-weight-bold text-primary mb-0 text-uppercase">Monto Tarjeta ($)</label>
+                                <input type="number" step="0.01" min="0" name="card_amount" id="modalCardAmount" class="form-control form-control-sm font-weight-bold text-primary font-size-14" placeholder="0.00">
+                            </div>
+                            <div class="col-6 pl-1">
+                                <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">No. Autoriz. / Voucher</label>
+                                <input type="text" name="card_ref" id="modalCardRef" class="form-control form-control-sm font-size-13" placeholder="Opcional">
                             </div>
                         </div>
                     </div>
@@ -577,12 +577,12 @@
                                 <input type="number" step="0.01" min="0" name="cash_amount_mix" id="modalMixCash" class="form-control form-control-sm font-weight-bold text-success" value="0">
                             </div>
                             <div class="col-4 px-1">
-                                <label class="font-size-11 font-weight-bold text-primary mb-0">Tarjeta ($)</label>
-                                <input type="number" step="0.01" min="0" name="card_amount_mix" id="modalMixCard" class="form-control form-control-sm font-weight-bold text-primary" value="0">
-                            </div>
-                            <div class="col-4 pl-1">
                                 <label class="font-size-11 font-weight-bold text-transfer mb-0">Transf. ($)</label>
                                 <input type="number" step="0.01" min="0" name="transfer_amount_mix" id="modalMixTransfer" class="form-control form-control-sm font-weight-bold text-transfer" value="0">
+                            </div>
+                            <div class="col-4 pl-1">
+                                <label class="font-size-11 font-weight-bold text-primary mb-0">Tarjeta ($)</label>
+                                <input type="number" step="0.01" min="0" name="card_amount_mix" id="modalMixCard" class="form-control form-control-sm font-weight-bold text-primary" value="0">
                             </div>
                         </div>
 
@@ -605,12 +605,12 @@
 
                         <div class="row">
                             <div class="col-6 pr-1">
-                                <label class="font-size-11 text-muted mb-0">Ref. Tarjeta</label>
-                                <input type="text" id="modalMixCardRef" class="form-control form-control-sm" placeholder="Voucher/Auth">
-                            </div>
-                            <div class="col-6 pl-1">
                                 <label class="font-size-11 text-muted mb-0">Ref. SPEI</label>
                                 <input type="text" id="modalMixTransferRef" class="form-control form-control-sm" placeholder="Folio rastreo">
+                            </div>
+                            <div class="col-6 pl-1">
+                                <label class="font-size-11 text-muted mb-0">Ref. Tarjeta</label>
+                                <input type="text" id="modalMixCardRef" class="form-control form-control-sm" placeholder="Voucher/Auth">
                             </div>
                         </div>
                     </div>

@@ -31,9 +31,9 @@
                     <label class="form-label font-weight-bold small">Método de Pago *</label>
                     <select name="payment_method" id="manualPaymentMethod" class="form-control" required onchange="toggleMixedFields(this.value)">
                         <option value="efectivo" {{ old('payment_method', 'efectivo') === 'efectivo' ? 'selected' : '' }}>Efectivo</option>
-                        <option value="tarjeta" class="non-cash-opt" {{ old('payment_method') === 'tarjeta' ? 'selected' : '' }}>Tarjeta</option>
                         <option value="transferencia" class="non-cash-opt" {{ old('payment_method') === 'transferencia' ? 'selected' : '' }}>Transferencia</option>
-                        <option value="mixto" class="non-cash-opt" {{ old('payment_method') === 'mixto' ? 'selected' : '' }}>Pago Mixto (Efectivo / Tarjeta / Transf.)</option>
+                        <option value="tarjeta" class="non-cash-opt" {{ old('payment_method') === 'tarjeta' ? 'selected' : '' }}>Tarjeta</option>
+                        <option value="mixto" class="non-cash-opt" {{ old('payment_method') === 'mixto' ? 'selected' : '' }}>Pago Mixto (Efectivo / Transf. / Tarjeta)</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -48,12 +48,12 @@
                     <input type="number" step="0.01" min="0" name="cash_amount" id="manualCashAmount" class="form-control form-control-sm" value="{{ old('cash_amount', 0) }}" oninput="recalcManualMixed()">
                 </div>
                 <div class="col-md-4">
-                    <label class="small font-weight-bold text-primary">Monto en Tarjeta ($)</label>
-                    <input type="number" step="0.01" min="0" name="card_amount" id="manualCardAmount" class="form-control form-control-sm" value="{{ old('card_amount', 0) }}" oninput="recalcManualMixed()">
-                </div>
-                <div class="col-md-4">
                     <label class="small font-weight-bold text-info">Monto en Transferencia ($)</label>
                     <input type="number" step="0.01" min="0" name="transfer_amount" id="manualTransferAmount" class="form-control form-control-sm" value="{{ old('transfer_amount', 0) }}" oninput="recalcManualMixed()">
+                </div>
+                <div class="col-md-4">
+                    <label class="small font-weight-bold text-primary">Monto en Tarjeta ($)</label>
+                    <input type="number" step="0.01" min="0" name="card_amount" id="manualCardAmount" class="form-control form-control-sm" value="{{ old('card_amount', 0) }}" oninput="recalcManualMixed()">
                 </div>
             </div>
 

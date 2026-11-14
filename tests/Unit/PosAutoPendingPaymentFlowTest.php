@@ -60,6 +60,37 @@ class PosAutoPendingPaymentFlowTest extends TestCase
         $this->assertStringContainsString('Añadir abono', $source);
         $this->assertStringContainsString('tabHasPendingNoteAbonoConcept', $source);
         $this->assertStringContainsString('No se permite pago pendiente sobre pago pendiente', $source);
+
+        // Orden visual en pantalla de cobro: Transferencia junto a Efectivo, antes de Tarjeta y Mixto
+        $efectivoPos = strpos($source, 'data-method="efectivo"');
+        $transfPos = strpos($source, 'data-method="transferencia"');
+        $tarjetaPos = strpos($source, 'data-method="tarjeta"');
+        $mixtoPos = strpos($source, 'data-method="mixto"');
+        $this->assertNotFalse($efectivoPos);
+        $this->assertNotFalse($transfPos);
+        $this->assertNotFalse($tarjetaPos);
+        $this->assertNotFalse($mixtoPos);
+        $this->assertLessThan($transfPos, $efectivoPos);
+        $this->assertLessThan($tarjetaPos, $transfPos);
+        $this->assertLessThan($mixtoPos, $tarjetaPos);
+
+        // También en desglose Mixto y pantallas secundarias de cobro
+        $this->assertLessThan(strpos($source, 'id="mixCardInput"'), strpos($source, 'id="mixTransferInput"'));
+
+        $pendingDue = file_get_contents(resource_path('views/orders/pending-due.blade.php'));
+        $this->assertNotEmpty(Blade::compileString($pendingDue));
+        $this->assertLessThan(strpos($pendingDue, 'data-val="transferencia"'), strpos($pendingDue, 'data-val="efectivo"'));
+        $this->assertLessThan(strpos($pendingDue, 'data-val="tarjeta"'), strpos($pendingDue, 'data-val="transferencia"'));
+        $this->assertLessThan(strpos($pendingDue, 'data-val="mixto"'), strpos($pendingDue, 'data-val="tarjeta"'));
+
+        $cashForm = file_get_contents(resource_path('views/cash/partials/form.blade.php'));
+        $this->assertNotEmpty(Blade::compileString($cashForm));
+        $this->assertLessThan(strpos($cashForm, 'value="transferencia"'), strpos($cashForm, 'value="efectivo"'));
+        $this->assertLessThan(strpos($cashForm, 'value="tarjeta"'), strpos($cashForm, 'value="transferencia"'));
+
+        $finShow = file_get_contents(resource_path('views/financieras/ventas/show.blade.php'));
+        $this->assertNotEmpty(Blade::compileString($finShow));
+        $this->assertLessThan(strpos($finShow, 'name="card_amount"'), strpos($finShow, 'name="transfer_amount"'));
     }
 
     public function test_receipt_renders_full_and_updated_partial_mixto_balances(): void
@@ -105,9 +136,12 @@ class PosAutoPendingPaymentFlowTest extends TestCase
         $this->assertStringContainsString('$1,000.00 MXN', $partialHtml);
         $this->assertStringContainsString('PAGO INICIAL / ABONADO HOY:', $partialHtml);
         $this->assertStringContainsString('$500.00 MXN', $partialHtml);
-        $this->assertStringContainsString('SALDO PENDIENTE ACTUALIZADO:', $partialHtml);
-        $this->assertStringContainsString('$350.00 MXN', $partialHtml);
-        $this->assertStringContainsString('$500.00 MXN', $partialHtml);
+        $this->assertStringContainsString('PAGO PARCIAL REGISTRADO', $partialHtml);
+        $this->assertStringNotContainsString('SALDO PENDIENTE ACTUALIZADO:', $partialHtml);
+        $this->assertStringNotContainsString('Saldo inicial de esta nota:', $partialHtml);
+        $this->assertStringNotContainsString('NOTA CON SALDO PENDIENTE POR LIQUIDAR', $partialHtml);
+        $this->assertStringNotContainsString('$350.00 MXN', $partialHtml);
+        $this->assertStringNotContainsString('(LIQUIDADO)', $partialHtml);
         $this->assertStringContainsString('MIXTO', $partialHtml);
         $this->assertStringContainsString('AUTH-8821', $partialHtml);
 
@@ -161,11 +195,14 @@ class PosAutoPendingPaymentFlowTest extends TestCase
         $this->assertStringContainsString('if ($orderPay <= 0)', $controller);
         $this->assertStringContainsString("'order', 'financieraPayments.financiera'", $controller);
         $this->assertStringContainsString('containsPendingNoteAbonoConcept', $controller);
+        $this->assertStringContainsString('sanitizePendingNoteSubtitle', $controller);
         $this->assertStringContainsString("if (\$section === 'nota_abono')", $controller);
         $this->assertStringContainsString('No se permite pago pendiente sobre pago pendiente', $controller);
+        $this->assertStringNotContainsString('Resta en nota {', $controller);
+        $this->assertStringNotContainsString('$0.00 restante', $controller);
     }
 
-    public function test_pending_note_abono_detection_and_receipt_render(): void
+    public function test_pending_note_abono_detection_and_hides_pending_balance_on_tickets(): void
     {
         $this->assertFalse(PosTransaction::containsPendingNoteAbonoConcept([
             ['section' => 'producto_inventario', 'title' => 'Funda', 'amount' => 100],
@@ -175,21 +212,43 @@ class PosAutoPendingPaymentFlowTest extends TestCase
             ['section' => 'nota_abono', 'order_id' => 7, 'title' => 'Abono Nota INV-000007', 'amount' => 702],
         ]));
 
+        // Sanitización directa de subtítulos históricos / nuevos de abonos a notas pendientes
+        $this->assertSame(
+            'Suc. Sucursal Matriz | Producto',
+            PosTransaction::sanitizePendingNoteSubtitle('Suc. Sucursal Matriz | Producto | Resta en nota INV-000281: $4,408.00')
+        );
+        $this->assertSame(
+            'Suc. Allende | test, prueba 3',
+            PosTransaction::sanitizePendingNoteSubtitle('Suc. Allende | test, prueba 3 | Nota INV-000007 LIQUIDADA ($0.00 restante)')
+        );
+        $this->assertNull(
+            PosTransaction::sanitizePendingNoteSubtitle('Resta en nota INV-000281: $4,408.00')
+        );
+
         $branch = new Branch(['name' => 'Allende']);
         $user = new User(['name' => 'Cajero POS']);
         $abonoTx = new PosTransaction([
-            'transaction_code' => 'MOV-20261113-ABN01',
-            'customer_name' => 'Celestino Kozey',
-            'payment_method' => 'efectivo',
-            'cash_amount' => 702.00,
+            'transaction_code' => 'MOV-20261114-2UICU',
+            'customer_name' => 'ALDO GAEL GAMEZ ZÁRATE',
+            'payment_method' => 'transferencia',
+            'cash_amount' => 0.00,
             'card_amount' => 0.00,
-            'transfer_amount' => 0.00,
-            'subtotal' => 702.00,
+            'transfer_amount' => 400.00,
+            'subtotal' => 400.00,
             'commission_total' => 0.00,
-            'total_amount' => 702.00,
-            'paid_amount' => 702.00,
+            'total_amount' => 400.00,
+            'paid_amount' => 400.00,
             'change_amount' => 0.00,
             'items_payload' => [
+                [
+                    'section' => 'nota_abono',
+                    'order_id' => 281,
+                    'title' => 'Abono Nota INV-000281',
+                    'subtitle' => 'Suc. Sucursal Matriz | Producto | Resta en nota INV-000281: $4,408.00',
+                    'quantity' => 1,
+                    'amount' => 400.00,
+                    'commission' => 0.00,
+                ],
                 [
                     'section' => 'nota_abono',
                     'order_id' => 7,
@@ -201,7 +260,7 @@ class PosAutoPendingPaymentFlowTest extends TestCase
                 ],
             ],
         ]);
-        $abonoTx->created_at = Carbon::parse('2026-11-13 18:30:00');
+        $abonoTx->created_at = Carbon::parse('2026-11-14 08:55:00');
         $abonoTx->setRelation('branch', $branch);
         $abonoTx->setRelation('user', $user);
         $abonoTx->setRelation('financieraPayments', collect());
@@ -209,10 +268,58 @@ class PosAutoPendingPaymentFlowTest extends TestCase
         $this->app->instance('request', Request::create('/central-pos/receipt/2', 'GET', ['paper' => '80']));
         $html = View::make('central-pos.receipt', ['transaction' => $abonoTx])->render();
 
-        $this->assertStringContainsString('Abono Nota INV-000007', $html);
-        $this->assertStringContainsString('LIQUIDADA ($0.00 restante)', $html);
-        $this->assertStringContainsString('$702.00 MXN', $html);
+        $this->assertStringContainsString('Abono Nota INV-000281', $html);
+        $this->assertStringContainsString('Suc. Sucursal Matriz | Producto', $html);
+        $this->assertStringContainsString('Suc. Allende | test, prueba 3', $html);
+        $this->assertStringNotContainsString('Resta en nota INV-000281', $html);
+        $this->assertStringNotContainsString('$4,408.00', $html);
+        $this->assertStringNotContainsString('LIQUIDADA ($0.00 restante)', $html);
+        $this->assertStringContainsString('$400.00 MXN', $html);
         $this->assertStringContainsString('TOTALMENTE PAGADO', $html);
+
+        // Ticket de abono en Módulo de Órdenes / Saldos Pendientes (orders/abono-ticket.blade.php) tampoco imprime saldo pendiente ni saldo anterior
+        $customer = new \App\Models\Customer();
+        $customer->tit_name = 'Carlos Ramirez';
+        $order = new Order();
+        $order->invoice_no = 'INV-000281';
+        $order->order_date = '2026-11-01';
+        $order->total = 5000.00;
+        $order->due = 4408.00;
+        $order->setRelation('customer', $customer);
+
+        $history = new \App\Models\PaymentHistory([
+            'id' => 99,
+            'amount' => 400.00,
+            'method' => 'Cheque',
+            'cash_amount' => 0,
+            'card_amount' => 0,
+            'transfer_amount' => 400,
+        ]);
+        $history->id = 99;
+        $history->created_at = Carbon::parse('2026-11-14 08:55:00');
+        $history->setRelation('user', $user);
+
+        $this->app->instance('request', Request::create('/orders/281/ticket-abono/99', 'GET', ['paper' => '80']));
+        $abonoTicketHtml = View::make('orders.abono-ticket', [
+            'order' => $order,
+            'history' => $history,
+            'branch' => $branch,
+        ])->render();
+
+        $this->assertStringContainsString('INV-000281', $abonoTicketHtml);
+        $this->assertStringContainsString('$400.00 MXN', $abonoTicketHtml);
+        $this->assertStringContainsString('TRANSFERENCIA', $abonoTicketHtml);
+        $this->assertStringNotContainsString('Saldo Anterior:', $abonoTicketHtml);
+        $this->assertStringNotContainsString('SALDO PENDIENTE:', $abonoTicketHtml);
+        $this->assertStringNotContainsString('NUEVO SALDO PENDIENTE:', $abonoTicketHtml);
+        $this->assertStringNotContainsString('$4,408.00', $abonoTicketHtml);
+        $this->assertStringNotContainsString('$4,808.00', $abonoTicketHtml);
+        $this->assertStringNotContainsString('COMPLETAMENTE LIQUIDADA', $abonoTicketHtml);
+
+        // Nota de venta imprimible (orders/invoice-order.blade.php) tampoco imprime Debido
+        $invoiceOrderSource = file_get_contents(resource_path('views/orders/invoice-order.blade.php'));
+        $this->assertNotEmpty(Blade::compileString($invoiceOrderSource));
+        $this->assertStringNotContainsString('Debido:', $invoiceOrderSource);
     }
 }
 

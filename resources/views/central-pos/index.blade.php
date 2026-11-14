@@ -1289,13 +1289,13 @@
                                         <i class="fa-solid fa-money-bill-wave text-success"></i>
                                         <span>Efectivo</span>
                                     </div>
-                                    <div class="pay-method-btn" data-method="tarjeta">
-                                        <i class="fa-solid fa-credit-card text-primary"></i>
-                                        <span>Tarjeta</span>
-                                    </div>
                                     <div class="pay-method-btn" data-method="transferencia">
                                         <i class="fa-solid fa-mobile-screen-button text-transfer"></i>
                                         <span>Transf.</span>
+                                    </div>
+                                    <div class="pay-method-btn" data-method="tarjeta">
+                                        <i class="fa-solid fa-credit-card text-primary"></i>
+                                        <span>Tarjeta</span>
                                     </div>
                                     <div class="pay-method-btn" data-method="mixto">
                                         <i class="fa-solid fa-layer-group text-warning"></i>
@@ -1328,24 +1328,7 @@
                                 </div>
                             </div>
 
-                            <!-- 2. Detalle para Tarjeta -->
-                            <div id="posBoxTarjeta" class="p-2 rounded border mb-2 bg-light d-none">
-                                <div class="row">
-                                    <div class="col-7 pr-1">
-                                        <div class="d-flex justify-content-between align-items-center mb-0">
-                                            <label for="posCardAmountInput" class="font-size-11 font-weight-bold text-primary mb-0 text-uppercase">Monto Tarjeta ($)</label>
-                                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1 font-size-10 font-weight-bold btn-pos-fill-total d-none">100%</button>
-                                        </div>
-                                        <input type="number" step="0.01" min="0" id="posCardAmountInput" class="form-control form-control-sm font-weight-bold text-primary font-size-14 mt-1" placeholder="0.00">
-                                    </div>
-                                    <div class="col-5 pl-1">
-                                        <label for="posCardRefInput" class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">No. Autoriz. / Voucher</label>
-                                        <input type="text" id="posCardRefInput" class="form-control form-control-sm font-size-13 mt-1" placeholder="Opcional">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 3. Detalle para Transferencia -->
+                            <!-- 2. Detalle para Transferencia -->
                             <div id="posBoxTransferencia" class="p-2 rounded border mb-2 bg-light d-none">
                                 <div class="row">
                                     <div class="col-7 pr-1">
@@ -1358,6 +1341,23 @@
                                     <div class="col-5 pl-1">
                                         <label for="posTransferRefInput" class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Folio SPEI / Rastreo</label>
                                         <input type="text" id="posTransferRefInput" class="form-control form-control-sm font-size-13 mt-1" placeholder="Opcional">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3. Detalle para Tarjeta -->
+                            <div id="posBoxTarjeta" class="p-2 rounded border mb-2 bg-light d-none">
+                                <div class="row">
+                                    <div class="col-7 pr-1">
+                                        <div class="d-flex justify-content-between align-items-center mb-0">
+                                            <label for="posCardAmountInput" class="font-size-11 font-weight-bold text-primary mb-0 text-uppercase">Monto Tarjeta ($)</label>
+                                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1 font-size-10 font-weight-bold btn-pos-fill-total d-none">100%</button>
+                                        </div>
+                                        <input type="number" step="0.01" min="0" id="posCardAmountInput" class="form-control form-control-sm font-weight-bold text-primary font-size-14 mt-1" placeholder="0.00">
+                                    </div>
+                                    <div class="col-5 pl-1">
+                                        <label for="posCardRefInput" class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">No. Autoriz. / Voucher</label>
+                                        <input type="text" id="posCardRefInput" class="form-control form-control-sm font-size-13 mt-1" placeholder="Opcional">
                                     </div>
                                 </div>
                             </div>
@@ -1379,12 +1379,12 @@
                                         <input type="number" step="0.01" min="0" id="mixCashInput" class="form-control form-control-sm font-weight-bold text-success" value="0">
                                     </div>
                                     <div class="col-4 px-1">
-                                        <label class="font-size-11 font-weight-bold text-primary mb-0">Tarjeta ($)</label>
-                                        <input type="number" step="0.01" min="0" id="mixCardInput" class="form-control form-control-sm font-weight-bold text-primary" value="0">
-                                    </div>
-                                    <div class="col-4 pl-1">
                                         <label class="font-size-11 font-weight-bold text-transfer mb-0">Transf. ($)</label>
                                         <input type="number" step="0.01" min="0" id="mixTransferInput" class="form-control form-control-sm font-weight-bold text-transfer" value="0">
+                                    </div>
+                                    <div class="col-4 pl-1">
+                                        <label class="font-size-11 font-weight-bold text-primary mb-0">Tarjeta ($)</label>
+                                        <input type="number" step="0.01" min="0" id="mixCardInput" class="form-control form-control-sm font-weight-bold text-primary" value="0">
                                     </div>
                                 </div>
 
@@ -1405,12 +1405,12 @@
 
                                 <div class="row">
                                     <div class="col-6 pr-1">
-                                        <label class="font-size-11 text-muted mb-0">Ref. Tarjeta</label>
-                                        <input type="text" id="mixCardRefInput" class="form-control form-control-sm" placeholder="Voucher/Auth">
-                                    </div>
-                                    <div class="col-6 pl-1">
                                         <label class="font-size-11 text-muted mb-0">Ref. SPEI</label>
                                         <input type="text" id="mixTransferRefInput" class="form-control form-control-sm" placeholder="Folio rastreo">
+                                    </div>
+                                    <div class="col-6 pl-1">
+                                        <label class="font-size-11 text-muted mb-0">Ref. Tarjeta</label>
+                                        <input type="text" id="mixCardRefInput" class="form-control form-control-sm" placeholder="Voucher/Auth">
                                     </div>
                                 </div>
                             </div>
