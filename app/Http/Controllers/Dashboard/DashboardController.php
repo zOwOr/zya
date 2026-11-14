@@ -477,8 +477,8 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user || (!$user->isSuperAdmin() && !$user->can('dashboard.cancel_transaction') && !$user->can('cobros.cancel_transaction'))) {
-            abort(403, 'No tienes permisos para cancelar movimientos de cobro centralizado.');
+        if (!$user || (!$user->isSuperAdmin() && !$user->can('dashboard.cancel_transaction'))) {
+            abort(403, 'No tienes permisos para cancelar movimientos desde el Dashboard.');
         }
 
         if (!$this->canAccessAllBranches() && $transaction->branch_id && (int) $transaction->branch_id !== (int) ($user->branch_id ?? 1)) {

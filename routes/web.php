@@ -59,7 +59,7 @@ Route::middleware('auth')->group(function () {
             ->middleware('permission:dashboard.ventas.export_excel')
             ->name('dashboard.ventas.excel');
         Route::post('/dashboard/transactions/{transaction}/cancel', [DashboardController::class, 'cancelTransaction'])
-            ->middleware('permission:dashboard.cancel_transaction|cobros.cancel_transaction')
+            ->middleware('permission:dashboard.cancel_transaction')
             ->name('dashboard.transactions.cancel');
     });
 

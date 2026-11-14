@@ -4,9 +4,12 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\RoleController;
+use App\Models\Branch;
 use App\Models\PosTransaction;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
@@ -55,6 +58,11 @@ class DashboardPermissionsAndRolesTest extends TestCase
 
                 return in_array((string) $abilities, $this->grantedPermissions, true);
             }
+
+            public function canAny($abilities, $arguments = []): bool
+            {
+                return $this->can((array) $abilities, $arguments);
+            }
         };
 
         $user->id = $superAdmin ? 1 : 99;
@@ -74,7 +82,7 @@ class DashboardPermissionsAndRolesTest extends TestCase
             'dashboard.financieras.excel' => 'permission:dashboard.financieras.export_excel',
             'dashboard.ventas.pdf' => 'permission:dashboard.ventas.export_pdf',
             'dashboard.ventas.excel' => 'permission:dashboard.ventas.export_excel',
-            'dashboard.transactions.cancel' => 'permission:dashboard.cancel_transaction|cobros.cancel_transaction',
+            'dashboard.transactions.cancel' => 'permission:dashboard.cancel_transaction',
             'rolePermission.store' => 'permission:roles.menu|roles.read|roles.edit|permissions.menu|permissions.read',
             'rolePermission.update' => 'permission:roles.menu|roles.read|roles.edit|permissions.menu|permissions.read',
         ];
@@ -141,9 +149,16 @@ class DashboardPermissionsAndRolesTest extends TestCase
         $this->assertInstanceOf(HttpException::class, $caughtCrossBranch);
         $this->assertSame(403, $caughtCrossBranch->getStatusCode());
 
-        // Con cobros.cancel_transaction en su propia sucursal -> permitido (compatibilidad módulo 4 en 1)
+        // Con solo cobros.cancel_transaction (sin dashboard.cancel_transaction) -> 403 en Dashboard
         Auth::setUser($this->makeTestUser(['cobros.cancel_transaction'], false, 1));
-        $authorize->invoke($controller, $sameBranchTx);
+        $caughtCobrosOnly = null;
+        try {
+            $controller->cancelTransaction(Request::create('/dashboard/transactions/1/cancel', 'POST'), $sameBranchTx);
+        } catch (HttpException $e) {
+            $caughtCobrosOnly = $e;
+        }
+        $this->assertInstanceOf(HttpException::class, $caughtCobrosOnly);
+        $this->assertSame(403, $caughtCobrosOnly->getStatusCode());
 
         // Con dashboard.cancel_transaction + dashboard.all_branches -> otra sucursal permitida
         Auth::setUser($this->makeTestUser(['dashboard.cancel_transaction', 'dashboard.all_branches'], false, 1));
@@ -238,7 +253,7 @@ class DashboardPermissionsAndRolesTest extends TestCase
         $dashboardView = file_get_contents(resource_path('views/dashboard/index.blade.php'));
         $this->assertNotEmpty(Blade::compileString($dashboardView));
         $this->assertStringContainsString("can('dashboard.cancel_transaction')", $dashboardView);
-        $this->assertStringContainsString("can('cobros.cancel_transaction')", $dashboardView);
+        $this->assertStringNotContainsString("can('cobros.cancel_transaction')", $dashboardView);
 
         foreach ([
             'views/roles/role-permission-edit.blade.php',
@@ -253,5 +268,107 @@ class DashboardPermissionsAndRolesTest extends TestCase
             $this->assertStringContainsString('syncGroupBox', $source);
             $this->assertStringNotContainsString('ajax.googleapis.com', $source);
         }
+    }
+
+    public function test_dashboard_view_hides_cancel_button_without_dashboard_cancel_permission(): void
+    {
+        $branch = new Branch(['name' => 'Allende']);
+        $branch->id = 1;
+
+        $tx = new PosTransaction([
+            'folio' => 'MOV-20261114-8K33N',
+            'transaction_code' => 'MOV-20261114-8K33N',
+            'transaction_date' => Carbon::parse('2026-11-14 09:59:00'),
+            'customer_name' => 'INES FRANCISCO NIÑO CORREA',
+            'tab_label' => 'POS Central',
+            'branch_id' => 1,
+            'items_payload' => [[
+                'section' => 'financiera_abono',
+                'title' => 'Abono Financiera (PAYJOY)',
+                'total' => 688.00,
+            ]],
+            'payment_method' => 'efectivo',
+            'cash_amount' => 688.00,
+            'card_amount' => 0,
+            'transfer_amount' => 0,
+            'total_amount' => 688.00,
+            'status' => 'completado',
+        ]);
+        $tx->id = 777;
+        $tx->setRelation('branch', $branch);
+
+        $emptyPaginator = static fn (string $pageName) => new LengthAwarePaginator([], 0, 15, 1, [
+            'path' => '/dashboard',
+            'pageName' => $pageName,
+        ]);
+        $movPaginator = new LengthAwarePaginator([$tx], 1, 15, 1, [
+            'path' => '/dashboard',
+            'pageName' => 'mov_page',
+        ]);
+
+        $viewData = [
+            'total_paid' => 0,
+            'total_due' => 0,
+            'complete_orders' => collect(),
+            'products' => collect(),
+            'new_products' => collect(),
+            'financieraPayments' => $emptyPaginator('fin_page'),
+            'finTotals' => ['count' => 0, 'amount' => 0, 'commission' => 0, 'total_paid' => 0, 'cash' => 0, 'card' => 0, 'transfer' => 0],
+            'finDateFilter' => ['filter_type' => 'dia', 'date' => '2026-11-14'],
+            'finFilterType' => 'dia',
+            'finDate' => '2026-11-14',
+            'finStartDate' => '2026-11-14',
+            'finEndDate' => '2026-11-14',
+            'finPeriodLabel' => 'Día: 14/11/2026',
+            'dailyMovements' => $movPaginator,
+            'movTotals' => ['count' => 1, 'total_rows' => 1, 'cash' => 688.00, 'card' => 0, 'transfer' => 0, 'total' => 688.00],
+            'movDateFilter' => ['filter_type' => 'dia', 'date' => '2026-11-14'],
+            'movFilterType' => 'dia',
+            'movDate' => '2026-11-14',
+            'movStartDate' => '2026-11-14',
+            'movEndDate' => '2026-11-14',
+            'movPeriodLabel' => 'Día: 14/11/2026',
+            'movStatus' => '',
+            'movSearch' => '',
+            'canDashboardAllDates' => false,
+            'minAllowedDate' => '2026-11-12',
+            'dateRestrictionTriggered' => false,
+            'financieras' => collect(),
+            'canMultiFilterFinancieras' => false,
+            'selectedFinancieraIds' => [],
+            'branches' => collect([$branch]),
+            'branchId' => 1,
+            'todayClosedBranchIds' => [],
+        ];
+
+        $this->app->instance('request', Request::create('/dashboard', 'GET'));
+
+        // Usuario con lectura + PDF + cobros.cancel_transaction pero SIN dashboard.cancel_transaction
+        Auth::setUser($this->makeTestUser([
+            'dashboard.menu',
+            'dashboard.read',
+            'dashboard.ventas.export_pdf',
+            'cobros.cancel_transaction',
+        ], false, 1));
+        $noCancelHtml = view('dashboard.index', $viewData)->render();
+        $this->assertStringContainsString('Gestión de Movimientos Diarios / Ventas POS', $noCancelHtml);
+        $this->assertStringContainsString('MOV-20261114-8K33N', $noCancelHtml);
+        $this->assertStringContainsString('Exportar PDF', $noCancelHtml);
+        $this->assertStringNotContainsString('Exportar Excel', $noCancelHtml);
+        $this->assertStringNotContainsString('Cancelar movimiento', $noCancelHtml);
+        $this->assertStringNotContainsString('la-ban', $noCancelHtml);
+        $this->assertStringNotContainsString('/dashboard/transactions/777/cancel', $noCancelHtml);
+
+        // Usuario CON dashboard.cancel_transaction sí ve el botón de cancelar
+        Auth::setUser($this->makeTestUser([
+            'dashboard.menu',
+            'dashboard.read',
+            'dashboard.cancel_transaction',
+        ], false, 1));
+        $canCancelHtml = view('dashboard.index', $viewData)->render();
+        $this->assertStringContainsString('MOV-20261114-8K33N', $canCancelHtml);
+        $this->assertStringContainsString('Cancelar movimiento', $canCancelHtml);
+        $this->assertStringContainsString('la-ban', $canCancelHtml);
+        $this->assertStringContainsString('/dashboard/transactions/777/cancel', $canCancelHtml);
     }
 }

@@ -725,13 +725,30 @@ class SaleCancellationCashImpactTest extends TestCase
         $this->post(route('dashboard.transactions.cancel', $tx1->id))->assertStatus(403);
         $this->delete(route('order.delete', $order->id))->assertStatus(403);
 
-        // 2. Usuario CON cobros.cancel_transaction (sin dashboard.cancel_transaction) y CON orders.delete en sucursal abierta ($this->otherBranch)
+        // 2. Usuario CON cobros.cancel_transaction pero SIN dashboard.cancel_transaction NO debe ver el botón ni poder cancelar en Dashboard
+        $cobrosOnlyRole = Role::create(['name' => 'CobrosSinDashboardCancel_' . uniqid(), 'guard_name' => 'web']);
+        $cobrosOnlyRole->givePermissionTo([
+            'dashboard.menu',
+            'dashboard.read',
+            'dashboard.all_branches',
+            'cobros.cancel_transaction',
+        ]);
+        $cobrosOnlyUser = User::create([
+            'name' => 'Cajero Cobros Sin Cancelar Dashboard',
+            'username' => 'cobrosnocancel_' . uniqid(),
+            'email' => 'cobrosnocancel_' . uniqid() . '@zyacelulares.com',
+            'password' => bcrypt('secret123'),
+            'branch_id' => $this->otherBranch->id,
+        ]);
+        $cobrosOnlyUser->assignRole($cobrosOnlyRole);
+
+        // 3. Usuario CON dashboard.cancel_transaction y CON orders.delete en sucursal abierta ($this->otherBranch)
         $cancellerRole = Role::create(['name' => 'PuedeCancelar_' . uniqid(), 'guard_name' => 'web']);
         $cancellerRole->givePermissionTo([
             'dashboard.menu',
             'dashboard.read',
             'dashboard.all_branches',
-            'cobros.cancel_transaction',
+            'dashboard.cancel_transaction',
             'orders.menu',
             'orders.read',
             'orders.delete',
@@ -770,6 +787,13 @@ class SaleCancellationCashImpactTest extends TestCase
             'branch_id' => $this->otherBranch->id,
         ])->assertRedirect();
         $openOrder = Order::latest('id')->firstOrFail();
+
+        $this->actingAs($cobrosOnlyUser);
+        $this->get(route('dashboard', ['branch_id' => $this->otherBranch->id]))
+            ->assertStatus(200)
+            ->assertDontSee(route('dashboard.transactions.cancel', $txOpen->id), false);
+        $this->post(route('dashboard.transactions.cancel', $txOpen->id))->assertStatus(403);
+        $this->assertEquals('completado', $txOpen->fresh()->status);
 
         $this->actingAs($cancellerUser);
         $this->get(route('dashboard', ['branch_id' => $this->otherBranch->id]))
