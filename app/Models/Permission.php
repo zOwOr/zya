@@ -50,6 +50,7 @@ class Permission extends SpatiePermission
             'export_pdf' => 'Exportar PDF',
             'export_excel' => 'Exportar Excel',
             'filter_all_dates' => 'Filtrar Fechas Históricas (> 2 días) y Todos',
+            'filter_multiple' => 'Filtrar Múltiples Financieras (Abonos y Ventas)',
             'abonar' => 'Registrar Abono',
             'close_manual' => 'Cierre Manual',
             'open_drawer' => 'Abrir Cajón de Dinero',

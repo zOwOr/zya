@@ -491,6 +491,16 @@
                         <p>+52 826 261 5418</p>
                     </div>
 
+
+                    <div class="mb-4">
+                        <h4 class="fw-bold mb-3"><i class="fas  fa-map-marker-alt me-2"></i> Dirección el Cercado
+                        </h4>
+                        <p>📍 El Cercado, N.L: Calle Hidalgo #124 B, Centro. </p>
+
+                        <p>+52 826 161 2317</p>
+                    </div>
+
+
                     <div class="mb-4">
                         <h4 class="fw-bold mb-3"><i class="fas fa-envelope me-2"></i> Correo Electrónico</h4>
                         <p>zyaallende@gmail.com</p>

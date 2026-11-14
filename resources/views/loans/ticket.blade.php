@@ -148,9 +148,6 @@
         </button>
     </div>
 
-    {{-- Secuencia ESC/POS invisible en caso de modo texto --}}
-    <span style="display:none;">&#27;&#112;&#0;&#25;&#250;</span>
-
     <div class="center bold" style="font-size: 15px; letter-spacing: 1px;">ZYA</div>
     <div class="center" style="font-size: 11px;">MÓDULO DE PRÉSTAMOS</div>
     <div class="center bold">Sucursal: {{ $payment->loan?->branch?->name ?? 'Matriz' }}</div>
@@ -226,30 +223,8 @@
     {{-- Margen inferior calibrado para el corte de guillotina térmica sin sobrante de papel --}}
     <div style="height: 8mm; line-height: 8mm; overflow: hidden; page-break-inside: avoid;">&nbsp;</div>
 
+    <script src="{{ asset('assets/js/pos-hardware.js') }}?v=20261113"></script>
     <script>
-        window.ZyaPosHardware = {
-            KICK_BYTES: new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA, 0x10, 0x14, 0x01, 0x00, 0x05, 0x07, 0x0A]),
-            autoOpenUsbDrawer: async function () {
-                if (!('serial' in navigator)) return false;
-                try {
-                    const ports = await navigator.serial.getPorts();
-                    if (ports && ports.length > 0) {
-                        const port = ports[0];
-                        await port.open({ baudRate: 9600 });
-                        try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
-                        const writer = port.writable.getWriter();
-                        await writer.write(this.KICK_BYTES);
-                        writer.releaseLock();
-                        await new Promise(r => setTimeout(r, 120));
-                        try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
-                        await port.close();
-                        return true;
-                    }
-                } catch (e) {}
-                return false;
-            }
-        };
-
         function safeStorageGet(key) {
             try { return window.localStorage ? window.localStorage.getItem(key) : null; } catch (e) { return null; }
         }

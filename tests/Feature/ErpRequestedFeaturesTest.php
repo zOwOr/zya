@@ -761,7 +761,8 @@ class ErpRequestedFeaturesTest extends TestCase
             ],
         ]);
         $crossBranchResp->assertStatus(422);
-        $this->assertEquals(4, $giftCercado->fresh()->stock_quantity);
+        $this->assertEquals(4, $giftCercado->fresh()->stockInBranch($this->branchCercado->id));
+        $this->assertNull($giftCercado->fresh()->branch_id);
 
         // Cobro válido enviando precio manipulado ($500) en regalo: servidor fuerza $0.00
         $validResp = $this->postJson(route('central-pos.checkout'), [
@@ -798,9 +799,10 @@ class ErpRequestedFeaturesTest extends TestCase
         $this->assertEquals(200.00, (float) $tx->total_amount);
         $this->assertEquals(0.00, (float) $tx->commission_total);
 
-        // Descuento exacto de inventario y kardex GiftMovement
-        $this->assertEquals(3, $giftAllende->fresh()->stock_quantity);
-        $this->assertEquals(4, $giftCercado->fresh()->stock_quantity);
+        // Descuento exacto de inventario y kardex GiftMovement (exclusivo por sucursal)
+        $this->assertEquals(3, $giftAllende->fresh()->stockInBranch($this->branchAllende->id));
+        $this->assertEquals(0, $giftAllende->fresh()->stock_quantity);
+        $this->assertEquals(4, $giftCercado->fresh()->stockInBranch($this->branchCercado->id));
 
         $movement = GiftMovement::where('gift_id', $giftAllende->id)
             ->where('reference_code', $tx->transaction_code)
@@ -1071,12 +1073,61 @@ class ErpRequestedFeaturesTest extends TestCase
             'article_name' => 'Plancha Oster',
             'article_price' => 1000.00,
             'down_payment' => 1000.00,
+            'down_payment_method' => 'efectivo',
             'installment_amount' => 250.00,
             'term_periods' => 4,
             'payment_frequency' => 'semanal',
             'start_date' => '2026-11-12',
         ]);
         $invalidDownResp->assertSessionHasErrors('down_payment');
+
+        // 2b) Validación: método de pago del enganche obligatorio únicamente si enganche > 0
+        $missingMethodResp = $this->post(route('article-credits.store'), [
+            'operation_type' => 'credito_articulo',
+            'customer_id' => $this->customer->id,
+            'branch_id' => $this->branchAllende->id,
+            'article_name' => 'Microondas LG',
+            'down_payment' => 500.00,
+            'installment_amount' => 300.00,
+            'term_periods' => 6,
+            'payment_frequency' => 'semanal',
+            'start_date' => '2026-11-12',
+        ]);
+        $missingMethodResp->assertSessionHasErrors('down_payment_method');
+
+        // 2c) Registro sin Precio de contado ni Monto financiado, con enganche > 0 y fecha base en febrero
+        $noCashResp = $this->post(route('article-credits.store'), [
+            'operation_type' => 'credito_articulo',
+            'customer_id' => $this->customer->id,
+            'branch_id' => $this->branchAllende->id,
+            'article_name' => 'Licuadora Ninja',
+            'down_payment' => 500.00,
+            'down_payment_method' => 'transferencia',
+            'installment_amount' => 400.00,
+            'term_periods' => 4,
+            'payment_frequency' => 'quincenal',
+            'start_date' => '2026-02-10',
+            'first_payment_date' => '2026-02-15',
+        ]);
+        $noCashCredit = Loan::where('article_name', 'Licuadora Ninja')->latest('id')->firstOrFail();
+        $noCashResp->assertRedirect(route('loans.show', $noCashCredit->id));
+        $this->assertNull($noCashCredit->article_price);
+        $this->assertNull($noCashCredit->principal_amount);
+        $this->assertNull($noCashCredit->interest_amount);
+        $this->assertNull($noCashCredit->interest_rate);
+        $this->assertEquals(1600.00, (float) $noCashCredit->total_amount);
+        $this->assertEquals(2100.00, (float) $noCashCredit->credit_sale_total);
+        $this->assertEquals('2026-02-15', $noCashCredit->first_payment_date?->toDateString());
+        $this->assertEquals([
+            '2026-02-15',
+            '2026-02-28',
+            '2026-03-15',
+            '2026-03-30',
+        ], $noCashCredit->installments()->orderBy('installment_number')->pluck('scheduled_date')->map->toDateString()->all());
+        $this->get(route('loans.show', $noCashCredit->id))
+            ->assertStatus(200)
+            ->assertSee('Sin calcular')
+            ->assertSee('$2,100.00');
 
         // 3) Alta de Estufa con enganche ($1,500) dejando IMEI vacío (no aplica)
         $cashBefore = CashFlow::count();
@@ -1114,6 +1165,8 @@ class ErpRequestedFeaturesTest extends TestCase
         $this->assertEquals(1500.00, (float) $credit->down_payment);
         $this->assertEquals(5000.00, (float) $credit->principal_amount);
         $this->assertEquals(6000.00, (float) $credit->total_amount);
+        $this->assertEquals(7500.00, (float) $credit->credit_sale_total);
+        $this->assertEquals(1000.00, (float) $credit->interest_amount);
         $this->assertEquals(6000.00, (float) $credit->balance_amount);
         $this->assertNull($credit->article_imei);
 

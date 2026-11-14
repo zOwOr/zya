@@ -4,12 +4,13 @@
     $debtorName = $loan->customer?->tit_name ?? '-';
     $aval = $loan->resolveAvalInfo();
     $countWords = \App\Models\Loan::integerCountInSpanish((int) $loan->term_periods);
-    $principalWords = mb_strtolower(\App\Models\FinSale::numberToWords($loan->principal_amount), 'UTF-8');
+    $principalForWords = (float) ($loan->principal_amount ?? $loan->total_amount);
+    $principalWords = mb_strtolower(\App\Models\FinSale::numberToWords($principalForWords), 'UTF-8');
     $firstInstallment = $loan->installments->sortBy('installment_number')->first();
     $firstPaymentLongDate = $firstInstallment && $firstInstallment->scheduled_date
         ? \App\Models\Loan::formatDateEs($firstInstallment->scheduled_date, false)
         : \App\Models\Loan::formatDateEs($loan->start_date, false);
-    $headerBoxAmount = $isArticle ? (float) ($loan->article_price ?: $loan->principal_amount) : (float) $loan->principal_amount;
+    $headerBoxAmount = $isArticle ? (float) ($loan->article_price ?: $loan->resolved_credit_sale_total) : (float) ($loan->principal_amount ?? 0);
 @endphp
 <!DOCTYPE html>
 <html lang="es">
@@ -221,9 +222,17 @@
         @else
             <div>
                 Resumen financiero:
-                <strong>Precio:</strong> ${{ number_format($loan->article_price, 2) }} MXN
-                &nbsp;|&nbsp; <strong>Enganche:</strong> ${{ number_format($loan->down_payment, 2) }} MXN
-                &nbsp;|&nbsp; <strong>Monto financiado:</strong> ${{ number_format($loan->principal_amount, 2) }} MXN
+                @if ($loan->article_price !== null && (float) $loan->article_price > 0)
+                    <strong>Precio:</strong> ${{ number_format((float) $loan->article_price, 2) }} MXN
+                @else
+                    <strong>Total venta crédito:</strong> ${{ number_format($loan->resolved_credit_sale_total, 2) }} MXN
+                @endif
+                &nbsp;|&nbsp; <strong>Enganche:</strong> ${{ number_format((float) ($loan->down_payment ?? 0), 2) }} MXN
+                @if ($loan->principal_amount !== null)
+                    &nbsp;|&nbsp; <strong>Monto financiado:</strong> ${{ number_format((float) $loan->principal_amount, 2) }} MXN
+                @else
+                    &nbsp;|&nbsp; <strong>Total cuotas:</strong> ${{ number_format((float) $loan->total_amount, 2) }} MXN
+                @endif
             </div>
         @endif
     </div>
@@ -251,11 +260,16 @@
             <p>
                 Yo, <strong>{{ $debtorName }}</strong>, recibo a mi entera satisfacción de <strong>Nancy Esmeralda Zapata Medina</strong>
                 el artículo descrito como <strong>{{ $loan->article_summary_label }}</strong>
-                con valor total de <strong>${{ number_format($loan->article_price, 2) }} MXN</strong>@if ((float) $loan->down_payment > 0), habiendo cubierto un enganche de <strong>${{ number_format($loan->down_payment, 2) }} MXN</strong>@endif, quedando un saldo financiado de <strong>${{ number_format($loan->principal_amount, 2) }} MXN</strong> ({{ $principalWords }}).
-                Me comprometo a pagarlo en <strong>{{ $countWords }} ({{ $loan->term_periods }}) pago{{ $loan->term_periods > 1 ? 's' : '' }} de ${{ number_format($loan->installment_amount, 2) }} MXN cada uno</strong>,
+                @if ($loan->article_price !== null && (float) $loan->article_price > 0)
+                    con valor total de <strong>${{ number_format((float) $loan->article_price, 2) }} MXN</strong>@if ((float) ($loan->down_payment ?? 0) > 0), habiendo cubierto un enganche de <strong>${{ number_format((float) $loan->down_payment, 2) }} MXN</strong>@endif
+                    @if ($loan->principal_amount !== null), quedando un saldo financiado de <strong>${{ number_format((float) $loan->principal_amount, 2) }} MXN</strong> ({{ $principalWords }})@endif.
+                @else
+                    bajo operación de compraventa a crédito por un total final de <strong>${{ number_format($loan->resolved_credit_sale_total, 2) }} MXN</strong>@if ((float) ($loan->down_payment ?? 0) > 0), habiendo cubierto un enganche de <strong>${{ number_format((float) $loan->down_payment, 2) }} MXN</strong>@endif.
+                @endif
+                Me comprometo a pagarlo en <strong>{{ $countWords }} ({{ $loan->term_periods }}) pago{{ $loan->term_periods > 1 ? 's' : '' }} de ${{ number_format((float) $loan->installment_amount, 2) }} MXN cada uno</strong>,
                 {{ $loan->payment_schedule_description }}, conforme al calendario del pagaré del mismo folio,
                 comenzando el <strong>{{ $firstPaymentLongDate }}</strong>.
-                El total de los {{ $countWords }} pagos programados es de <strong>${{ number_format($loan->total_amount, 2) }} MXN</strong>.
+                El total de los {{ $countWords }} pagos programados es de <strong>${{ number_format((float) $loan->total_amount, 2) }} MXN</strong>.
             </p>
         @else
             <p>

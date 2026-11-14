@@ -62,6 +62,44 @@
   }
   .select2-search--dropdown .select2-search__field {
     border: 1px solid #ced4da !important;
+    border-radius: .2rem !important;
+    padding: .3rem .5rem !important;
+  }
+  .select2-container--default .select2-selection--multiple {
+    min-height: calc(1.5em + .75rem + 2px) !important;
+    border: 1px solid #ced4da !important;
+    border-radius: .25rem !important;
+    padding: 2px 6px !important;
+    background-color: #fff !important;
+  }
+  .select2-multi-sm + .select2-container .select2-selection--multiple {
+    min-height: calc(1.5em + .5rem + 2px) !important;
+    padding: 1px 4px !important;
+    font-size: .82rem !important;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #007bff !important;
+    border: 1px solid #006fe6 !important;
+    color: #fff !important;
+    border-radius: .2rem !important;
+    padding: 1px 6px !important;
+    margin-top: 2px !important;
+    margin-right: 4px !important;
+    font-size: .78rem !important;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255, 255, 255, 0.85) !important;
+    margin-right: 4px !important;
+    border-right: none !important;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #fff !important;
+    background: transparent !important;
+  }
+  .select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
+    margin-top: 3px !important;
+    font-size: .82rem !important;
+  }
     border-radius: .25rem !important;
     padding: .375rem .75rem !important;
     outline: none !important;
@@ -476,89 +514,10 @@
                 }
             }
         });
-
-        // ==========================================
-        // CONTROLADOR GLOBAL DE CAJÓN FÍSICO USB (ZYA)
-        // ==========================================
-        window.ZyaPosHardware = {
-            KICK_DRAWER_BYTES: new Uint8Array([
-                0x1B, 0x70, 0x00, 0x19, 0xFA,
-                0x1B, 0x70, 0x01, 0x19, 0xFA,
-                0x10, 0x14, 0x01, 0x00, 0x05,
-                0x07, 0x0A
-            ]),
-
-            isWebSerialSupported: function () {
-                return 'serial' in navigator;
-            },
-
-            _kickPort: async function (port) {
-                await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' });
-                try {
-                    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-                } catch (e) {}
-
-                const writer = port.writable.getWriter();
-                await writer.write(this.KICK_DRAWER_BYTES);
-                writer.releaseLock();
-
-                await new Promise(resolve => setTimeout(resolve, 120));
-
-                try {
-                    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-                } catch (e) {}
-
-                await port.close();
-            },
-
-            autoOpenUsbDrawer: async function () {
-                if (!this.isWebSerialSupported()) return false;
-                try {
-                    const ports = await navigator.serial.getPorts();
-                    if (ports && ports.length > 0) {
-                        await this._kickPort(ports[0]);
-                        return true;
-                    }
-                } catch (err) {
-                    console.warn('[ZyaPosHardware] Error en apertura automática USB:', err);
-                }
-                return false;
-            },
-
-            manualOpenUsbDrawer: async function () {
-                if (!this.isWebSerialSupported()) {
-                    alert('Para controlar el cajón USB se recomienda usar Google Chrome o Microsoft Edge.');
-                    return false;
-                }
-                try {
-                    let ports = await navigator.serial.getPorts();
-                    let port = (ports && ports.length > 0) ? ports[0] : null;
-                    if (!port) {
-                        port = await navigator.serial.requestPort();
-                    }
-                    await this._kickPort(port);
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: '¡Cajón Abierto!',
-                            text: 'Señal física enviada correctamente por USB.',
-                            timer: 1500,
-                            showConfirmButton: false,
-                            toast: true,
-                            position: 'top-end'
-                        });
-                    }
-                    return true;
-                } catch (err) {
-                    if (err.name !== 'NotFoundError') {
-                        console.error('[ZyaPosHardware] Error al abrir cajón USB:', err);
-                        alert('No se pudo comunicar con el cajón USB: ' + (err.message || err));
-                    }
-                    return false;
-                }
-            }
-        };
-
+    </script>
+    <!-- Controlador Unificado de Hardware POS / Cajón USB-COM (ZYA) -->
+    <script src="{{ asset('assets/js/pos-hardware.js') }}?v=20261113"></script>
+    <script>
         $(document).ready(function() {
             if ($('.datatable-export').length > 0) {
                 $('.datatable-export').each(function() {
@@ -640,10 +599,12 @@
                 }
                 var placeholder = $select.attr('placeholder') || $select.data('placeholder') || '-- Escribe para buscar o seleccionar --';
                 var $modal = $select.closest('.modal');
+                var isMultiple = $select.prop('multiple');
                 var config = {
                     width: '100%',
                     placeholder: placeholder,
                     allowClear: !$select.prop('required'),
+                    closeOnSelect: isMultiple ? false : true,
                     tags: $select.data('tags') === true || $select.data('tags') === 'true',
                     language: {
                         noResults: function() { return "No se encontraron coincidencias"; },
@@ -847,18 +808,26 @@
 
         function waitTicketLayoutAndPrint(doc, win, onDone) {
             var finish = function() {
-                var raf = window.requestAnimationFrame || function(cb) { return setTimeout(cb, 16); };
-                raf(function() {
+                var invokePrint = function() {
+                    var raf = window.requestAnimationFrame || function(cb) { return setTimeout(cb, 16); };
                     raf(function() {
-                        var ok = false;
-                        try {
-                            ok = triggerFramePrint(win);
-                        } catch (err) {
-                            console.warn('Error al invocar impresión del ticket:', err);
-                        }
-                        if (typeof onDone === 'function') onDone(ok);
+                        raf(function() {
+                            var ok = false;
+                            try {
+                                ok = triggerFramePrint(win);
+                            } catch (err) {
+                                console.warn('Error al invocar impresión del ticket:', err);
+                            }
+                            if (typeof onDone === 'function') onDone(ok);
+                        });
                     });
-                });
+                };
+
+                if (window.ZyaPosHardware && typeof window.ZyaPosHardware.waitUntilIdle === 'function') {
+                    Promise.resolve(window.ZyaPosHardware.waitUntilIdle(700)).then(invokePrint, invokePrint);
+                } else {
+                    invokePrint();
+                }
             };
 
             try {
@@ -1034,6 +1003,13 @@
                             waitTicketLayoutAndPrint(doc, frame.contentWindow, function(ok) {
                                 if (!ok) {
                                     window._posDirectPrintLastAt = 0;
+                                }
+                                if (typeof options.onPrintTriggered === 'function') {
+                                    setTimeout(function() {
+                                        try {
+                                            options.onPrintTriggered(ok);
+                                        } catch (cbErr) {}
+                                    }, 120);
                                 }
                                 window._posDirectPrintCleanupTimer = setTimeout(cleanupFrame, 60000);
                             });

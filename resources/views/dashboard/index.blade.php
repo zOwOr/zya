@@ -142,9 +142,17 @@
                     (desde el <strong>{{ \Carbon\Carbon::parse($minAllowedDate)->format('d/m/Y') }}</strong>).
                 </div>
             @endif
+            @php
+                $canMultiFinFilter = $canMultiFilterFinancieras ?? \App\Services\FinancieraFilterService::userCanFilterMultiple();
+                $selectedFinFilterIds = $selectedFinancieraIds ?? \App\Services\FinancieraFilterService::resolveSelectedIds(
+                    \App\Services\FinancieraFilterService::rawInputFromRequest(request()),
+                    null,
+                    $canMultiFinFilter
+                );
+            @endphp
             <form method="GET" action="{{ route('dashboard') }}" class="row align-items-end mb-3" id="dashFinFilterForm">
                 @foreach(request()->query() as $qk => $qv)
-                    @if(!is_array($qv) && !str_starts_with($qk, 'fin_') && !in_array($qk, ['date', 'start_date', 'end_date', 'filter_type', 'fin_page'], true))
+                    @if(!is_array($qv) && !str_starts_with($qk, 'fin_') && !in_array($qk, ['date', 'start_date', 'end_date', 'filter_type', 'fin_page', 'financiera_id', 'financiera_ids'], true))
                         <input type="hidden" name="{{ $qk }}" value="{{ $qv }}">
                     @endif
                 @endforeach
@@ -188,15 +196,32 @@
                     </div>
                 </div>
                 <div class="col-md-3 mb-2">
-                    <label class="small font-weight-bold mb-1">Catálogo Financiera:</label>
-                    <select name="financiera_id" class="form-control form-control-sm">
-                        <option value="">-- Todas las Financieras --</option>
-                        @foreach($financieras as $fin)
-                            <option value="{{ $fin->id }}" {{ (string)request('financiera_id') === (string)$fin->id ? 'selected' : '' }}>
-                                {{ $fin->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                    @if($canMultiFinFilter)
+                        <label class="small font-weight-bold mb-1">
+                            Catálogo Financiera: <span class="badge badge-info ml-1">Múltiple</span>
+                        </label>
+                        <select name="financiera_id[]"
+                                id="dashFinancieraSelect"
+                                class="form-control form-control-sm select2-autocomplete select2-multi-sm"
+                                multiple="multiple"
+                                data-placeholder="Todas las Financieras (selección múltiple)">
+                            @foreach($financieras as $fin)
+                                <option value="{{ $fin->id }}" {{ in_array((int) $fin->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>
+                                    {{ $fin->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @else
+                        <label class="small font-weight-bold mb-1">Catálogo Financiera:</label>
+                        <select name="financiera_id" class="form-control form-control-sm">
+                            <option value="">-- Todas las Financieras --</option>
+                            @foreach($financieras as $fin)
+                                <option value="{{ $fin->id }}" {{ in_array((int) $fin->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>
+                                    {{ $fin->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @endif
                 </div>
                 @if(auth()->user()->isSuperAdmin() || auth()->user()->can('dashboard.all_branches') || auth()->user()->can('financieras.all_branches') || auth()->user()->can('cobros.all_branches'))
                     <div class="col-md-2 mb-2">
@@ -346,10 +371,19 @@
         <div class="card-body pb-0">
             <form method="GET" action="{{ route('dashboard') }}" class="row align-items-end mb-2" id="dashMovFilterForm">
                 @foreach(request()->query() as $qk => $qv)
-                    @if(!is_array($qv) && !str_starts_with($qk, 'mov_') && $qk !== 'mov_page')
-                        <input type="hidden" name="{{ $qk }}" value="{{ $qv }}">
+                    @if(!str_starts_with($qk, 'mov_') && $qk !== 'mov_page' && !in_array($qk, ['financiera_id', 'financiera_ids'], true))
+                        @if(!is_array($qv))
+                            <input type="hidden" name="{{ $qk }}" value="{{ $qv }}">
+                        @endif
                     @endif
                 @endforeach
+                @if($canMultiFinFilter)
+                    @foreach($selectedFinFilterIds as $sfId)
+                        <input type="hidden" name="financiera_id[]" value="{{ $sfId }}">
+                    @endforeach
+                @elseif(!empty($selectedFinFilterIds))
+                    <input type="hidden" name="financiera_id" value="{{ $selectedFinFilterIds[0] }}">
+                @endif
                 <div class="col-md-2 mb-2">
                     <label class="small font-weight-bold mb-1">Modo Fecha:</label>
                     <select name="mov_filter_type" id="dashMovFilterType" class="form-control form-control-sm font-weight-bold">
@@ -521,7 +555,7 @@
                                         <button type="button" onclick="window.openTicketPreviewModal('{{ route('central-pos.receipt', $tx->id) }}', 'Ticket {{ $tx->transaction_code }}')" class="btn btn-xs btn-outline-primary mr-1" title="Ver Ticket completo en pantalla / WhatsApp">
                                             <i class="las la-eye"></i> Ver
                                         </button>
-                                        <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $tx->id) }}')" class="btn btn-xs btn-outline-dark mr-1" title="Imprimir Ticket">
+                                        <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $tx->id) }}?skip_drawer=1')" class="btn btn-xs btn-outline-dark mr-1" title="Imprimir Ticket">
                                             <i class="las la-print"></i> Ticket
                                         </button>
                                         @php

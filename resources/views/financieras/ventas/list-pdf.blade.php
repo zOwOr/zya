@@ -81,6 +81,7 @@
         <div class="meta">
             <strong>Período:</strong> {{ $periodLabel }} |
             <strong>Sucursal:</strong> {{ $branchName }} |
+            <strong>Financiera(s):</strong> {{ $financieraFilterLabel ?? 'Todas las Financieras' }} |
             <strong>Generado:</strong> {{ now()->format('d/m/Y H:i') }}
         </div>
     </div>

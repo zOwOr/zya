@@ -9,9 +9,13 @@ use App\Models\Customer;
 use App\Models\FinSupplier;
 use App\Models\Gift;
 use App\Models\GiftMovement;
+use App\Models\GiftStock;
+use App\Models\GiftTransfer;
 use App\Models\Supplier;
+use App\Services\GiftInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class GiftController extends Controller
 {
@@ -22,275 +26,383 @@ class GiftController extends Controller
     protected array $permissionMapping = [
         'index' => 'read',
         'store' => 'create',
+        'registerEntry' => 'create',
+        'transfer' => 'transfer',
+        'registerDelivery' => 'deliver',
         'update' => 'edit',
         'destroy' => 'delete',
-        'registerEntry' => 'create',
-        'registerDelivery' => 'deliver',
     ];
-
-    public function __construct()
-    {
-        $this->initializeModulePermission();
-    }
 
     protected function canAccessAllBranches(): bool
     {
-        return auth()->check() && (auth()->user()->isSuperAdmin() || auth()->user()->can('gifts.all_branches'));
+        return auth()->user()?->can('gifts.all_branches') ?? false;
     }
 
-    protected function resolveBranchId(?Request $request = null): int
+    protected function resolveDeliveryBranchId(Request $request): ?int
     {
-        if ($request && $this->canAccessAllBranches() && $request->filled('branch_id')) {
-            return (int) $request->input('branch_id');
+        if ($this->canAccessAllBranches()) {
+            $requested = $request->input('branch_id');
+            if ($requested !== null && $requested !== '' && $requested !== 'all' && $requested !== 'general' && ctype_digit((string) $requested)) {
+                return (int) $requested;
+            }
         }
-        return (int) (auth()->user()->branch_id ?? Branch::value('id') ?? 1);
+
+        return auth()->user()?->branch_id ? (int) auth()->user()->branch_id : null;
     }
 
     public function index(Request $request)
     {
-        $branchId = $this->resolveBranchId($request);
-        $search = $request->input('search');
-        $supplierFilter = $request->input('supplier_filter');
+        $canAllBranches = $this->canAccessAllBranches();
+        $userBranchId = auth()->user()?->branch_id ? (int) auth()->user()->branch_id : null;
+        $requestedBranch = (string) $request->input('branch_id', $canAllBranches ? 'all' : (string) ($userBranchId ?: 'all'));
 
-        $giftsQuery = Gift::with(['supplier', 'finSupplier', 'branch'])
-            ->when(!$this->canAccessAllBranches() || $request->filled('branch_id'), function ($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
-            })
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($sub) use ($search) {
-                    $sub->where('name', 'like', "%{$search}%")
-                        ->orWhere('code', 'like', "%{$search}%")
-                        ->orWhere('brand', 'like', "%{$search}%")
-                        ->orWhere('supplier_name', 'like', "%{$search}%");
+        $onlyGeneral = false;
+        $activeBranchId = null;
+
+        if (!$canAllBranches) {
+            $activeBranchId = $userBranchId;
+            $branchScope = $userBranchId ? (string) $userBranchId : 'all';
+        } elseif ($requestedBranch === 'general') {
+            $onlyGeneral = true;
+            $branchScope = 'general';
+        } elseif ($requestedBranch !== '' && $requestedBranch !== 'all' && ctype_digit($requestedBranch) && (int) $requestedBranch > 0) {
+            $activeBranchId = (int) $requestedBranch;
+            $branchScope = (string) $activeBranchId;
+        } else {
+            $branchScope = 'all';
+        }
+
+        $q = trim((string) $request->input('q', ''));
+        $statusFilter = trim((string) $request->input('status', ''));
+        $supplierFilter = trim((string) $request->input('supplier_filter', ''));
+        $movementTypeFilter = trim((string) $request->input('movement_type', ''));
+        $onlyWithStock = $request->boolean('only_with_stock');
+
+        $giftsQuery = Gift::with(['supplier', 'finSupplier', 'stocks.branch'])
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('name', 'like', "%{$q}%")
+                        ->orWhere('code', 'like', "%{$q}%")
+                        ->orWhere('brand', 'like', "%{$q}%")
+                        ->orWhere('supplier_name', 'like', "%{$q}%");
                 });
             })
-            ->when($supplierFilter, function ($q) use ($supplierFilter) {
-                $q->where('supplier_name', 'like', "%{$supplierFilter}%");
+            ->when(in_array($statusFilter, ['activo', 'inactivo'], true), fn ($query) => $query->where('status', $statusFilter))
+            ->when($supplierFilter !== '', function ($query) use ($supplierFilter) {
+                if (str_starts_with($supplierFilter, 'fin:')) {
+                    $query->where('fin_supplier_id', (int) substr($supplierFilter, 4));
+                } elseif (str_starts_with($supplierFilter, 'sup:')) {
+                    $query->where('supplier_id', (int) substr($supplierFilter, 4));
+                }
+            })
+            ->when($onlyGeneral && $onlyWithStock, fn ($query) => $query->where('stock_quantity', '>', 0))
+            ->when($activeBranchId !== null && $onlyWithStock, function ($query) use ($activeBranchId) {
+                $query->whereHas('stocks', fn ($sq) => $sq->where('branch_id', $activeBranchId)->where('stock_quantity', '>', 0));
             })
             ->orderBy('name');
 
         $gifts = $giftsQuery->paginate(15)->withQueryString();
 
-        $movements = GiftMovement::with(['gift', 'branch', 'user'])
-            ->when(!$this->canAccessAllBranches() || $request->filled('branch_id'), function ($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
+        $transfers = GiftTransfer::with(['gift', 'fromBranch', 'toBranch', 'user'])
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('transfer_code', 'like', "%{$q}%")
+                        ->orWhere('notes', 'like', "%{$q}%")
+                        ->orWhereHas('gift', fn ($gq) => $gq->where('name', 'like', "%{$q}%")->orWhere('code', 'like', "%{$q}%"));
+                });
             })
+            ->when($onlyGeneral, fn ($query) => $query->whereNull('from_branch_id'))
+            ->when($activeBranchId !== null, function ($query) use ($activeBranchId) {
+                $query->where(fn ($sub) => $sub->where('from_branch_id', $activeBranchId)->orWhere('to_branch_id', $activeBranchId));
+            })
+            ->orderByDesc('transferred_at')
+            ->orderByDesc('id')
+            ->paginate(12, ['*'], 'transfer_page')
+            ->withQueryString();
+
+        $movements = GiftMovement::with(['gift', 'branch', 'user', 'transfer'])
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('customer_name', 'like', "%{$q}%")
+                        ->orWhere('reference_code', 'like', "%{$q}%")
+                        ->orWhere('notes', 'like', "%{$q}%")
+                        ->orWhereHas('gift', fn ($gq) => $gq->where('name', 'like', "%{$q}%")->orWhere('code', 'like', "%{$q}%"));
+                });
+            })
+            ->when($movementTypeFilter !== '', fn ($query) => $query->where('movement_type', $movementTypeFilter))
+            ->when($onlyGeneral, fn ($query) => $query->whereNull('branch_id'))
+            ->when($activeBranchId !== null, fn ($query) => $query->where('branch_id', $activeBranchId))
             ->orderByDesc('movement_date')
             ->orderByDesc('id')
             ->paginate(20, ['*'], 'mov_page')
             ->withQueryString();
 
-        $suppliers = Supplier::orderBy('name')->get(['id', 'name']);
-        $finSuppliers = FinSupplier::where('is_active', true)->orderBy('name')->get(['id', 'name']);
-        $branches = Branch::orderBy('name')->get();
-
         $stats = [
-            'total_items' => Gift::when(!$this->canAccessAllBranches() || $request->filled('branch_id'), fn($q) => $q->where('branch_id', $branchId))->count(),
-            'total_stock' => Gift::when(!$this->canAccessAllBranches() || $request->filled('branch_id'), fn($q) => $q->where('branch_id', $branchId))->sum('stock_quantity'),
-            'deliveries_month' => GiftMovement::when(!$this->canAccessAllBranches() || $request->filled('branch_id'), fn($q) => $q->where('branch_id', $branchId))
-                ->where('movement_type', 'entrega_cliente')
-                ->whereMonth('movement_date', now()->month)
+            'total_catalog' => Gift::where('status', 'activo')->count(),
+            'central_stock' => (int) Gift::where('status', 'activo')->sum('stock_quantity'),
+            'branch_stock' => $activeBranchId
+                ? (int) GiftStock::where('branch_id', $activeBranchId)->sum('stock_quantity')
+                : (int) GiftStock::sum('stock_quantity'),
+            'transfers_month' => (int) GiftTransfer::whereMonth('transferred_at', now()->month)
+                ->whereYear('transferred_at', now()->year)
+                ->when($activeBranchId !== null, fn ($query) => $query->where(fn ($sub) => $sub->where('from_branch_id', $activeBranchId)->orWhere('to_branch_id', $activeBranchId)))
                 ->sum('quantity'),
-            'entries_month' => GiftMovement::when(!$this->canAccessAllBranches() || $request->filled('branch_id'), fn($q) => $q->where('branch_id', $branchId))
-                ->where('movement_type', 'entrada_proveedor')
+            'deliveries_month' => (int) GiftMovement::where('movement_type', 'entrega_cliente')
                 ->whereMonth('movement_date', now()->month)
+                ->whereYear('movement_date', now()->year)
+                ->when($activeBranchId !== null, fn ($query) => $query->where('branch_id', $activeBranchId))
+                ->sum('quantity'),
+            'entries_month' => (int) GiftMovement::where('movement_type', 'entrada_proveedor')
+                ->whereMonth('movement_date', now()->month)
+                ->whereYear('movement_date', now()->year)
                 ->sum('quantity'),
         ];
 
-        $allGiftsForSelect = Gift::where('branch_id', $branchId)->orderBy('name')->get();
-        $customers = Customer::orderBy('tit_name')->get(['id', 'tit_name', 'tit_phone']);
+        $masterCatalog = Gift::with(['supplier', 'finSupplier', 'stocks.branch'])
+            ->where('status', 'activo')
+            ->orderBy('name')
+            ->get();
+
+        $branches = Branch::orderBy('name')->get();
+        $suppliers = Supplier::orderBy('name')->get();
+        $finSuppliers = FinSupplier::where('is_active', true)->orderBy('name')->get();
+        $customers = Customer::orderBy('tit_name')->limit(500)->get(['id', 'tit_name', 'tit_phone']);
+        $selectedBranchObj = $activeBranchId ? $branches->firstWhere('id', $activeBranchId) : null;
 
         return view('gifts.index', compact(
             'gifts',
+            'transfers',
             'movements',
+            'stats',
+            'masterCatalog',
+            'branches',
             'suppliers',
             'finSuppliers',
-            'branches',
-            'branchId',
-            'stats',
-            'allGiftsForSelect',
-            'customers'
+            'customers',
+            'canAllBranches',
+            'userBranchId',
+            'branchScope',
+            'activeBranchId',
+            'onlyGeneral',
+            'selectedBranchObj',
+            'q',
+            'statusFilter',
+            'supplierFilter',
+            'movementTypeFilter',
+            'onlyWithStock'
         ));
     }
 
+    /**
+     * Alta única en Catálogo Maestro (Inventario General).
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:190',
-            'code' => 'nullable|string|max:80',
-            'brand' => 'nullable|string|max:120',
+            'code' => 'nullable|string|max:50',
+            'name' => 'required|string|max:160',
+            'brand' => 'nullable|string|max:100',
             'description' => 'nullable|string|max:500',
             'supplier_id' => 'nullable|exists:suppliers,id',
             'fin_supplier_id' => 'nullable|exists:fin_suppliers,id',
-            'supplier_name' => 'nullable|string|max:190',
-            'branch_id' => 'nullable|exists:branches,id',
-            'stock_quantity' => 'required|integer|min:0',
+            'supplier_name' => 'nullable|string|max:120',
+            'stock_quantity' => 'nullable|integer|min:0',
             'min_stock' => 'nullable|integer|min:0',
             'unit_cost' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string|max:500',
         ]);
 
-        $branchId = $this->resolveBranchId($request);
-        $code = !empty($validated['code']) ? strtoupper(trim($validated['code'])) : 'GIFT-' . strtoupper(substr(uniqid(), -6));
+        $gift = GiftInventoryService::createMasterGift($validated, auth()->id());
 
-        $supplierName = $validated['supplier_name'] ?? null;
-        if (empty($supplierName) && !empty($validated['fin_supplier_id'])) {
-            $supplierName = FinSupplier::find($validated['fin_supplier_id'])?->name;
-        }
-        if (empty($supplierName) && !empty($validated['supplier_id'])) {
-            $supplierName = Supplier::find($validated['supplier_id'])?->name;
-        }
-
-        DB::transaction(function () use ($validated, $branchId, $code, $supplierName) {
-            $initialStock = (int) $validated['stock_quantity'];
-
-            $gift = Gift::create([
-                'code' => $code,
-                'name' => $validated['name'],
-                'brand' => $validated['brand'] ?? null,
-                'description' => $validated['description'] ?? null,
-                'supplier_id' => $validated['supplier_id'] ?? null,
-                'fin_supplier_id' => $validated['fin_supplier_id'] ?? null,
-                'supplier_name' => $supplierName,
-                'branch_id' => $branchId,
-                'stock_quantity' => $initialStock,
-                'min_stock' => (int) ($validated['min_stock'] ?? 1),
-                'unit_cost' => (float) ($validated['unit_cost'] ?? 0),
-                'status' => 'activo',
-            ]);
-
-            if ($initialStock > 0) {
-                GiftMovement::create([
-                    'gift_id' => $gift->id,
-                    'branch_id' => $branchId,
-                    'user_id' => auth()->id(),
-                    'movement_type' => 'entrada_proveedor',
-                    'quantity' => $initialStock,
-                    'previous_stock' => 0,
-                    'new_stock' => $initialStock,
-                    'supplier_name' => $supplierName ?? 'Inventario Inicial',
-                    'notes' => 'Alta inicial en almacén de gifts por proveedor',
-                    'movement_date' => now(),
-                ]);
-            }
-        });
-
-        return redirect()->route('gifts.index', ['branch_id' => $branchId])
-            ->with('success', 'Gift / Promocional registrado en el inventario correctamente.');
+        return back()->with(
+            'success',
+            "Regalo '{$gift->name}' ({$gift->code}) registrado en el Catálogo Maestro e Inventario General correctamente."
+        );
     }
 
     /**
-     * Registrar entrada de lote de Gifts enviado por un proveedor.
+     * Registrar recepción de piezas al Inventario General (Almacén Matriz).
      */
     public function registerEntry(Request $request)
     {
         $validated = $request->validate([
             'gift_id' => 'required|exists:gifts,id',
             'quantity' => 'required|integer|min:1',
-            'supplier_name' => 'nullable|string|max:190',
-            'reference_code' => 'nullable|string|max:120',
+            'unit_cost' => 'nullable|numeric|min:0',
+            'reference_code' => 'nullable|string|max:60',
             'notes' => 'nullable|string|max:500',
         ]);
 
-        DB::transaction(function () use ($validated) {
-            $gift = Gift::lockForUpdate()->findOrFail($validated['gift_id']);
-            $prevStock = (int) $gift->stock_quantity;
-            $qty = (int) $validated['quantity'];
-            $newStock = $prevStock + $qty;
-
-            $gift->update([
-                'stock_quantity' => $newStock,
-                'status' => 'activo',
-                'supplier_name' => !empty($validated['supplier_name']) ? $validated['supplier_name'] : $gift->supplier_name,
-            ]);
-
-            GiftMovement::create([
-                'gift_id' => $gift->id,
-                'branch_id' => $gift->branch_id,
-                'user_id' => auth()->id(),
-                'movement_type' => 'entrada_proveedor',
-                'quantity' => $qty,
-                'previous_stock' => $prevStock,
-                'new_stock' => $newStock,
-                'supplier_name' => $validated['supplier_name'] ?: $gift->supplier_display_name,
+        $result = GiftInventoryService::addCentralEntry(
+            (int) $validated['gift_id'],
+            (int) $validated['quantity'],
+            [
+                'unit_cost' => $validated['unit_cost'] ?? null,
                 'reference_code' => $validated['reference_code'] ?? null,
-                'notes' => $validated['notes'] ?? 'Recepción de lote promocional de proveedor',
-                'movement_date' => now(),
-            ]);
-        });
+                'notes' => $validated['notes'] ?? null,
+            ],
+            auth()->id()
+        );
 
-        return back()->with('success', 'Entrada de stock de Gifts por proveedor registrada correctamente.');
+        return back()->with(
+            'success',
+            "Entrada de +{$validated['quantity']} pzas de '{$result['gift']->name}' al Inventario General registrada (Stock General actual: {$result['new_stock']})."
+        );
     }
 
     /**
-     * Registrar entrega de Gift a un cliente.
+     * Registrar traspaso de Inventario General (o sucursal origen) hacia sucursal destino.
+     */
+    public function transfer(Request $request)
+    {
+        $validated = $request->validate([
+            'gift_id' => 'required|exists:gifts,id',
+            'from_branch_id' => 'nullable|integer|exists:branches,id',
+            'to_branch_id' => 'required|integer|exists:branches,id',
+            'quantity' => 'required|integer|min:1',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $fromBranchId = !empty($validated['from_branch_id']) ? (int) $validated['from_branch_id'] : null;
+
+        if ($fromBranchId !== null && !$this->canAccessAllBranches()) {
+            $userBranchId = auth()->user()?->branch_id ? (int) auth()->user()->branch_id : null;
+            if ($userBranchId !== $fromBranchId) {
+                abort(403, 'No tienes permiso para traspasar desde otra sucursal.');
+            }
+        }
+
+        $transfer = GiftInventoryService::transfer(
+            (int) $validated['gift_id'],
+            $fromBranchId,
+            (int) $validated['to_branch_id'],
+            (int) $validated['quantity'],
+            $validated['notes'] ?? null,
+            auth()->id()
+        );
+
+        return back()->with(
+            'success',
+            "Traspaso {$transfer->transfer_code} completado: {$transfer->quantity} pzas de '{$transfer->gift->name}' de {$transfer->origin_label} a {$transfer->destination_label}."
+        );
+    }
+
+    /**
+     * Registrar entrega de Gift a cliente descontando exclusivamente del stock de la sucursal.
      */
     public function registerDelivery(Request $request)
     {
         $validated = $request->validate([
             'gift_id' => 'required|exists:gifts,id',
+            'branch_id' => 'nullable|integer|exists:branches,id',
             'quantity' => 'required|integer|min:1',
-            'customer_name' => 'required|string|max:190',
+            'customer_id' => 'nullable|integer|exists:customers,id',
+            'customer_name' => 'nullable|string|max:160',
             'customer_phone' => 'nullable|string|max:40',
-            'reference_module' => 'nullable|string|max:80',
-            'reference_code' => 'nullable|string|max:120',
             'notes' => 'nullable|string|max:500',
         ]);
 
-        return DB::transaction(function () use ($validated) {
-            $gift = Gift::lockForUpdate()->findOrFail($validated['gift_id']);
-            $prevStock = (int) $gift->stock_quantity;
-            $qty = (int) $validated['quantity'];
+        $branchId = $this->resolveDeliveryBranchId($request);
+        if (!$branchId) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'Debes seleccionar la sucursal desde la cual se entrega el regalo al cliente.',
+            ]);
+        }
 
-            if ($prevStock < $qty) {
-                return back()->withErrors(['quantity' => "Stock insuficiente para '{$gift->name}'. Disponible: {$prevStock}."]);
+        $customerName = trim((string) ($validated['customer_name'] ?? ''));
+        $customerPhone = trim((string) ($validated['customer_phone'] ?? ''));
+
+        if (!empty($validated['customer_id'])) {
+            $customer = Customer::find((int) $validated['customer_id']);
+            if ($customer) {
+                $customerName = $customer->tit_name ?: $customerName;
+                $customerPhone = $customerPhone !== '' ? $customerPhone : ($customer->tit_phone ?? '');
             }
+        }
 
-            $newStock = $prevStock - $qty;
-            $gift->update([
-                'stock_quantity' => $newStock,
-                'status' => 'activo',
-            ]);
+        $movement = GiftInventoryService::deliverFromBranch(
+            (int) $validated['gift_id'],
+            $branchId,
+            (int) $validated['quantity'],
+            [
+                'customer_name' => $customerName !== '' ? $customerName : 'Cliente General',
+                'customer_phone' => $customerPhone !== '' ? $customerPhone : null,
+                'reference_module' => 'gifts',
+                'notes' => $validated['notes'] ?? null,
+            ],
+            auth()->id()
+        );
 
-            GiftMovement::create([
-                'gift_id' => $gift->id,
-                'branch_id' => $gift->branch_id,
-                'user_id' => auth()->id(),
-                'movement_type' => 'entrega_cliente',
-                'quantity' => $qty,
-                'previous_stock' => $prevStock,
-                'new_stock' => $newStock,
-                'supplier_name' => $gift->supplier_display_name,
-                'customer_name' => $validated['customer_name'],
-                'customer_phone' => $validated['customer_phone'] ?? null,
-                'reference_module' => $validated['reference_module'] ?? 'Entrega en Sucursal',
-                'reference_code' => $validated['reference_code'] ?? null,
-                'notes' => $validated['notes'] ?? 'Entrega de obsequio promocional a cliente',
-                'movement_date' => now(),
-            ]);
+        $branchName = $movement->branch?->name ?? 'la sucursal';
 
-            return back()->with('success', "Se registró la entrega de {$qty}x '{$gift->name}' al cliente {$validated['customer_name']}.");
-        });
+        return back()->with(
+            'success',
+            "Entrega de {$movement->quantity} pza(s) de '{$movement->gift->name}' registrada en {$branchName} (Stock restante en sucursal: {$movement->new_stock})."
+        );
     }
 
     public function update(Request $request, Gift $gift)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:190',
-            'brand' => 'nullable|string|max:120',
-            'supplier_name' => 'nullable|string|max:190',
-            'min_stock' => 'nullable|integer|min:0',
+            'code' => 'nullable|string|max:50',
+            'name' => 'required|string|max:160',
+            'brand' => 'nullable|string|max:100',
             'description' => 'nullable|string|max:500',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'fin_supplier_id' => 'nullable|exists:fin_suppliers,id',
+            'supplier_name' => 'nullable|string|max:120',
+            'min_stock' => 'nullable|integer|min:0',
+            'unit_cost' => 'nullable|numeric|min:0',
+            'status' => 'nullable|in:activo,inactivo',
         ]);
 
-        $gift->update($validated);
+        DB::transaction(function () use ($gift, $validated) {
+            $locked = Gift::where('id', $gift->id)->lockForUpdate()->firstOrFail();
 
-        return back()->with('success', 'Información del Gift actualizada correctamente.');
+            $duplicate = GiftInventoryService::findDuplicateByName($validated['name'], $locked->id);
+            if ($duplicate) {
+                throw ValidationException::withMessages([
+                    'name' => "Ya existe otro regalo llamado '{$duplicate->name}' ({$duplicate->code}) en el Catálogo Maestro.",
+                ]);
+            }
+
+            $code = trim((string) ($validated['code'] ?? ''));
+            if ($code !== '' && $code !== $locked->code) {
+                if (Gift::where('code', $code)->where('id', '!=', $locked->id)->exists()) {
+                    throw ValidationException::withMessages([
+                        'code' => "El código '{$code}' ya pertenece a otro regalo del Catálogo Maestro.",
+                    ]);
+                }
+                $locked->code = $code;
+            }
+
+            $locked->name = GiftInventoryService::cleanName($validated['name']);
+            $locked->brand = filled($validated['brand'] ?? null) ? trim((string) $validated['brand']) : null;
+            $locked->description = filled($validated['description'] ?? null) ? trim((string) $validated['description']) : null;
+            $locked->supplier_id = !empty($validated['supplier_id']) ? (int) $validated['supplier_id'] : null;
+            $locked->fin_supplier_id = !empty($validated['fin_supplier_id']) ? (int) $validated['fin_supplier_id'] : null;
+            $locked->supplier_name = filled($validated['supplier_name'] ?? null) ? trim((string) $validated['supplier_name']) : null;
+            $locked->min_stock = isset($validated['min_stock']) ? max(0, (int) $validated['min_stock']) : $locked->min_stock;
+            $locked->unit_cost = isset($validated['unit_cost']) ? max(0, (float) $validated['unit_cost']) : $locked->unit_cost;
+            $locked->status = $validated['status'] ?? $locked->status;
+            $locked->save();
+        });
+
+        return back()->with('success', 'Información del regalo en el Catálogo Maestro actualizada correctamente.');
     }
 
     public function destroy(Gift $gift)
     {
+        if ($gift->total_global_stock > 0 || $gift->movements()->exists() || $gift->transfers()->exists()) {
+            return back()->with(
+                'error',
+                "No se puede eliminar '{$gift->name}' porque tiene stock activo ({$gift->total_global_stock} pzas globales) o historial de movimientos/traspasos. Cámbialo a estado 'Inactivo' desde Editar."
+            );
+        }
+
+        $gift->stocks()->delete();
         $gift->delete();
-        return back()->with('success', 'Gift eliminado del catálogo.');
+
+        return back()->with('success', 'Gift eliminado del Catálogo Maestro.');
     }
 }
-

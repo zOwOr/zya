@@ -349,15 +349,25 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <div class="font-weight-bold text-dark font-size-13">${{ number_format($loan->total_amount, 2) }}</div>
+                                            <div class="font-weight-bold text-dark font-size-13">${{ number_format((float) $loan->total_amount, 2) }}</div>
                                             <small class="text-muted d-block font-size-11">
-                                                {{ $loan->isArticleCredit() ? ('Fin: $' . number_format($loan->principal_amount, 2)) : ('Cap: $' . number_format($loan->principal_amount, 2)) }}
+                                                @if ($loan->isArticleCredit())
+                                                    Venta: ${{ number_format($loan->resolved_credit_sale_total, 2) }}
+                                                @else
+                                                    Cap: ${{ number_format((float) ($loan->principal_amount ?? 0), 2) }}
+                                                @endif
                                             </small>
                                         </td>
                                         <td>
                                             @if ($loan->isArticleCredit())
-                                                <span class="text-success font-weight-bold font-size-13">${{ number_format($loan->down_payment ?? 0, 2) }}</span>
-                                                <small class="text-muted d-block font-size-10 text-uppercase">Precio: ${{ number_format($loan->article_price ?? 0, 2) }}</small>
+                                                <span class="text-success font-weight-bold font-size-13">${{ number_format((float) ($loan->down_payment ?? 0), 2) }}</span>
+                                                <small class="text-muted d-block font-size-10 text-uppercase">
+                                                    @if ($loan->article_price !== null && (float) $loan->article_price > 0)
+                                                        Contado: ${{ number_format((float) $loan->article_price, 2) }}
+                                                    @else
+                                                        Interés: Sin calcular
+                                                    @endif
+                                                </small>
                                             @else
                                                 <span class="text-info font-weight-bold font-size-13">${{ number_format($loan->opening_commission, 2) }}</span>
                                                 <small class="text-muted d-block font-size-10 text-uppercase">Apertura</small>

@@ -14,6 +14,7 @@ use App\Models\FinSaleNote;
 use App\Models\FinSalePayment;
 use App\Models\Gift;
 use App\Models\GiftMovement;
+use App\Models\GiftStock;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\LoanPayment;
@@ -27,6 +28,7 @@ use App\Models\Tanda;
 use App\Models\TandaClient;
 use App\Models\TandaPayment;
 use App\Services\CashFlowService;
+use App\Services\GiftInventoryService;
 use Carbon\Carbon;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
 use Illuminate\Http\Request;
@@ -46,6 +48,7 @@ class UnifiedPosController extends Controller
         'lookupCustomerLoans' => 'read',
         'lookupCustomerPendingNotes' => 'read',
         'lookupTanda' => 'read',
+        'lookupCustomers' => 'read',
         'lookupProducts' => 'read',
         'lookupGifts' => 'read',
         'recentTransactions' => 'read',
@@ -71,10 +74,25 @@ class UnifiedPosController extends Controller
 
             $action = $request->route()?->getActionMethod();
 
-            // 1. Acceso a la Consola POS, Consulta de Notas Pendientes y Reimpresión de Recibo
-            if (in_array($action, ['index', 'printReceipt', 'lookupCustomerPendingNotes'])) {
+            // 1. Acceso a la Consola POS y Consulta de Notas Pendientes / Clientes
+            if (in_array($action, ['index', 'lookupCustomerPendingNotes', 'lookupCustomers'])) {
                 if (!$user->can('cobros.read') && !$user->can('cobros.menu') && !$user->can('pos.read') && !$user->can('pos.menu')) {
                     abort(403, 'No tienes permisos para acceder al Punto de Venta.');
+                }
+            }
+
+            // 1b. Impresión de Ticket Unificado (POS Central, Financieras o Dashboard)
+            if ($action === 'printReceipt') {
+                if (
+                    !$user->can('cobros.read') &&
+                    !$user->can('cobros.menu') &&
+                    !$user->can('pos.read') &&
+                    !$user->can('pos.menu') &&
+                    !$user->can('financieras.ventas.abonar') &&
+                    !$user->can('financieras.read') &&
+                    !$user->can('dashboard.read')
+                ) {
+                    abort(403, 'No tienes permisos para ver o imprimir este comprobante.');
                 }
             }
 
@@ -115,6 +133,51 @@ class UnifiedPosController extends Controller
         return auth()->check() && (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.all_branches'));
     }
 
+    /**
+     * Determina si un nombre corresponde a un cliente genérico / sin identificar (no apto para crédito).
+     */
+    protected function isGenericWalkinName(?string $name): bool
+    {
+        $raw = trim((string) $name);
+        if ($raw === '') {
+            return true;
+        }
+        $normalized = mb_strtolower($raw, 'UTF-8');
+        $normalized = strtr($normalized, [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
+        ]);
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+
+        return in_array($normalized, [
+            'cliente mostrador',
+            'mostrador',
+            'publico general',
+            'publico en general',
+            'venta al publico',
+            'venta publico',
+            'cliente general',
+            'general',
+            'sin nombre',
+            'anonimo',
+        ], true);
+    }
+
+    /**
+     * Listado JSON ligero para refrescar el catálogo de clientes desde el POS sin recargar la pestaña.
+     */
+    public function lookupCustomers()
+    {
+        $customers = Customer::orderBy('tit_name')->get(['id', 'tit_name', 'tit_phone']);
+
+        return response()->json([
+            'customers' => $customers->map(fn($c) => [
+                'id' => $c->id,
+                'tit_name' => $c->tit_name,
+                'tit_phone' => $c->tit_phone,
+            ])->values(),
+        ]);
+    }
+
     public function index(Request $request)
     {
         $branchId = $this->canAccessAllBranches() && $request->filled('branch_id')
@@ -143,10 +206,13 @@ class UnifiedPosController extends Controller
             ->take(100)
             ->get(['id', 'product_name', 'product_code', 'selling_price', 'stock_quantity', 'brand', 'model', 'imei', 'category_status', 'warranty_time']);
 
-        $gifts = Gift::with(['supplier', 'finSupplier'])
-            ->where('branch_id', $branchId)
+        $gifts = Gift::with([
+            'supplier',
+            'finSupplier',
+            'stocks' => fn ($sq) => $sq->where('branch_id', $branchId),
+        ])
             ->where('status', 'activo')
-            ->where('stock_quantity', '>', 0)
+            ->whereHas('stocks', fn ($sq) => $sq->where('branch_id', $branchId)->where('stock_quantity', '>', 0))
             ->orderBy('name')
             ->get();
 
@@ -469,6 +535,7 @@ class UnifiedPosController extends Controller
 
             return [
                 'id' => $order->id,
+                'customer_id' => $order->customer_id,
                 'invoice_no' => $order->invoice_no,
                 'order_date' => $order->order_date,
                 'order_date_formatted' => $order->order_date ? Carbon::parse($order->order_date)->format('d/m/Y') : '-',
@@ -564,10 +631,13 @@ class UnifiedPosController extends Controller
             : ($user->branch_id ?? Branch::value('id'));
 
         $q = trim((string) $request->input('q', ''));
-        $gifts = Gift::with(['supplier', 'finSupplier'])
-            ->where('branch_id', $branchId)
+        $gifts = Gift::with([
+            'supplier',
+            'finSupplier',
+            'stocks' => fn ($sq) => $sq->where('branch_id', $branchId),
+        ])
             ->where('status', 'activo')
-            ->where('stock_quantity', '>', 0)
+            ->whereHas('stocks', fn ($sq) => $sq->where('branch_id', $branchId)->where('stock_quantity', '>', 0))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('name', 'like', "%{$q}%")
@@ -579,15 +649,15 @@ class UnifiedPosController extends Controller
             ->orderBy('name')
             ->limit(30)
             ->get()
-            ->map(function (Gift $g) {
+            ->map(function (Gift $g) use ($branchId) {
                 return [
                     'id' => $g->id,
                     'code' => $g->code,
                     'name' => $g->name,
                     'brand' => $g->brand,
-                    'stock_quantity' => (int) $g->stock_quantity,
+                    'stock_quantity' => $g->stockInBranch($branchId),
                     'supplier_name' => $g->supplier_display_name,
-                    'branch_id' => $g->branch_id,
+                    'branch_id' => $branchId,
                 ];
             });
 
@@ -774,8 +844,9 @@ class UnifiedPosController extends Controller
 
         $items = $validated['items'];
 
-        // Evitar duplicar el abono del mismo período de pago de préstamo en la misma transacción
+        // Evitar duplicar el abono del mismo período de pago de préstamo o de la misma nota pendiente en la misma transacción
         $loanInstallmentIds = [];
+        $pendingOrderAbonoIds = [];
         foreach ($items as $item) {
             if (($item['section'] ?? '') === 'prestamo_abono' && !empty($item['installment_id'])) {
                 $instId = (int) $item['installment_id'];
@@ -786,6 +857,27 @@ class UnifiedPosController extends Controller
                     ], 422);
                 }
                 $loanInstallmentIds[] = $instId;
+            } elseif (($item['section'] ?? '') === 'nota_abono') {
+                $noteOrderId = (int) ($item['order_id'] ?? 0);
+                if ($noteOrderId <= 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El abono a nota pendiente no especifica una nota de venta válida.',
+                    ], 422);
+                }
+                if (in_array($noteOrderId, $pendingOrderAbonoIds, true)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No es posible agregar dos veces el abono de la misma nota pendiente en la misma operación.',
+                    ], 422);
+                }
+                if (round((float) ($item['amount'] ?? 0), 2) <= 0.0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El monto del abono a nota pendiente debe ser mayor a $0.00.',
+                    ], 422);
+                }
+                $pendingOrderAbonoIds[] = $noteOrderId;
             }
         }
 
@@ -820,6 +912,19 @@ class UnifiedPosController extends Controller
                         return response()->json([
                             'success' => false,
                             'message' => 'No tienes permisos para vender Productos en el Punto de Venta.',
+                        ], 403);
+                    }
+                } elseif ($sec === 'nota_abono') {
+                    if (
+                        !$user->can('cobros.productos') &&
+                        !$user->can('cobros.create') &&
+                        !$user->can('pos.create') &&
+                        !$user->can('orders.create') &&
+                        !$user->can('orders.edit')
+                    ) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'No tienes permisos para cobrar abonos de notas pendientes en el Punto de Venta.',
                         ], 403);
                     }
                 } elseif ($sec === 'gift') {
@@ -904,15 +1009,23 @@ class UnifiedPosController extends Controller
             }
         }
 
+        $selectedCatalogCustomer = $resolvedCustomerId ? Customer::find($resolvedCustomerId) : null;
+        $hasProductConcept = false;
+        $nonProductTotal = 0.0;
+
         foreach ($items as $idx => $item) {
             $section = $item['section'] ?? '';
-            $qty = max(1, (int) ($item['quantity'] ?? 1));
+            $qty = ($section === 'nota_abono') ? 1 : max(1, (int) ($item['quantity'] ?? 1));
+            if ($section === 'nota_abono') {
+                $items[$idx]['quantity'] = 1;
+            }
             $unitAmount = round((float) ($item['amount'] ?? 0), 2);
             $comm = round((float) ($item['commission'] ?? 0), 2);
 
             if ($section === 'prestamo_apertura') {
                 // En apertura de préstamo, el capital prestado NO entra ni sale de caja; SOLO se cobra la comisión por apertura
                 $commissionTotal += $comm;
+                $nonProductTotal += $comm;
             } elseif ($section === 'gift') {
                 // Los regalos/promocionales siempre salen en $0.00 en ticket y sin cargo al total ni proveedor visible
                 $items[$idx]['amount'] = 0;
@@ -926,6 +1039,11 @@ class UnifiedPosController extends Controller
             } else {
                 $subtotal += ($unitAmount * $qty);
                 $commissionTotal += $comm;
+                if (in_array($section, ['producto_inventario', 'producto_dinamico'], true)) {
+                    $hasProductConcept = true;
+                } else {
+                    $nonProductTotal += (($unitAmount * $qty) + $comm);
+                }
             }
 
             if ($resolvedCustomerName === '' && !empty($item['customer_name'])) {
@@ -938,37 +1056,72 @@ class UnifiedPosController extends Controller
         }
 
         $totalAmount = round($subtotal + $commissionTotal, 2);
+        $nonProductTotal = round($nonProductTotal, 2);
         $method = $validated['payment_method'];
 
         $hasCustomPaidAmount = isset($validated['paid_amount']) && $validated['paid_amount'] !== null && $validated['paid_amount'] !== '';
+        $rawCashReceivedInput = (isset($validated['cash_received']) && $validated['cash_received'] !== null && $validated['cash_received'] !== '')
+            ? round((float) $validated['cash_received'], 2)
+            : null;
 
         if ($method === 'efectivo') {
-            $cashAmount = isset($validated['cash_amount']) && $validated['cash_amount'] !== null && $validated['cash_amount'] !== '' 
-                ? round((float) $validated['cash_amount'], 2) 
-                : ($hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : $totalAmount);
-            $cardAmount = 0;
-            $transferAmount = 0;
-            $paidToday = min($totalAmount, $cashAmount);
+            $rawCash = isset($validated['cash_amount']) && $validated['cash_amount'] !== null && $validated['cash_amount'] !== ''
+                ? round((float) $validated['cash_amount'], 2)
+                : ($hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : ($rawCashReceivedInput ?? $totalAmount));
+            $paidToday = min($totalAmount, max(0.0, $rawCash));
+            $cashAmount = $paidToday;
+            $cardAmount = 0.0;
+            $transferAmount = 0.0;
+            $cashReceived = ($rawCashReceivedInput !== null && $rawCashReceivedInput > 0)
+                ? max($rawCash, $rawCashReceivedInput)
+                : $rawCash;
+            $changeAmount = max(0.0, round($cashReceived - $cashAmount, 2));
         } elseif ($method === 'tarjeta') {
-            $cardAmount = isset($validated['card_amount']) && $validated['card_amount'] !== null && $validated['card_amount'] !== '' 
-                ? round((float) $validated['card_amount'], 2) 
+            $rawCard = isset($validated['card_amount']) && $validated['card_amount'] !== null && $validated['card_amount'] !== ''
+                ? round((float) $validated['card_amount'], 2)
                 : ($hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : $totalAmount);
-            $cashAmount = 0;
-            $transferAmount = 0;
-            $paidToday = min($totalAmount, $cardAmount);
+            if ($rawCard > $totalAmount + 0.05) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El cobro con tarjeta ($' . number_format($rawCard, 2) . ') excede el total de la venta ($' . number_format($totalAmount, 2) . ').',
+                ], 422);
+            }
+            $cardAmount = min($totalAmount, max(0.0, $rawCard));
+            $cashAmount = 0.0;
+            $transferAmount = 0.0;
+            $paidToday = $cardAmount;
+            $changeAmount = 0.0;
         } elseif ($method === 'transferencia') {
-            $transferAmount = isset($validated['transfer_amount']) && $validated['transfer_amount'] !== null && $validated['transfer_amount'] !== '' 
-                ? round((float) $validated['transfer_amount'], 2) 
+            $rawTransfer = isset($validated['transfer_amount']) && $validated['transfer_amount'] !== null && $validated['transfer_amount'] !== ''
+                ? round((float) $validated['transfer_amount'], 2)
                 : ($hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : $totalAmount);
-            $cashAmount = 0;
-            $cardAmount = 0;
-            $paidToday = min($totalAmount, $transferAmount);
+            if ($rawTransfer > $totalAmount + 0.05) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El cobro por transferencia ($' . number_format($rawTransfer, 2) . ') excede el total de la venta ($' . number_format($totalAmount, 2) . ').',
+                ], 422);
+            }
+            $transferAmount = min($totalAmount, max(0.0, $rawTransfer));
+            $cashAmount = 0.0;
+            $cardAmount = 0.0;
+            $paidToday = $transferAmount;
+            $changeAmount = 0.0;
         } else { // mixto
-            $cashAmount = round((float) ($validated['cash_amount'] ?? 0), 2);
-            $cardAmount = round((float) ($validated['card_amount'] ?? 0), 2);
-            $transferAmount = round((float) ($validated['transfer_amount'] ?? 0), 2);
+            $cashAmount = round(max(0.0, (float) ($validated['cash_amount'] ?? 0)), 2);
+            $cardAmount = round(max(0.0, (float) ($validated['card_amount'] ?? 0)), 2);
+            $transferAmount = round(max(0.0, (float) ($validated['transfer_amount'] ?? 0)), 2);
             $sumMix = round($cashAmount + $cardAmount + $transferAmount, 2);
-            $paidToday = $hasCustomPaidAmount ? round((float) $validated['paid_amount'], 2) : min($totalAmount, $sumMix);
+
+            if ($sumMix > $totalAmount + 0.05 && !$hasCustomPaidAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'En Pago Mixto, la suma asignada ($' . number_format($sumMix, 2) . ') excede el total de la venta ($' . number_format($totalAmount, 2) . ') por $' . number_format($sumMix - $totalAmount, 2) . '.',
+                ], 422);
+            }
+
+            $paidToday = $hasCustomPaidAmount
+                ? min($totalAmount, round(max(0.0, (float) $validated['paid_amount']), 2))
+                : min($totalAmount, $sumMix);
 
             if (abs($sumMix - $paidToday) > 0.05) {
                 $faltante = round($paidToday - $sumMix, 2);
@@ -984,9 +1137,17 @@ class UnifiedPosController extends Controller
                     ], 422);
                 }
             }
+
+            $cashReceived = ($cashAmount > 0 && $rawCashReceivedInput !== null && $rawCashReceivedInput > 0)
+                ? max($cashAmount, $rawCashReceivedInput)
+                : $cashAmount;
+            $changeAmount = ($cashAmount > 0) ? max(0.0, round($cashReceived - $cashAmount, 2)) : 0.0;
         }
 
-        $dueAmount = max(0, round($totalAmount - $paidToday, 2));
+        $dueAmount = max(0.0, round($totalAmount - $paidToday, 2));
+        if ($dueAmount < 0.01) {
+            $dueAmount = 0.0;
+        }
 
         $hasFinancieraAbono = PosTransaction::containsFinancieraConcept($items);
         if ($hasFinancieraAbono && $dueAmount > 0.009) {
@@ -996,17 +1157,39 @@ class UnifiedPosController extends Controller
             ], 422);
         }
 
+        $hasPendingNoteAbono = PosTransaction::containsPendingNoteAbonoConcept($items);
+        if ($hasPendingNoteAbono && $dueAmount > 0.009) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se permite pago pendiente sobre pago pendiente: cuando el carrito incluye el abono de una nota pendiente debes cubrir el 100% del total de la venta ($' . number_format($totalAmount, 2) . ').',
+            ], 422);
+        }
+
         if ($dueAmount > 0) {
-            if ($resolvedCustomerName === '' || $resolvedCustomerName === 'Cliente Mostrador') {
+            if (!$hasProductConcept) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Para dejar una Nota con Saldo Pendiente (el cliente queda debiendo $' . number_format($dueAmount, 2) . '), es obligatorio ingresar o seleccionar al Cliente.',
+                    'message' => 'Para dejar una Nota con Saldo Pendiente debe existir al menos un producto en el carrito. Para préstamos o tandas, edita directamente el importe del concepto.',
+                ], 422);
+            }
+
+            if ($nonProductTotal > 0 && ($paidToday + 0.01) < $nonProductTotal) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cuando combinas productos con préstamos o tandas, el pago inicial ($' . number_format($paidToday, 2) . ') debe cubrir al menos esos conceptos ($' . number_format($nonProductTotal, 2) . ').',
+                ], 422);
+            }
+
+            $customerLooksGeneric = $this->isGenericWalkinName($resolvedCustomerName)
+                || ($selectedCatalogCustomer && $this->isGenericWalkinName($selectedCatalogCustomer->tit_name));
+
+            if ($customerLooksGeneric) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Para dejar una Nota con Saldo Pendiente (el cliente queda debiendo $' . number_format($dueAmount, 2) . '), es obligatorio seleccionar un Cliente específico registrado (no se permite Público General ni Cliente Mostrador).',
                 ], 422);
             }
         }
-
-        $cashReceived = (float) ($validated['cash_received'] ?? $cashAmount);
-        $changeAmount = max(0, round($cashReceived - $cashAmount, 2));
 
         try {
             $transaction = DB::transaction(function () use (
@@ -1016,6 +1199,7 @@ class UnifiedPosController extends Controller
                 $subtotal,
                 $commissionTotal,
                 $totalAmount,
+                $nonProductTotal,
                 $paidToday,
                 $dueAmount,
                 $method,
@@ -1032,6 +1216,7 @@ class UnifiedPosController extends Controller
                 $inventoryItems = [];
                 $dynamicItems = [];
                 $giftItems = [];
+                $giftRequestedQty = [];
 
                 foreach ($items as $item) {
                     $section = $item['section'] ?? '';
@@ -1055,11 +1240,16 @@ class UnifiedPosController extends Controller
                         if (!$gift || $gift->status !== 'activo') {
                             throw new \RuntimeException("El regalo seleccionado no existe o no está activo.");
                         }
-                        if ($gift->branch_id && (int) $gift->branch_id !== (int) $branchId) {
-                            throw new \RuntimeException("El regalo '{$gift->name}' pertenece a otra sucursal y no puede entregarse desde esta caja.");
-                        }
-                        if ($gift->stock_quantity < $qty) {
-                            throw new \RuntimeException("Stock insuficiente del regalo '{$gift->name}' (Disponible: {$gift->stock_quantity}, Solicitado: {$qty}).");
+
+                        $branchStock = GiftStock::where('gift_id', $gift->id)
+                            ->where('branch_id', $branchId)
+                            ->lockForUpdate()
+                            ->first();
+                        $availableInBranch = (int) ($branchStock?->stock_quantity ?? 0);
+                        $giftRequestedQty[$gift->id] = ($giftRequestedQty[$gift->id] ?? 0) + $qty;
+
+                        if ($availableInBranch < $giftRequestedQty[$gift->id]) {
+                            throw new \RuntimeException("Stock insuficiente del regalo '{$gift->name}' en esta sucursal (Disponible: {$availableInBranch}, Solicitado: {$giftRequestedQty[$gift->id]}).");
                         }
                         $giftItems[] = ['gift' => $gift, 'item' => $item, 'qty' => $qty];
                     }
@@ -1119,8 +1309,13 @@ class UnifiedPosController extends Controller
                     ]);
 
                     $orderCustomerId = $resolvedCustomerId ?: (Customer::value('id') ?? 1);
-                    $orderPay = ($totalAmount > 0) ? round(($productSubtotal / $totalAmount) * $paidToday, 2) : $productSubtotal;
-                    $orderDue = max(0, round($productSubtotal - $orderPay, 2));
+                    $orderPay = ($totalAmount > 0)
+                        ? min($productSubtotal, max(0.0, round($paidToday - $nonProductTotal, 2)))
+                        : $productSubtotal;
+                    $orderDue = max(0.0, round($productSubtotal - $orderPay, 2));
+                    if ($orderDue < 0.01) {
+                        $orderDue = 0.0;
+                    }
                     $orderStatus = ($orderDue <= 0) ? 'complete' : 'pending';
                     $paymentStatusText = ($orderDue <= 0) ? $method : ($orderPay > 0 ? 'Parcial (' . strtoupper($method) . ')' : 'Pendiente');
 
@@ -1194,95 +1389,121 @@ class UnifiedPosController extends Controller
                         ]);
                     }
 
-                    // Registrar en PaymentHistory para compatibilidad con reportes de Caja/Banco
-                    $methodMap = [
-                        'efectivo' => 'HandCash',
-                        'transferencia' => 'Cheque',
-                        'tarjeta' => 'Due',
-                    ];
-                    $hasNoteCol = Schema::hasColumn('payment_histories', 'note');
-
-                    if ($method === 'mixto') {
-                        if ($cashAmount > 0) {
-                            $hData = [
-                                'order_id' => $orderId,
-                                'amount' => $cashAmount,
-                                'method' => 'HandCash',
-                                'user_id' => auth()->id(),
-                                'branch_id' => $branchId,
-                            ];
-                            if ($hasNoteCol) $hData['note'] = "Pago mixto (Efectivo) - {$resolvedCustomerName}";
-                            PaymentHistory::create($hData);
-                        }
-                        if ($cardAmount > 0) {
-                            $hData = [
-                                'order_id' => $orderId,
-                                'amount' => $cardAmount,
-                                'method' => 'Due',
-                                'user_id' => auth()->id(),
-                                'branch_id' => $branchId,
-                            ];
-                            if ($hasNoteCol) $hData['note'] = "Pago mixto (Tarjeta) - {$resolvedCustomerName}";
-                            PaymentHistory::create($hData);
-                        }
-                        if ($transferAmount > 0) {
-                            $hData = [
-                                'order_id' => $orderId,
-                                'amount' => $transferAmount,
-                                'method' => 'Cheque',
-                                'user_id' => auth()->id(),
-                                'branch_id' => $branchId,
-                            ];
-                            if ($hasNoteCol) $hData['note'] = "Pago mixto (Transferencia) - {$resolvedCustomerName}";
-                            PaymentHistory::create($hData);
-                        }
-                    } else {
-                        $hData = [
-                            'order_id' => $orderId,
-                            'amount' => $productSubtotal,
-                            'method' => $methodMap[$method] ?? 'HandCash',
-                            'user_id' => auth()->id(),
-                            'branch_id' => $branchId,
-                        ];
-                        if ($hasNoteCol) $hData['note'] = "Venta POS Centralizado - {$resolvedCustomerName}";
-                        PaymentHistory::create($hData);
-                    }
+                    // Registrar en PaymentHistory únicamente por el monto realmente cobrado hoy para productos ($orderPay)
+                    $this->recordOrderPaymentHistories(
+                        $orderId,
+                        $branchId,
+                        $method,
+                        $orderPay,
+                        $paidToday,
+                        $cashAmount,
+                        $cardAmount,
+                        $transferAmount,
+                        $orderDue > 0 ? 'Pago inicial/parcial POS' : 'Venta POS Centralizado',
+                        $orderDue > 0 ? 'Pago parcial mixto' : 'Pago mixto',
+                        $resolvedCustomerName
+                    );
                 }
 
-                // 2B. Descontar inventario y registrar entrega de Regalos / Gifts (siempre $0.00)
+                // 2B. Descontar inventario por sucursal y registrar entrega de Regalos / Gifts (siempre $0.00)
                 foreach ($giftItems as $giftData) {
                     /** @var Gift $gift */
                     $gift = $giftData['gift'];
                     $qty = $giftData['qty'];
-                    $prevStock = (int) $gift->stock_quantity;
-                    $newStock = max(0, $prevStock - $qty);
 
-                    $gift->stock_quantity = $newStock;
-                    $gift->save();
-
-                    GiftMovement::create([
-                        'gift_id' => $gift->id,
-                        'branch_id' => $gift->branch_id ?: $branchId,
-                        'user_id' => auth()->id(),
-                        'movement_type' => 'entrega_cliente',
-                        'quantity' => $qty,
-                        'previous_stock' => $prevStock,
-                        'new_stock' => $newStock,
-                        'supplier_name' => $gift->supplier_display_name ?: $gift->supplier_name,
-                        'customer_name' => $resolvedCustomerName,
-                        'customer_phone' => $validated['customer_phone'] ?? null,
-                        'reference_module' => 'central_pos',
-                        'reference_code' => $txCode,
-                        'notes' => $giftData['item']['notes'] ?? "Regalo entregado en POS 4 en 1 ({$txCode})",
-                        'movement_date' => now(),
-                    ]);
+                    GiftInventoryService::deliverFromBranch(
+                        $gift->id,
+                        (int) $branchId,
+                        $qty,
+                        [
+                            'customer_name' => $resolvedCustomerName,
+                            'customer_phone' => $validated['customer_phone'] ?? null,
+                            'reference_module' => 'central_pos',
+                            'reference_code' => $txCode,
+                            'notes' => $giftData['item']['notes'] ?? "Regalo entregado en POS 4 en 1 ({$txCode})",
+                            'movement_date' => now(),
+                        ],
+                        auth()->id()
+                    );
                 }
 
-                // 3. Procesar cada ítem de Financieras, Préstamos y Tandas
+                // 3. Procesar cada ítem de Financieras, Préstamos, Tandas y Abonos a Notas Pendientes
                 $collectingBranchName = Branch::find($branchId)?->name ?? 'General';
+                $updatedPayload = $items;
+                $payloadUpdated = false;
 
-                foreach ($items as $item) {
+                foreach ($items as $idx => $item) {
                     $section = $item['section'] ?? '';
+
+                    // 0) ABONO A NOTA DE VENTA CON SALDO PENDIENTE
+                    if ($section === 'nota_abono') {
+                        $orderIdTarget = (int) ($item['order_id'] ?? 0);
+                        $pendingOrder = Order::with('posTransaction')
+                            ->where('id', $orderIdTarget)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$pendingOrder) {
+                            throw new \RuntimeException("La nota de venta pendiente seleccionada (#{$orderIdTarget}) no existe.");
+                        }
+                        if ($pendingOrder->order_status === 'cancelado' || ($pendingOrder->posTransaction && $pendingOrder->posTransaction->status === 'cancelado')) {
+                            throw new \RuntimeException("No es posible abonar a la nota {$pendingOrder->invoice_no} porque se encuentra cancelada.");
+                        }
+
+                        $currentDue = round((float) $pendingOrder->due, 2);
+                        if ($currentDue <= 0.009) {
+                            throw new \RuntimeException("La nota {$pendingOrder->invoice_no} ya se encuentra liquidada ($0.00 pendiente).");
+                        }
+
+                        $abonoAmount = round((float) ($item['amount'] ?? 0), 2);
+                        if ($abonoAmount <= 0.009) {
+                            throw new \RuntimeException("El importe del abono para la nota {$pendingOrder->invoice_no} debe ser mayor a $0.00.");
+                        }
+                        if ($abonoAmount > ($currentDue + 0.05)) {
+                            throw new \RuntimeException(
+                                "El abono ingresado ($" . number_format($abonoAmount, 2) . ") excede el saldo pendiente actual de la nota {$pendingOrder->invoice_no} ($" . number_format($currentDue, 2) . ")."
+                            );
+                        }
+
+                        $appliedAbono = min($currentDue, $abonoAmount);
+                        $newDue = max(0.0, round($currentDue - $appliedAbono, 2));
+                        if ($newDue < 0.01) {
+                            $newDue = 0.0;
+                            $appliedAbono = $currentDue;
+                        }
+                        $newPay = round((float) $pendingOrder->pay + $appliedAbono, 2);
+
+                        $pendingOrder->update([
+                            'due' => $newDue,
+                            'pay' => $newPay,
+                            'order_status' => ($newDue <= 0) ? 'complete' : $pendingOrder->order_status,
+                            'branch_id' => $pendingOrder->branch_id ?: $branchId,
+                        ]);
+
+                        $this->recordOrderPaymentHistories(
+                            $pendingOrder->id,
+                            $branchId,
+                            $method,
+                            $appliedAbono,
+                            $paidToday,
+                            $cashAmount,
+                            $cardAmount,
+                            $transferAmount,
+                            "Abono Nota #{$pendingOrder->invoice_no} ({$txCode})",
+                            "Abono mixto Nota #{$pendingOrder->invoice_no} ({$txCode})",
+                            $resolvedCustomerName
+                        );
+
+                        $statusSummary = $newDue <= 0
+                            ? "Nota {$pendingOrder->invoice_no} LIQUIDADA ($0.00 restante)"
+                            : "Resta en nota {$pendingOrder->invoice_no}: $" . number_format($newDue, 2);
+                        $baseSub = trim((string) ($updatedPayload[$idx]['subtitle'] ?? ''));
+                        $updatedPayload[$idx]['amount'] = $appliedAbono;
+                        $updatedPayload[$idx]['balance_after'] = $newDue;
+                        $updatedPayload[$idx]['subtitle'] = $baseSub !== '' ? "{$baseSub} | {$statusSummary}" : $statusSummary;
+                        $payloadUpdated = true;
+                        continue;
+                    }
 
                     // A) ABONO DE FINANCIERAS POR EQUIPO (Device_id / TAG)
                     if ($section === 'financiera_abono') {
@@ -1623,6 +1844,10 @@ class UnifiedPosController extends Controller
                     }
                 }
 
+                if ($payloadUpdated) {
+                    $posTx->update(['items_payload' => $updatedPayload]);
+                }
+
                 // 4. Registrar impacto en Caja (CashFlow) para corte diario con desglose por cliente y método (únicamente el monto cobrado hoy)
                 if ($paidToday > 0) {
                     $conceptsSummary = collect($items)->map(fn($i) => $i['title'] ?? $i['section'])->implode(' | ');
@@ -1658,6 +1883,9 @@ class UnifiedPosController extends Controller
                 'transaction_code' => $transaction->transaction_code,
                 'receipt_url' => route('central-pos.receipt', $transaction->id),
                 'open_drawer' => (bool) $transaction->drawer_opened,
+                'total_amount' => round((float) $totalAmount, 2),
+                'paid_today' => round((float) $paidToday, 2),
+                'due_amount' => round((float) $dueAmount, 2),
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -1672,7 +1900,7 @@ class UnifiedPosController extends Controller
      */
     public function printReceipt(PosTransaction $transaction)
     {
-        $relations = ['branch', 'user', 'customer', 'financieraPayments.financiera', 'loanPayments.loan', 'tandaPayments.tanda'];
+        $relations = ['branch', 'user', 'customer', 'order', 'financieraPayments.financiera', 'loanPayments.loan', 'tandaPayments.tanda'];
         if (Schema::hasTable('external_customers') && Schema::hasColumn('pos_transactions', 'external_customer_id')) {
             $relations[] = 'externalCustomer';
         }
@@ -1766,7 +1994,7 @@ class UnifiedPosController extends Controller
                     'commission' => $comm,
                     'quantity' => 1,
                 ]],
-                'drawer_opened' => true,
+                'drawer_opened' => ($cashAmount > 0 || ($method === 'efectivo' && $total > 0)),
                 'status' => 'completado',
             ]);
 
@@ -1833,6 +2061,100 @@ class UnifiedPosController extends Controller
         return back()
             ->with('success', "Abono registrado en Financiera y Caja correctamente (Folio {$tx->transaction_code}).")
             ->with('print_receipt_url', route('central-pos.receipt', $tx->id));
+    }
+
+    /**
+     * Registra uno o más registros de PaymentHistory para una Order evitando duplicación entre ventas nuevas y abonos a notas pendientes.
+     */
+    protected function recordOrderPaymentHistories(
+        int $orderId,
+        int $branchId,
+        string $method,
+        float $orderPay,
+        float $paidToday,
+        float $cashAmount,
+        float $cardAmount,
+        float $transferAmount,
+        string $singleMethodPrefix,
+        string $mixtoPrefix,
+        string $customerLabel
+    ): void {
+        if ($orderPay <= 0) {
+            return;
+        }
+
+        $methodMap = [
+            'efectivo' => 'HandCash',
+            'transferencia' => 'Cheque',
+            'tarjeta' => 'Due',
+        ];
+        $hasNoteCol = Schema::hasColumn('payment_histories', 'note');
+        $hasCashAmtCol = Schema::hasColumn('payment_histories', 'cash_amount');
+        $hasCardAmtCol = Schema::hasColumn('payment_histories', 'card_amount');
+        $hasTransferAmtCol = Schema::hasColumn('payment_histories', 'transfer_amount');
+
+        if ($method === 'mixto') {
+            $orderAlloc = $this->allocatePaymentBreakdown(
+                $orderPay,
+                $paidToday,
+                $cashAmount,
+                $cardAmount,
+                $transferAmount
+            );
+            $sliceConfigs = [
+                ['key' => 'efectivo', 'method' => 'HandCash', 'label' => 'Efectivo', 'cash' => true, 'card' => false, 'transfer' => false],
+                ['key' => 'tarjeta', 'method' => 'Due', 'label' => 'Tarjeta', 'cash' => false, 'card' => true, 'transfer' => false],
+                ['key' => 'transferencia', 'method' => 'Cheque', 'label' => 'Transferencia', 'cash' => false, 'card' => false, 'transfer' => true],
+            ];
+            foreach ($sliceConfigs as $cfg) {
+                $sliceAmt = round((float) ($orderAlloc[$cfg['key']] ?? 0), 2);
+                if ($sliceAmt <= 0) {
+                    continue;
+                }
+                $hData = [
+                    'order_id' => $orderId,
+                    'amount' => $sliceAmt,
+                    'method' => $cfg['method'],
+                    'user_id' => auth()->id(),
+                    'branch_id' => $branchId,
+                ];
+                if ($hasNoteCol) {
+                    $hData['note'] = "{$mixtoPrefix} ({$cfg['label']}) - {$customerLabel}";
+                }
+                if ($hasCashAmtCol) {
+                    $hData['cash_amount'] = $cfg['cash'] ? $sliceAmt : 0;
+                }
+                if ($hasCardAmtCol) {
+                    $hData['card_amount'] = $cfg['card'] ? $sliceAmt : 0;
+                }
+                if ($hasTransferAmtCol) {
+                    $hData['transfer_amount'] = $cfg['transfer'] ? $sliceAmt : 0;
+                }
+                PaymentHistory::create($hData);
+            }
+            return;
+        }
+
+        $hData = [
+            'order_id' => $orderId,
+            'amount' => $orderPay,
+            'method' => $methodMap[$method] ?? 'HandCash',
+            'user_id' => auth()->id(),
+            'branch_id' => $branchId,
+        ];
+        if ($hasNoteCol) {
+            $hData['note'] = "{$singleMethodPrefix} - {$customerLabel}";
+        }
+        if ($hasCashAmtCol) {
+            $hData['cash_amount'] = ($method === 'efectivo') ? $orderPay : 0;
+        }
+        if ($hasCardAmtCol) {
+            $hData['card_amount'] = ($method === 'tarjeta') ? $orderPay : 0;
+        }
+        if ($hasTransferAmtCol) {
+            $hData['transfer_amount'] = ($method === 'transferencia') ? $orderPay : 0;
+        }
+        PaymentHistory::create($hData);
     }
 
     /**

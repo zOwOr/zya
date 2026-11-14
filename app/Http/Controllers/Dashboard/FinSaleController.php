@@ -14,6 +14,7 @@ use App\Models\FinSaleNote;
 use App\Models\FinSalePayment;
 use App\Models\User;
 use App\Services\DateFilterService;
+use App\Services\FinancieraFilterService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -71,12 +72,12 @@ class FinSaleController extends Controller
             $request->only([
                 'search',
                 'sale_type',
-                'financiera_id',
                 'branch_id',
                 'seller_id',
                 'status',
             ]),
             [
+                'financiera_id' => FinancieraFilterService::rawInputFromRequest($request),
                 'start_date' => $dateFilter['start_date'],
                 'end_date' => $dateFilter['end_date'],
             ]
@@ -112,13 +113,21 @@ class FinSaleController extends Controller
         $branches = Branch::all();
         $financieras = FinFinanciera::where('is_active', true)->get();
         $sellers = User::orderBy('name')->get();
+        $canMultiFilterFinancieras = FinancieraFilterService::userCanFilterMultiple();
+        $selectedFinancieraIds = FinancieraFilterService::resolveSelectedIds(
+            FinancieraFilterService::rawInputFromRequest($request),
+            null,
+            $canMultiFilterFinancieras
+        );
 
         return view('financieras.ventas.index', compact(
             'sales',
             'branches',
             'financieras',
             'sellers',
-            'salesDateFilter'
+            'salesDateFilter',
+            'canMultiFilterFinancieras',
+            'selectedFinancieraIds'
         ));
     }
 
@@ -1128,10 +1137,14 @@ class FinSaleController extends Controller
         $branchName = $request->filled('branch_id')
             ? (Branch::find((int) $request->input('branch_id'))?->name ?? 'Sucursal')
             : (auth()->user()?->can('financieras.inventario.all_branches') ? 'Todas las Sucursales' : (auth()->user()?->branch?->name ?? 'Sucursal asignada'));
+        $selectedFinancieraIds = FinancieraFilterService::resolveSelectedIds(
+            FinancieraFilterService::rawInputFromRequest($request)
+        );
+        $financieraFilterLabel = FinancieraFilterService::filterLabel($selectedFinancieraIds);
 
         $pdf = Pdf::loadView(
             'financieras.ventas.list-pdf',
-            compact('sales', 'totals', 'periodLabel', 'branchName')
+            compact('sales', 'totals', 'periodLabel', 'branchName', 'financieraFilterLabel')
         )->setPaper('letter', 'landscape');
 
         return $pdf->download("Financieras_Ventas_{$resolved['fileSuffix']}.pdf");

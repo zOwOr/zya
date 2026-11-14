@@ -38,6 +38,7 @@ class Loan extends Model
         'interest_rate',
         'interest_amount',
         'total_amount',
+        'credit_sale_total',
         'opening_commission',
         'paid_amount',
         'balance_amount',
@@ -45,6 +46,7 @@ class Loan extends Model
         'term_periods',
         'installment_amount',
         'start_date',
+        'first_payment_date',
         'due_date',
         'type_specific_data',
         'video_path',
@@ -67,12 +69,14 @@ class Loan extends Model
         'interest_rate' => 'decimal:2',
         'interest_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'credit_sale_total' => 'decimal:2',
         'opening_commission' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'balance_amount' => 'decimal:2',
         'installment_amount' => 'decimal:2',
         'closing_final_paid' => 'decimal:2',
         'start_date' => 'date',
+        'first_payment_date' => 'date',
         'due_date' => 'date',
         'closed_manually_at' => 'datetime',
         'cancelled_at' => 'datetime',
@@ -128,10 +132,11 @@ class Loan extends Model
                     $current = $startDate->copy()->startOfMonth()->addMonthNoOverflow()->day(12);
                 }
             } elseif ($frequency === 'quincenal') {
+                $endOfMonthDay = min(30, $startDate->daysInMonth);
                 if ($startDate->day < 15) {
                     $current = $startDate->copy()->day(15);
-                } elseif ($startDate->day < 30) {
-                    $current = $startDate->copy()->day(min(30, $startDate->daysInMonth));
+                } elseif ($startDate->day < $endOfMonthDay) {
+                    $current = $startDate->copy()->day($endOfMonthDay);
                 } else {
                     $current = $startDate->copy()->startOfMonth()->addMonthNoOverflow()->day(15);
                 }
@@ -234,6 +239,77 @@ class Loan extends Model
     public function isArticleCredit(): bool
     {
         return $this->operation_type === 'credito_articulo';
+    }
+
+    /**
+     * Obtiene el total final de la venta a crédito (Total de cuotas + Enganche),
+     * manteniendo compatibilidad con registros históricos donde credit_sale_total es null.
+     */
+    public function getResolvedCreditSaleTotalAttribute(): float
+    {
+        if ($this->credit_sale_total !== null) {
+            return round((float) $this->credit_sale_total, 2);
+        }
+
+        return round((float) $this->total_amount + (float) ($this->down_payment ?? 0), 2);
+    }
+
+    /**
+     * Calcula de forma centralizada los totales e interés de una venta a crédito de artículos.
+     *
+     * @return array{
+     *     cash_price: ?float,
+     *     down_payment: float,
+     *     principal_amount: ?float,
+     *     installment_amount: float,
+     *     term_periods: int,
+     *     installments_total: float,
+     *     credit_sale_total: float,
+     *     interest_amount: ?float,
+     *     interest_rate: ?float
+     * }
+     */
+    public static function calculateArticleCreditSummary(
+        float $installmentAmount,
+        int $periods,
+        float $downPayment = 0.0,
+        ?float $cashPrice = null,
+        ?float $manualPrincipal = null
+    ): array {
+        $periods = max(1, $periods);
+        $installmentAmount = round(max(0.0, $installmentAmount), 2);
+        $downPayment = round(max(0.0, $downPayment), 2);
+        $normalizedCashPrice = ($cashPrice !== null && $cashPrice > 0) ? round($cashPrice, 2) : null;
+
+        $installmentsTotal = round($installmentAmount * $periods, 2);
+        $creditSaleTotal = round($installmentsTotal + $downPayment, 2);
+
+        if ($normalizedCashPrice !== null) {
+            $principalAmount = ($manualPrincipal !== null && $manualPrincipal > 0)
+                ? round($manualPrincipal, 2)
+                : max(0.0, round($normalizedCashPrice - $downPayment, 2));
+            $interestAmount = round($creditSaleTotal - $normalizedCashPrice, 2);
+            $rateBase = $principalAmount > 0 ? $principalAmount : $normalizedCashPrice;
+            $interestRate = $rateBase > 0 ? round(($interestAmount / $rateBase) * 100, 2) : null;
+        } else {
+            $principalAmount = ($manualPrincipal !== null && $manualPrincipal > 0)
+                ? round($manualPrincipal, 2)
+                : null;
+            $interestAmount = null;
+            $interestRate = null;
+        }
+
+        return [
+            'cash_price' => $normalizedCashPrice,
+            'down_payment' => $downPayment,
+            'principal_amount' => $principalAmount,
+            'installment_amount' => $installmentAmount,
+            'term_periods' => $periods,
+            'installments_total' => $installmentsTotal,
+            'credit_sale_total' => $creditSaleTotal,
+            'interest_amount' => $interestAmount,
+            'interest_rate' => $interestRate,
+        ];
     }
 
     public function getOperationLabelAttribute(): string

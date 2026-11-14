@@ -76,15 +76,25 @@ Route::middleware(['auth', 'permission:cobros.menu|cobros.read|pos.menu|pos.read
     Route::get('/lookup-loans', [UnifiedPosController::class, 'lookupCustomerLoans'])->name('lookup-loans');
     Route::get('/lookup-pending-notes', [UnifiedPosController::class, 'lookupCustomerPendingNotes'])->name('lookup-pending-notes');
     Route::get('/lookup-tanda', [UnifiedPosController::class, 'lookupTanda'])->name('lookup-tanda');
+    Route::get('/lookup-customers', [UnifiedPosController::class, 'lookupCustomers'])->name('lookup-customers');
     Route::get('/lookup-products', [UnifiedPosController::class, 'lookupProducts'])->name('lookup-products');
     Route::get('/lookup-gifts', [UnifiedPosController::class, 'lookupGifts'])->name('lookup-gifts');
     Route::get('/external-customers', [UnifiedPosController::class, 'lookupExternalCustomers'])->name('external-customers.lookup');
     Route::post('/external-customers', [UnifiedPosController::class, 'storeExternalCustomer'])->name('external-customers.store');
     Route::get('/recent-transactions', [UnifiedPosController::class, 'recentTransactions'])->name('recent-transactions');
     Route::post('/checkout', [UnifiedPosController::class, 'checkout'])->name('checkout');
-    Route::get('/receipt/{transaction}', [UnifiedPosController::class, 'printReceipt'])->name('receipt');
-    Route::get('/open-drawer', [UnifiedPosController::class, 'openCashDrawer'])->name('open-drawer');
-    Route::get('/open-drawer-view', [UnifiedPosController::class, 'openCashDrawer'])->name('open-drawer.view');
+});
+
+// Recibos POS accesibles también para reimpresión/abonos desde Dashboard o Financieras
+Route::middleware(['auth', 'permission:cobros.menu|cobros.read|pos.menu|pos.read|financieras.ventas.abonar|financieras.read|dashboard.read'])
+    ->get('/central-pos/receipt/{transaction}', [UnifiedPosController::class, 'printReceipt'])
+    ->name('central-pos.receipt');
+
+// Control físico de apertura/configuración de cajón utilizable tanto desde POS Central como desde Cajas de Sucursal
+Route::middleware(['auth', 'permission:cobros.open_drawer|cash.open_drawer'])->group(function () {
+    Route::get('/central-pos/open-drawer', [UnifiedPosController::class, 'openCashDrawer'])->name('central-pos.open-drawer');
+    Route::get('/central-pos/open-drawer-view', [UnifiedPosController::class, 'openCashDrawer'])->name('central-pos.open-drawer.view');
+    Route::get('/cash/open-drawer', [CashController::class, 'openDrawer'])->name('cash.openDrawer');
 });
 
 // ====== MÓDULO DE PRÉSTAMOS ======
@@ -130,6 +140,7 @@ Route::middleware(['auth', 'permission:gifts.menu|gifts.read'])->prefix('gifts')
     Route::get('/', [GiftController::class, 'index'])->name('index');
     Route::post('/', [GiftController::class, 'store'])->name('store');
     Route::post('/entry', [GiftController::class, 'registerEntry'])->name('entry');
+    Route::post('/transfer', [GiftController::class, 'transfer'])->name('transfer');
     Route::post('/deliver', [GiftController::class, 'registerDelivery'])->name('deliver');
     Route::put('/{gift}', [GiftController::class, 'update'])->name('update');
     Route::delete('/{gift}', [GiftController::class, 'destroy'])->name('destroy');

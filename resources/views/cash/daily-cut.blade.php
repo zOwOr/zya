@@ -50,6 +50,16 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2 align-items-center mt-2 mt-md-0">
+            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.open_drawer') || auth()->user()->can('cobros.open_drawer'))
+                <div class="btn-group btn-group-sm mr-2 shadow-sm" role="group" aria-label="Cajón de efectivo">
+                    <button type="button" class="btn btn-warning font-weight-bold" onclick="window.ZyaPosHardware && window.ZyaPosHardware.manualOpenUsbDrawer()">
+                        <i class="las la-lock-open"></i> Abrir Cajón Físico
+                    </button>
+                    <button type="button" class="btn btn-outline-warning font-weight-bold" title="Configurar / cambiar puerto USB-COM y baudios" onclick="window.open('{{ route('cash.openDrawer') }}', 'zyaDrawerConfig', 'width=540,height=660,resizable=yes,scrollbars=yes')">
+                        <i class="las la-cog"></i>
+                    </button>
+                </div>
+            @endif
             @if(!$isAllBranches && (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.all_branches') || auth()->user()->can('cash.edit')))
                 <button type="button" class="btn btn-outline-primary btn-sm mr-2 shadow-sm font-weight-bold" data-toggle="modal" data-target="#autoCutConfigModal">
                     <i class="las la-cog"></i> Cierre Automático
@@ -1212,9 +1222,9 @@ document.addEventListener('DOMContentLoaded', function () {
 // Apertura AUTOMÁTICA del cajón USB al enfocar el conteo de efectivo o al registrar corte
 document.addEventListener('DOMContentLoaded', function () {
     @if(session('success'))
-        // Disparo automático de cajón USB al procesar corte con éxito
+        // Disparo automático de cajón USB al procesar corte con éxito (evita duplicar si ya abrió antes del POST)
         if (window.ZyaPosHardware) {
-            ZyaPosHardware.autoOpenUsbDrawer();
+            ZyaPosHardware.autoOpenUsbDrawer({ dedupWindowMs: 8000 });
         }
     @endif
 
@@ -1378,9 +1388,11 @@ if (cutFormEl) {
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
-        }).then((result) => {
+        }).then(async (result) => {
             if (result.isConfirmed) {
-                if (window.ZyaPosHardware) {
+                if (window.ZyaPosHardware && typeof window.ZyaPosHardware.autoOpenUsbDrawerBounded === 'function') {
+                    await ZyaPosHardware.autoOpenUsbDrawerBounded(600);
+                } else if (window.ZyaPosHardware) {
                     ZyaPosHardware.autoOpenUsbDrawer();
                 }
                 e.target.submit();
@@ -1391,8 +1403,18 @@ if (cutFormEl) {
 
 const preCutForm = document.querySelector('form[action="{{ route('cash.preCut') }}"]');
 if (preCutForm) {
-    preCutForm.addEventListener('submit', function () {
-        if (window.ZyaPosHardware) {
+    preCutForm.addEventListener('submit', async function (e) {
+        if (this.dataset.drawerSubmitting === '1') {
+            return;
+        }
+        if (window.ZyaPosHardware && typeof window.ZyaPosHardware.autoOpenUsbDrawerBounded === 'function') {
+            e.preventDefault();
+            this.dataset.drawerSubmitting = '1';
+            try {
+                await window.ZyaPosHardware.autoOpenUsbDrawerBounded(600);
+            } catch (hwErr) {}
+            this.submit();
+        } else if (window.ZyaPosHardware) {
             ZyaPosHardware.autoOpenUsbDrawer();
         }
     });

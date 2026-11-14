@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apertura de Cajón USB - ZYA POS</title>
+    <title>Apertura y Configuración de Cajón USB - ZYA POS</title>
     <link rel="stylesheet" href="{{ asset('assets/css/backend-plugin.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/backend.css?v=1.0.0') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -24,7 +24,7 @@
             border: 1px solid #e1e7ec;
             box-shadow: 0 4px 14px rgba(0,0,0,0.06);
             width: 100%;
-            max-width: 440px;
+            max-width: 490px;
             overflow: hidden;
             text-align: center;
         }
@@ -44,6 +44,7 @@
             box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
             transition: all 0.2s ease;
             width: 100%;
+            cursor: pointer;
         }
         .btn-kick-usb:hover {
             background: #059669;
@@ -56,103 +57,135 @@
     <div class="hardware-card">
         <div class="header-banner">
             <h5 class="mb-1 text-white font-weight-bold">
-                <i class="fa-solid fa-cash-register mr-2"></i>Cajón de Dinero USB
+                <i class="fa-solid fa-cash-register mr-2"></i>Cajón de Dinero (USB / COM)
             </h5>
-            <small class="text-white-50">Control de Dispositivo Físico USB - ZYA POS</small>
+            <small class="text-white-50">Control y Diagnóstico de Gaveta Física - ZYA POS</small>
         </div>
 
         <div class="p-4">
             <div id="statusAlert" class="alert alert-info py-2 px-3 mb-3 font-size-13">
-                <i class="fa-brands fa-usb mr-1"></i> Conexión Directa USB
+                <i class="fa-brands fa-usb mr-1"></i> Verificando navegador y puertos USB-COM...
             </div>
 
-            <p class="font-size-13 text-muted mb-4">
-                El cajón de dinero opera automáticamente con cada venta y corte de caja. Usa este control para abrirlo manualmente si necesitas acceder a la gaveta.
-            </p>
+            <div class="form-group text-left bg-light border rounded p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label for="baudRateSelect" class="font-size-12 font-weight-bold text-dark mb-0">
+                        <i class="fa-solid fa-gauge-high mr-1 text-primary"></i>Velocidad del Puerto (Baudios):
+                    </label>
+                    <select id="baudRateSelect" class="form-control form-control-sm" style="width: 140px;">
+                        <option value="9600">9600 bps (Estándar)</option>
+                        <option value="19200">19200 bps</option>
+                        <option value="38400">38400 bps</option>
+                        <option value="57600">57600 bps</option>
+                        <option value="115200">115200 bps</option>
+                    </select>
+                </div>
+                <small id="portInfoText" class="text-muted d-block font-size-12">
+                    Puerto asignado: <strong>Detectando...</strong>
+                </small>
+            </div>
 
-            <button type="button" class="btn btn-kick-usb mb-3" id="btnKickUsb">
+            <button type="button" class="btn btn-kick-usb mb-2" id="btnKickUsb">
                 <i class="fa-solid fa-bolt mr-2"></i>Abrir Cajón Físico (USB)
             </button>
 
-            <small class="text-muted d-block font-size-12 mb-3">
-                Solo debes seleccionar el dispositivo USB una sola vez para que quede memorizado para siempre.
-            </small>
+            <button type="button" class="btn btn-outline-primary btn-sm btn-block font-weight-bold mb-3" id="btnSwitchUsbPort">
+                <i class="fa-solid fa-plug-circle-check mr-1"></i>Seleccionar / Cambiar Puerto USB-COM
+            </button>
+
+            <div class="alert alert-light border text-left font-size-12 text-muted mb-3">
+                <strong class="text-dark d-block mb-1"><i class="fa-solid fa-circle-info mr-1 text-info"></i>Notas de conexión por sucursal:</strong>
+                <ul class="pl-3 mb-0">
+                    <li>El cable RJ11 del cajón debe conectarse al puerto <strong>DK / Cash Drawer</strong> de la impresora térmica.</li>
+                    <li>El navegador solo lista puertos <strong>Serial / Virtual COM</strong> bajo <strong>HTTPS</strong> en Chrome o Edge.</li>
+                    <li>Si la impresora usa driver estándar USB de Windows (<code>USB001</code>) sin puerto COM, activa <em>"Abrir cajón al imprimir"</em> en Propiedades de Impresora de Windows.</li>
+                </ul>
+            </div>
 
             <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold px-4" onclick="window.close()">
-                Cerrar
+                Cerrar Ventana
             </button>
         </div>
     </div>
 
+    <script src="{{ asset('assets/js/pos-hardware.js') }}?v=20261113"></script>
     <script>
-        window.ZyaPosHardware = {
-            KICK_BYTES: new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA, 0x10, 0x14, 0x01, 0x00, 0x05, 0x07, 0x0A]),
-            _kickPort: async function (port) {
-                await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' });
-                try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
-                const writer = port.writable.getWriter();
-                await writer.write(this.KICK_BYTES);
-                writer.releaseLock();
-                await new Promise(r => setTimeout(r, 120));
-                try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
-                await port.close();
-            },
-            autoOpenUsbDrawer: async function () {
-                if (!('serial' in navigator)) return false;
-                try {
-                    const ports = await navigator.serial.getPorts();
-                    if (ports && ports.length > 0) {
-                        await this._kickPort(ports[0]);
-                        return true;
-                    }
-                } catch (e) {}
-                return false;
-            },
-            manualOpenUsbDrawer: async function () {
-                if (!('serial' in navigator)) {
-                    alert('Para controlar el cajón USB se recomienda Google Chrome o Microsoft Edge.');
-                    return false;
-                }
-                try {
-                    let ports = await navigator.serial.getPorts();
-                    let port = (ports && ports.length > 0) ? ports[0] : null;
-                    if (!port) {
-                        port = await navigator.serial.requestPort();
-                    }
-                    await this._kickPort(port);
-                    return true;
-                } catch (err) {
-                    if (err.name !== 'NotFoundError') {
-                        alert('No se pudo comunicar con el cajón USB: ' + (err.message || err));
-                    }
-                    return false;
-                }
-            }
-        };
-
         const statusAlert = document.getElementById('statusAlert');
+        const baudSelect = document.getElementById('baudRateSelect');
+        const portInfoText = document.getElementById('portInfoText');
+
+        async function refreshHardwareStatus() {
+            if (!window.ZyaPosHardware) return;
+
+            baudSelect.value = String(ZyaPosHardware.getBaudRate());
+
+            if (!ZyaPosHardware.isSecureSerialContext()) {
+                statusAlert.className = 'alert alert-danger py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-lock-open mr-1"></i> Requiere <strong>HTTPS</strong> o <code>localhost</code> para controlar USB-COM desde el navegador.';
+                portInfoText.innerHTML = 'Puerto asignado: <span class="text-danger">Bloqueado por HTTP no seguro</span>';
+                return;
+            }
+
+            if (!ZyaPosHardware.isWebSerialSupported()) {
+                statusAlert.className = 'alert alert-warning py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Usa <strong>Google Chrome o Microsoft Edge</strong> de escritorio para Web Serial.';
+                portInfoText.innerHTML = 'Puerto asignado: <span class="text-muted">No disponible en este navegador</span>';
+                return;
+            }
+
+            const ports = await ZyaPosHardware.listAuthorizedPorts();
+            const pref = ZyaPosHardware.getPreferredPortInfo();
+            if (ports.length > 0) {
+                const prefLabel = (pref && pref.usbVendorId !== null)
+                    ? 'VID:' + pref.usbVendorId.toString(16).toUpperCase() + ' PID:' + (pref.usbProductId !== null ? pref.usbProductId.toString(16).toUpperCase() : '?')
+                    : 'Puerto principal';
+                statusAlert.className = 'alert alert-info py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-brands fa-usb mr-1"></i> ' + ports.length + ' puerto(s) USB-COM autorizado(s) y listo(s).';
+                portInfoText.innerHTML = 'Puerto asignado: <strong>' + prefLabel + '</strong> a <strong>' + ZyaPosHardware.getBaudRate() + ' bps</strong>';
+            } else {
+                statusAlert.className = 'alert alert-warning py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-plug mr-1"></i> Aún no hay puerto emparejado. Pulsa <strong>Abrir Cajón Físico</strong> o <strong>Seleccionar Puerto</strong>.';
+                portInfoText.innerHTML = 'Puerto asignado: <span class="text-warning font-weight-bold">Sin emparejar</span>';
+            }
+        }
+
+        baudSelect.addEventListener('change', function () {
+            if (!window.ZyaPosHardware) return;
+            ZyaPosHardware.setBaudRate(this.value);
+            refreshHardwareStatus();
+        });
 
         document.getElementById('btnKickUsb').addEventListener('click', async function () {
-            if (window.ZyaPosHardware) {
-                const ok = await ZyaPosHardware.manualOpenUsbDrawer();
-                if (ok) {
-                    statusAlert.className = 'alert alert-success py-2 px-3 mb-3 font-size-13';
-                    statusAlert.innerHTML = '<i class="fa-solid fa-check-circle mr-1"></i> ¡Cajón Físico Abierto por USB!';
-                    setTimeout(() => {
-                        try { window.close(); } catch(e) {}
-                    }, 1400);
-                }
+            if (!window.ZyaPosHardware) return;
+            const ok = await ZyaPosHardware.manualOpenUsbDrawer({ silentSuccess: true });
+            await refreshHardwareStatus();
+            if (ok) {
+                statusAlert.className = 'alert alert-success py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-check-circle mr-1"></i> ¡Cajón Físico Abierto por USB-COM!';
+            }
+        });
+
+        document.getElementById('btnSwitchUsbPort').addEventListener('click', async function () {
+            if (!window.ZyaPosHardware) return;
+            const ok = await ZyaPosHardware.manualOpenUsbDrawer({ forceSelect: true, silentSuccess: true });
+            await refreshHardwareStatus();
+            if (ok) {
+                statusAlert.className = 'alert alert-success py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-check-circle mr-1"></i> ¡Nuevo puerto guardado y cajón abierto!';
             }
         });
 
         window.addEventListener('load', async function () {
-            if (window.ZyaPosHardware) {
+            await refreshHardwareStatus();
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('auto') === '1' && window.ZyaPosHardware) {
                 const ok = await ZyaPosHardware.autoOpenUsbDrawer();
+                await refreshHardwareStatus();
                 if (ok) {
                     statusAlert.className = 'alert alert-success py-2 px-3 mb-3 font-size-13';
-                    statusAlert.innerHTML = '<i class="fa-solid fa-check-circle mr-1"></i> ¡Cajón Físico Abierto por USB!';
-                    setTimeout(() => {
-                        try { window.close(); } catch(e) {}
+                    statusAlert.innerHTML = '<i class="fa-solid fa-check-circle mr-1"></i> ¡Cajón Físico Abierto por USB-COM!';
+                    setTimeout(function () {
+                        try { window.close(); } catch (e) {}
                     }, 1200);
                 }
             }

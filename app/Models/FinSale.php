@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\FinancieraFilterService;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kyslik\ColumnSortable\Sortable;
 
@@ -278,9 +279,7 @@ class FinSale extends Model
             $query->where('sale_type', $saleType);
         }
 
-        if ($financieraId = $filters['financiera_id'] ?? false) {
-            $query->where('financiera_id', $financieraId);
-        }
+        FinancieraFilterService::applyToQuery($query, $filters['financiera_id'] ?? null, 'financiera_id');
 
         if (auth()->check() && !auth()->user()->can('financieras.inventario.all_branches')) {
             $query->where('branch_id', auth()->user()->branch_id);

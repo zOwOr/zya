@@ -11,6 +11,7 @@ use App\Models\FinFinanciera;
 use App\Models\FinSale;
 use App\Models\FinSupplier;
 use App\Models\FinWarranty;
+use App\Services\FinancieraFilterService;
 use App\Models\FinWarrantyStage;
 use App\Models\FinTheftReport;
 use App\Models\User;
@@ -156,6 +157,13 @@ class FinancierasController extends Controller
                 ->paginate(15)->appends(array_merge($theftFilters, ['tab' => 'robos']));
         }
 
+        $canMultiFilterFinancieras = FinancieraFilterService::userCanFilterMultiple();
+        $selectedFinancieraIds = FinancieraFilterService::resolveSelectedIds(
+            FinancieraFilterService::rawInputFromRequest($request),
+            null,
+            $canMultiFilterFinancieras
+        );
+
         return view('financieras.index', compact(
             'activeTab',
             'branches',
@@ -172,7 +180,9 @@ class FinancierasController extends Controller
             'warranties',
             'thefts',
             'selectedBranch',
-            'canAllBranches'
+            'canAllBranches',
+            'canMultiFilterFinancieras',
+            'selectedFinancieraIds'
         ));
     }
 

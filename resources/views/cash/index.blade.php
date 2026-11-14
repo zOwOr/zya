@@ -99,6 +99,16 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2">
+            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.open_drawer') || auth()->user()->can('cobros.open_drawer'))
+                <div class="btn-group mr-2" role="group" aria-label="Cajón de efectivo">
+                    <button type="button" class="btn btn-warning font-weight-bold" onclick="window.ZyaPosHardware && window.ZyaPosHardware.manualOpenUsbDrawer()">
+                        <i class="las la-lock-open"></i> Abrir Cajón Físico
+                    </button>
+                    <button type="button" class="btn btn-outline-warning font-weight-bold" title="Configurar / cambiar puerto USB-COM y baudios" onclick="window.open('{{ route('cash.openDrawer') }}', 'zyaDrawerConfig', 'width=540,height=660,resizable=yes,scrollbars=yes')">
+                        <i class="las la-cog"></i>
+                    </button>
+                </div>
+            @endif
             <a href="{{ route('central-pos.index') }}" class="btn btn-primary mr-2">
                 <i class="las la-layer-group"></i> Punto de Venta            </a>
             <a href="{{ route('cash.dailyCut', ['branch_id' => $branchId, 'date' => $date]) }}" class="btn btn-info mr-2">
@@ -503,4 +513,14 @@
         @include('cash.partials.form')
     @endif
 </div>
+
+@if(session('open_cash_drawer'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.ZyaPosHardware && typeof window.ZyaPosHardware.autoOpenUsbDrawer === 'function') {
+            window.ZyaPosHardware.autoOpenUsbDrawer({ dedupWindowMs: 4000 });
+        }
+    });
+</script>
+@endif
 @endsection
