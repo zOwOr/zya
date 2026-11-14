@@ -1149,14 +1149,6 @@ class UnifiedPosController extends Controller
             $dueAmount = 0.0;
         }
 
-        $hasFinancieraAbono = PosTransaction::containsFinancieraConcept($items);
-        if ($hasFinancieraAbono && $dueAmount > 0.009) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Los abonos a financieras no permiten pago parcial ni dejar saldo pendiente en nota. Cubre el total completo o edita directamente el monto del abono.',
-            ], 422);
-        }
-
         $hasPendingNoteAbono = PosTransaction::containsPendingNoteAbonoConcept($items);
         if ($hasPendingNoteAbono && $dueAmount > 0.009) {
             return response()->json([
@@ -1166,27 +1158,13 @@ class UnifiedPosController extends Controller
         }
 
         if ($dueAmount > 0) {
-            if (!$hasProductConcept) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Para dejar una Nota con Saldo Pendiente debe existir al menos un producto en el carrito. Para préstamos o tandas, edita directamente el importe del concepto.',
-                ], 422);
-            }
-
-            if ($nonProductTotal > 0 && ($paidToday + 0.01) < $nonProductTotal) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cuando combinas productos con préstamos o tandas, el pago inicial ($' . number_format($paidToday, 2) . ') debe cubrir al menos esos conceptos ($' . number_format($nonProductTotal, 2) . ').',
-                ], 422);
-            }
-
             $customerLooksGeneric = $this->isGenericWalkinName($resolvedCustomerName)
                 || ($selectedCatalogCustomer && $this->isGenericWalkinName($selectedCatalogCustomer->tit_name));
 
-            if ($customerLooksGeneric) {
+            if ($resolvedExternalCustomerId || !$selectedCatalogCustomer || $customerLooksGeneric) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Para dejar una Nota con Saldo Pendiente (el cliente queda debiendo $' . number_format($dueAmount, 2) . '), es obligatorio seleccionar un Cliente específico registrado (no se permite Público General ni Cliente Mostrador).',
+                    'message' => 'Para dejar una Nota con Saldo Pendiente (el cliente queda debiendo $' . number_format($dueAmount, 2) . '), es obligatorio seleccionar un Cliente específico registrado en el catálogo (no se permite Público General, Cliente Mostrador ni cliente externo sin registro).',
                 ], 422);
             }
         }
@@ -1284,21 +1262,45 @@ class UnifiedPosController extends Controller
                     'notes' => $txNotes,
                 ]);
 
-                // 2. Si hay productos (de inventario o dinámicos), crear registro en Order y OrderDetails
-                if (!empty($inventoryItems) || !empty($dynamicItems)) {
-                    $productSubtotal = 0;
-                    $totalQty = 0;
+                // 2. Crear registro en Order y OrderDetails si hay productos O si quedó saldo pendiente en mostrador
+                $creditOrderItems = [];
+                foreach ($items as $item) {
+                    $section = $item['section'] ?? '';
+                    if (in_array($section, ['financiera_abono', 'financiera_externa', 'prestamo_abono', 'tanda_abono'], true)) {
+                        $creditOrderItems[] = $item;
+                    } elseif ($section === 'prestamo_apertura' && round((float) ($item['commission'] ?? 0), 2) > 0) {
+                        $creditOrderItems[] = $item;
+                    }
+                }
+
+                $hasProductsInOrder = !empty($inventoryItems) || !empty($dynamicItems);
+                if ($hasProductsInOrder || $dueAmount > 0) {
+                    $productSubtotal = 0.0;
+                    $productQty = 0;
 
                     foreach ($inventoryItems as $inv) {
                         $price = round((float) ($inv['item']['amount'] ?? $inv['product']->selling_price), 2);
                         $productSubtotal += ($price * $inv['qty']);
-                        $totalQty += $inv['qty'];
+                        $productQty += $inv['qty'];
                     }
                     foreach ($dynamicItems as $dyn) {
                         $qty = max(1, (int) ($dyn['quantity'] ?? 1));
                         $price = round((float) ($dyn['amount'] ?? 0), 2);
                         $productSubtotal += ($price * $qty);
-                        $totalQty += $qty;
+                        $productQty += $qty;
+                    }
+                    $productSubtotal = round($productSubtotal, 2);
+
+                    // Si hay saldo pendiente ($dueAmount > 0), la Nota representa el carrito completo ($totalAmount = productos + financieras/préstamos/tandas)
+                    // para reflejar la deuda real (Total - Pagado Hoy). Si se pagó al 100% con productos, mantiene el registro histórico de productos.
+                    $includeCreditItemsInOrder = ($dueAmount > 0);
+                    $orderTotal = $includeCreditItemsInOrder ? round($totalAmount, 2) : $productSubtotal;
+                    $orderQty = $productQty;
+                    if ($includeCreditItemsInOrder) {
+                        foreach ($creditOrderItems as $cItem) {
+                            $cSec = $cItem['section'] ?? '';
+                            $orderQty += ($cSec === 'prestamo_apertura') ? 1 : max(1, (int) ($cItem['quantity'] ?? 1));
+                        }
                     }
 
                     $invoiceNo = IdGenerator::generate([
@@ -1309,10 +1311,12 @@ class UnifiedPosController extends Controller
                     ]);
 
                     $orderCustomerId = $resolvedCustomerId ?: (Customer::value('id') ?? 1);
-                    $orderPay = ($totalAmount > 0)
-                        ? min($productSubtotal, max(0.0, round($paidToday - $nonProductTotal, 2)))
-                        : $productSubtotal;
-                    $orderDue = max(0.0, round($productSubtotal - $orderPay, 2));
+                    $orderPay = $includeCreditItemsInOrder
+                        ? min($orderTotal, max(0.0, round($paidToday, 2)))
+                        : (($totalAmount > 0)
+                            ? min($productSubtotal, max(0.0, round($paidToday - $nonProductTotal, 2)))
+                            : $productSubtotal);
+                    $orderDue = max(0.0, round($orderTotal - $orderPay, 2));
                     if ($orderDue < 0.01) {
                         $orderDue = 0.0;
                     }
@@ -1323,11 +1327,11 @@ class UnifiedPosController extends Controller
                         'customer_id' => $orderCustomerId,
                         'order_date' => Carbon::now()->format('Y-m-d'),
                         'order_status' => $orderStatus,
-                        'total_products' => $totalQty,
-                        'sub_total' => $productSubtotal,
+                        'total_products' => max(1, $orderQty),
+                        'sub_total' => $orderTotal,
                         'vat' => 0,
                         'invoice_no' => $invoiceNo,
-                        'total' => $productSubtotal,
+                        'total' => $orderTotal,
                         'payment_status' => $paymentStatusText,
                         'pay' => $orderPay,
                         'due' => $orderDue,
@@ -1389,7 +1393,48 @@ class UnifiedPosController extends Controller
                         ]);
                     }
 
-                    // Registrar en PaymentHistory únicamente por el monto realmente cobrado hoy para productos ($orderPay)
+                    // Guardar detalles descriptivos (is_dynamic = true) de financieras, préstamos o tandas incluidos en una nota con saldo pendiente
+                    if ($includeCreditItemsInOrder) {
+                        foreach ($creditOrderItems as $cIdx => $cItem) {
+                            $cSec = $cItem['section'] ?? '';
+                            $cQty = ($cSec === 'prestamo_apertura') ? 1 : max(1, (int) ($cItem['quantity'] ?? 1));
+                            $cComm = round((float) ($cItem['commission'] ?? 0), 2);
+                            $cBaseAmt = ($cSec === 'prestamo_apertura') ? 0.0 : round((float) ($cItem['amount'] ?? 0), 2);
+                            $cLineTotal = round(($cBaseAmt * $cQty) + $cComm, 2);
+                            if ($cLineTotal <= 0) {
+                                continue;
+                            }
+
+                            $cPrefix = match ($cSec) {
+                                'financiera_abono' => 'Abono Financiera',
+                                'financiera_externa' => 'Abono Fin. Externa',
+                                'prestamo_abono' => 'Abono Préstamo',
+                                'prestamo_apertura' => 'Comisión Apertura Préstamo',
+                                'tanda_abono' => 'Aportación Tanda',
+                                default => 'Concepto POS',
+                            };
+                            $cTitle = trim((string) ($cItem['title'] ?? $cPrefix));
+                            $cTag = trim((string) ($cItem['tag_contrato'] ?? ($cItem['reference'] ?? '')));
+                            if ($cTag !== '' && stripos($cTitle, $cTag) === false) {
+                                $cTitle .= " (Ref: {$cTag})";
+                            }
+
+                            OrderDetails::create([
+                                'order_id' => $orderId,
+                                'product_id' => null,
+                                'quantity' => $cQty,
+                                'unitcost' => round($cLineTotal / $cQty, 2),
+                                'total' => $cLineTotal,
+                                'is_dynamic' => true,
+                                'dynamic_product_name' => Str::limit($cTitle, 190),
+                                'dynamic_category_status' => $cPrefix,
+                                'dynamic_observations' => !empty($cItem['subtitle']) ? Str::limit((string) $cItem['subtitle'], 250) : null,
+                                'dynamic_product_code' => strtoupper(substr($cSec, 0, 6)) . '-' . $txCode . '-' . ($cIdx + 1),
+                            ]);
+                        }
+                    }
+
+                    // Registrar en PaymentHistory únicamente por el monto realmente cobrado hoy aplicable a esta nota ($orderPay)
                     $this->recordOrderPaymentHistories(
                         $orderId,
                         $branchId,
@@ -1431,6 +1476,23 @@ class UnifiedPosController extends Controller
                 $collectingBranchName = Branch::find($branchId)?->name ?? 'General';
                 $updatedPayload = $items;
                 $payloadUpdated = false;
+                $remainingBreakdownPool = [
+                    'paid' => round($paidToday, 2),
+                    'cash' => round($cashAmount, 2),
+                    'card' => round($cardAmount, 2),
+                    'transfer' => round($transferAmount, 2),
+                ];
+                if ($dueAmount <= 0 && !empty($productSubtotal) && $productSubtotal > 0) {
+                    $this->allocatePaymentBreakdown(
+                        $productSubtotal,
+                        $paidToday,
+                        $cashAmount,
+                        $cardAmount,
+                        $transferAmount,
+                        null,
+                        $remainingBreakdownPool
+                    );
+                }
 
                 foreach ($items as $idx => $item) {
                     $section = $item['section'] ?? '';
@@ -1493,6 +1555,15 @@ class UnifiedPosController extends Controller
                             "Abono mixto Nota #{$pendingOrder->invoice_no} ({$txCode})",
                             $resolvedCustomerName
                         );
+                        $this->allocatePaymentBreakdown(
+                            $appliedAbono,
+                            $paidToday,
+                            $cashAmount,
+                            $cardAmount,
+                            $transferAmount,
+                            null,
+                            $remainingBreakdownPool
+                        );
 
                         // Omitir cualquier saldo pendiente/restante en el subtítulo impreso del ticket (puede variar por moras, multas o notas vencidas)
                         $baseSub = PosTransaction::sanitizePendingNoteSubtitle($updatedPayload[$idx]['subtitle'] ?? null);
@@ -1525,7 +1596,9 @@ class UnifiedPosController extends Controller
                             $paidToday,
                             $cashAmount,
                             $cardAmount,
-                            $transferAmount
+                            $transferAmount,
+                            $dueAmount > 0 ? $totalAmount : null,
+                            $remainingBreakdownPool
                         );
 
                         FinSalePayment::create([
@@ -1563,6 +1636,7 @@ class UnifiedPosController extends Controller
                             'note' => "Abono #{$installmentNo} registrado ({$receiptCode}): Abono $" . number_format($abonoAmount, 2)
                                 . ($commAmount > 0 ? " + Comisión $" . number_format($commAmount, 2) : '')
                                 . " | Método: " . strtoupper($method)
+                                . ($dueAmount > 0 ? " | Cobrado hoy $" . number_format($paidToday, 2) . " (Saldo pendiente en Nota POS {$txCode}: $" . number_format($dueAmount, 2) . ")" : '')
                                 . " | Sucursal cobro: {$collectingBranchName}",
                         ]);
                     }
@@ -1584,7 +1658,9 @@ class UnifiedPosController extends Controller
                             $paidToday,
                             $cashAmount,
                             $cardAmount,
-                            $transferAmount
+                            $transferAmount,
+                            $dueAmount > 0 ? $totalAmount : null,
+                            $remainingBreakdownPool
                         );
 
                         FinSalePayment::create([
@@ -1674,6 +1750,16 @@ class UnifiedPosController extends Controller
                         }
                         $loan->save();
 
+                        $loanBreakdown = $this->allocatePaymentBreakdown(
+                            $abonoAmount,
+                            $paidToday,
+                            $cashAmount,
+                            $cardAmount,
+                            $transferAmount,
+                            $dueAmount > 0 ? $totalAmount : null,
+                            $remainingBreakdownPool
+                        );
+
                         LoanPayment::create([
                             'loan_id' => $loan->id,
                             'installment_id' => $primaryInst?->id,
@@ -1684,11 +1770,7 @@ class UnifiedPosController extends Controller
                             'payment_type' => 'abono',
                             'amount' => $abonoAmount,
                             'payment_method' => $method,
-                            'payment_breakdown' => [
-                                'efectivo' => $cashAmount,
-                                'tarjeta' => $cardAmount,
-                                'transferencia' => $transferAmount,
-                            ],
+                            'payment_breakdown' => $loanBreakdown,
                             'scheduled_date' => $scheduledDate,
                             'paid_at' => now(),
                             'notes' => $item['notes'] ?? ($loan->isArticleCredit()
@@ -1763,6 +1845,16 @@ class UnifiedPosController extends Controller
                         }
 
                         if ($openingComm > 0) {
+                            $commBreakdown = $this->allocatePaymentBreakdown(
+                                $openingComm,
+                                $paidToday,
+                                $cashAmount,
+                                $cardAmount,
+                                $transferAmount,
+                                $dueAmount > 0 ? $totalAmount : null,
+                                $remainingBreakdownPool
+                            );
+
                             LoanPayment::create([
                                 'loan_id' => $newLoan->id,
                                 'branch_id' => $branchId,
@@ -1772,6 +1864,7 @@ class UnifiedPosController extends Controller
                                 'payment_type' => 'comision_apertura',
                                 'amount' => $openingComm,
                                 'payment_method' => $method,
+                                'payment_breakdown' => $commBreakdown,
                                 'paid_at' => now(),
                                 'notes' => 'Comisión por apertura (' . $newLoan->loan_code . ')',
                             ]);
@@ -1820,6 +1913,16 @@ class UnifiedPosController extends Controller
                             $participant->total_paid = round($sumPaid, 2);
                             $participant->save();
 
+                            $tandaBreakdown = $this->allocatePaymentBreakdown(
+                                $tandaAmount,
+                                $paidToday,
+                                $cashAmount,
+                                $cardAmount,
+                                $transferAmount,
+                                $dueAmount > 0 ? $totalAmount : null,
+                                $remainingBreakdownPool
+                            );
+
                             TandaPayment::create([
                                 'tanda_id' => $tanda->id,
                                 'tanda_client_id' => $participant->id,
@@ -1830,11 +1933,7 @@ class UnifiedPosController extends Controller
                                 'period_number' => $periodNo,
                                 'amount' => $tandaAmount,
                                 'payment_method' => $method,
-                                'payment_breakdown' => [
-                                    'efectivo' => $cashAmount,
-                                    'tarjeta' => $cardAmount,
-                                    'transferencia' => $transferAmount,
-                                ],
+                                'payment_breakdown' => $tandaBreakdown,
                                 'paid_at' => now(),
                                 'notes' => "Aportación Tanda {$tanda->description} - Periodo #{$periodNo}",
                             ]);
@@ -2156,20 +2255,38 @@ class UnifiedPosController extends Controller
     }
 
     /**
-     * Prorratea el desglose efectivo/tarjeta/transferencia para conceptos individuales cuando un ticket incluye múltiples ítems.
+     * Prorratea el desglose efectivo/tarjeta/transferencia para conceptos individuales
+     * considerando pagos completos, parciales ($paidToday < $saleTotal) o en $0.00 sin inflar dinero inexistente.
      */
     protected function allocatePaymentBreakdown(
         float $itemTotal,
         float $paidToday,
         float $cashAmount,
         float $cardAmount,
-        float $transferAmount
+        float $transferAmount,
+        ?float $saleTotal = null,
+        ?array &$remainingPool = null
     ): array {
         if ($itemTotal <= 0 || $paidToday <= 0) {
             return ['efectivo' => 0.0, 'tarjeta' => 0.0, 'transferencia' => 0.0];
         }
 
-        if (abs($paidToday - $itemTotal) <= 0.01) {
+        // Si el cobro total de la venta fue parcial ($paidToday < $saleTotal), calcular solo la fracción real pagada hoy para este ítem
+        $isPartialSale = ($saleTotal !== null && $saleTotal > 0 && ($paidToday + 0.01) < $saleTotal);
+        $targetItemPaid = $isPartialSale
+            ? round(min($itemTotal, $paidToday * ($itemTotal / $saleTotal)), 2)
+            : round(min($itemTotal, $paidToday), 2);
+
+        if ($remainingPool !== null) {
+            $poolPaid = round(max(0.0, (float) ($remainingPool['paid'] ?? 0)), 2);
+            $targetItemPaid = min($targetItemPaid, $poolPaid);
+        }
+
+        if ($targetItemPaid <= 0) {
+            return ['efectivo' => 0.0, 'tarjeta' => 0.0, 'transferencia' => 0.0];
+        }
+
+        if (abs($paidToday - $targetItemPaid) <= 0.01 && $remainingPool === null) {
             return [
                 'efectivo' => round($cashAmount, 2),
                 'tarjeta' => round($cardAmount, 2),
@@ -2177,26 +2294,64 @@ class UnifiedPosController extends Controller
             ];
         }
 
-        $ratio = min(1.0, max(0.0, $itemTotal / $paidToday));
+        $ratio = min(1.0, max(0.0, $targetItemPaid / $paidToday));
         $effCash = round($cashAmount * $ratio, 2);
         $effCard = round($cardAmount * $ratio, 2);
         $effTransfer = round($transferAmount * $ratio, 2);
 
-        $diff = round($itemTotal - ($effCash + $effCard + $effTransfer), 2);
+        if ($remainingPool !== null) {
+            $effCash = min($effCash, round(max(0.0, (float) ($remainingPool['cash'] ?? 0)), 2));
+            $effCard = min($effCard, round(max(0.0, (float) ($remainingPool['card'] ?? 0)), 2));
+            $effTransfer = min($effTransfer, round(max(0.0, (float) ($remainingPool['transfer'] ?? 0)), 2));
+        }
+
+        $diff = round($targetItemPaid - ($effCash + $effCard + $effTransfer), 2);
         if (abs($diff) > 0.0) {
-            if ($effCash >= $effCard && $effCash >= $effTransfer && $cashAmount > 0) {
-                $effCash = round($effCash + $diff, 2);
-            } elseif ($effCard >= $effTransfer && $cardAmount > 0) {
-                $effCard = round($effCard + $diff, 2);
-            } elseif ($transferAmount > 0) {
-                $effTransfer = round($effTransfer + $diff, 2);
+            $maxCash = $remainingPool !== null ? round(max(0.0, (float) ($remainingPool['cash'] ?? 0)), 2) : round($cashAmount, 2);
+            $maxCard = $remainingPool !== null ? round(max(0.0, (float) ($remainingPool['card'] ?? 0)), 2) : round($cardAmount, 2);
+            $maxTransfer = $remainingPool !== null ? round(max(0.0, (float) ($remainingPool['transfer'] ?? 0)), 2) : round($transferAmount, 2);
+
+            if ($diff > 0) {
+                $addCash = min($diff, max(0.0, round($maxCash - $effCash, 2)));
+                $effCash = round($effCash + $addCash, 2);
+                $diff = round($diff - $addCash, 2);
+
+                if ($diff > 0) {
+                    $addCard = min($diff, max(0.0, round($maxCard - $effCard, 2)));
+                    $effCard = round($effCard + $addCard, 2);
+                    $diff = round($diff - $addCard, 2);
+                }
+                if ($diff > 0) {
+                    $addTransfer = min($diff, max(0.0, round($maxTransfer - $effTransfer, 2)));
+                    $effTransfer = round($effTransfer + $addTransfer, 2);
+                }
+            } else {
+                if ($effCash >= $effCard && $effCash >= $effTransfer && $effCash > 0) {
+                    $effCash = max(0.0, round($effCash + $diff, 2));
+                } elseif ($effCard >= $effTransfer && $effCard > 0) {
+                    $effCard = max(0.0, round($effCard + $diff, 2));
+                } elseif ($effTransfer > 0) {
+                    $effTransfer = max(0.0, round($effTransfer + $diff, 2));
+                }
             }
         }
 
+        $effCash = max(0.0, round($effCash, 2));
+        $effCard = max(0.0, round($effCard, 2));
+        $effTransfer = max(0.0, round($effTransfer, 2));
+
+        if ($remainingPool !== null) {
+            $usedSum = round($effCash + $effCard + $effTransfer, 2);
+            $remainingPool['paid'] = max(0.0, round((float) ($remainingPool['paid'] ?? 0) - $usedSum, 2));
+            $remainingPool['cash'] = max(0.0, round((float) ($remainingPool['cash'] ?? 0) - $effCash, 2));
+            $remainingPool['card'] = max(0.0, round((float) ($remainingPool['card'] ?? 0) - $effCard, 2));
+            $remainingPool['transfer'] = max(0.0, round((float) ($remainingPool['transfer'] ?? 0) - $effTransfer, 2));
+        }
+
         return [
-            'efectivo' => max(0.0, $effCash),
-            'tarjeta' => max(0.0, $effCard),
-            'transferencia' => max(0.0, $effTransfer),
+            'efectivo' => $effCash,
+            'tarjeta' => $effCard,
+            'transferencia' => $effTransfer,
         ];
     }
 }

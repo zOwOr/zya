@@ -2879,6 +2879,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const dueAmount = rawDue < 0.01 ? 0 : rawDue;
         const isPendingMode = hasItems && saleTotal > 0 && dueAmount > 0;
 
+        const hasCreditModuleConcept = Array.isArray(tab.items) && tab.items.some(it =>
+            it && [
+                'financiera_abono',
+                'financiera_externa',
+                'prestamo_abono',
+                'prestamo_apertura',
+                'tanda_abono',
+            ].includes(it.section)
+        );
+
         return {
             hasItems,
             saleTotal,
@@ -2898,6 +2908,8 @@ document.addEventListener('DOMContentLoaded', function () {
             hasPendingNoteAbono: tabHasPendingNoteAbonoConcept(tab),
             hasFinAbono: tabHasFinancieraConcept(tab),
             hasProductConcept: tabHasProductConcept(tab),
+            hasCreditModuleConcept,
+            hasExternalCustomer: Boolean(tab && tab.externalCustomerId),
             hasSpecificCustomer: hasRegisteredSpecificCustomer(tab),
         };
     }
@@ -3032,20 +3044,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             No se permite pago pendiente sobre pago pendiente desde el Punto de Venta: al incluir el abono de una nota pendiente debes cubrir el 100% del total (<strong>$${payState.saleTotal.toFixed(2)}</strong>). Faltan <strong>$${payState.dueAmount.toFixed(2)}</strong> <br><strong>Para realizar abono a nota pendinte favor de hacerlo desde el modulo de Órdenes y Ventas > Saldo Pendiente.</strong>
                         </div>
                     `;
-                } else if (payState.hasFinAbono) {
-                    statusBox.innerHTML = `
-                        <div class="alert alert-danger d-block py-2 px-3 mb-0 font-size-12 font-weight-bold">
-                            <i class="fa-solid fa-ban mr-1"></i>
-                            Los abonos a financieras no permiten pago parcial ni saldo pendiente. Cubre los $${payState.saleTotal.toFixed(2)} o edita el importe directo en el carrito.
-                        </div>
-                    `;
-                } else if (!payState.hasProductConcept) {
-                    statusBox.innerHTML = `
-                        <div class="alert alert-danger d-block py-2 px-3 mb-0 font-size-12 font-weight-bold">
-                            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-                            Para dejar saldo pendiente en Nota por Cobrar debe existir al menos un producto en el carrito. Para préstamos o tandas, edita directamente el importe en el concepto.
-                        </div>
-                    `;
                 } else {
                     const custAlertHtml = payState.hasSpecificCustomer
                         ? `<div class="d-flex align-items-center text-success font-size-11 font-weight-bold mt-2 pt-2 border-top border-warning">
@@ -3055,9 +3053,18 @@ document.addEventListener('DOMContentLoaded', function () {
                         : `<div class="alert alert-danger d-block py-2 px-2 mt-2 mb-0 font-size-11 font-weight-bold">
                                 <div class="mb-1">
                                     <i class="fa-solid fa-user-lock mr-1"></i>
-                                    Cliente requerido: Selecciona un cliente específico registrado.
+                                    ${payState.hasExternalCustomer
+                                        ? 'Cliente externo sin catálogo: selecciona un cliente específico registrado en el catálogo interno.'
+                                        : 'Cliente requerido: Selecciona un cliente específico registrado.'}
                                 </div>
                            </div>`;
+
+                    const moduleAccreditationHintHtml = payState.hasCreditModuleConcept
+                        ? `<div class="d-flex align-items-start text-info font-size-11 font-weight-bold mt-2 pt-1 border-top border-warning">
+                                <i class="fa-solid fa-circle-info mr-1 mt-1"></i>
+                                <span>El abono en Financiera, Préstamo o Tanda se acreditará al 100% en su módulo; el saldo restante ($${payState.dueAmount.toFixed(2)}) quedará en Nota por Cobrar.</span>
+                           </div>`
+                        : '';
 
                     statusBox.innerHTML = `
                         <div class="pos-pending-alert-card shadow-sm">
@@ -3072,6 +3079,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <span>Pagado hoy: <strong class="text-success">$${payState.paidToday.toFixed(2)}</strong></span>
                             </div>
                             ${custAlertHtml}
+                            ${moduleAccreditationHintHtml}
                         </div>
                     `;
                 }
@@ -3088,7 +3096,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // 5. Botón principal dinámico: Verde (Liquidado) vs Ámbar/Naranja (Saldo Pendiente)
         if (checkoutBtn && !isCheckoutInFlight) {
-            const usePendingButton = payState.isPendingMode && !payState.hasPendingNoteAbono && !payState.hasFinAbono && payState.hasProductConcept && !payState.isOverpaidNonCash;
+            const usePendingButton = payState.isPendingMode && !payState.hasPendingNoteAbono && !payState.isOverpaidNonCash;
             checkoutBtn.classList.toggle('btn-checkout-pending', usePendingButton);
             if (usePendingButton) {
                 checkoutBtn.innerHTML = '<i class="fa-solid fa-clock-rotate-left mr-2"></i>Pagar y Dejar Saldo Pendiente';
@@ -4519,9 +4527,17 @@ document.addEventListener('DOMContentLoaded', function () {
             );
         }
 
+        const creditModuleNotice = payState.hasCreditModuleConcept
+            ? `<div class="alert alert-info d-block py-2 px-3 mt-2 mb-0 font-size-12 text-left" style="display: block !important; line-height: 1.45; white-space: normal;">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    <strong>Acreditación completa en módulo:</strong> El concepto de Financiera, Préstamo o Tanda se acreditará al 100% en su módulo y el cliente quedará con saldo pendiente de <strong>$${payState.dueAmount.toFixed(2)}</strong> en sucursal.
+               </div>`
+            : '';
+
         const result = await Swal.fire({
             icon: 'question',
             title: 'Confirmar Venta con Saldo Pendiente',
+            width: '500px',
             html: `
                 <div class="text-left border rounded p-3 bg-light font-size-13">
                     <div class="d-flex justify-content-between mb-2 pb-1 border-bottom">
@@ -4544,6 +4560,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <strong>Saldo Pendiente a Cuenta:</strong>
                         <strong>$${payState.dueAmount.toFixed(2)}</strong>
                     </div>
+                    ${creditModuleNotice}
                 </div>
             `,
             showCancelButton: true,
@@ -4609,14 +4626,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         ? 'posCashAmountInput'
                         : (payState.method === 'tarjeta' ? 'posCardAmountInput' : (payState.method === 'transferencia' ? 'posTransferAmountInput' : 'mixCashInput'));
                     document.getElementById(focusId)?.focus();
-                    return;
-                }
-                if (payState.hasFinAbono) {
-                    alert('⚠️ Los abonos a financieras no permiten pago parcial ni dejar saldo pendiente. Cubre el total completo o edita directamente el monto del abono.');
-                    return;
-                }
-                if (!payState.hasProductConcept) {
-                    alert('⚠️ Para dejar saldo pendiente en Nota por Cobrar debe existir al menos un producto en el carrito. En préstamos o tandas, edita directamente el importe del concepto.');
                     return;
                 }
                 if (!payState.hasSpecificCustomer) {
