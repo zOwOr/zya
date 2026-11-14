@@ -345,6 +345,7 @@
         if ($updatedDue < 0.01) {
             $updatedDue = 0.0;
         }
+        $isPendingNoteAbonoTx = \App\Models\PosTransaction::containsPendingNoteAbonoConcept($transaction->items_payload ?? []);
         $payRefs = is_array($transaction->payment_references) ? $transaction->payment_references : [];
         $cardRef = trim((string) ($payRefs['card_ref'] ?? ''));
         $transferRef = trim((string) ($payRefs['transfer_ref'] ?? ''));
@@ -355,15 +356,30 @@
         <span class="bold" style="font-size: 15px;">${{ number_format($transaction->total_amount, 2) }} MXN</span>
     </div>
 
-    @if ($dueAtSale > 0 || $updatedDue > 0)
+    @if (($dueAtSale > 0 || $updatedDue > 0) && !$isPendingNoteAbonoTx)
         <div class="row-flex bold" style="font-size: 12.5px; color: #16a34a; margin: 2px 0;">
             <span class="bold">PAGO INICIAL / ABONADO HOY:</span>
             <span class="bold">${{ number_format($paidToday, 2) }} MXN</span>
         </div>
-        {{-- Regla de negocio: NO imprimir montos de saldo pendiente ni liquidación automática en tickets (puede diferir por moras, multas, abonos o notas vencidas) --}}
+        <div class="row-flex bold" style="font-size: 13px; color: #dc2626; margin: 2px 0;">
+            <span class="bold">{{ ($linkedOrder && abs($updatedDue - $dueAtSale) > 0.01) ? 'SALDO PENDIENTE ACTUALIZADO:' : 'SALDO PENDIENTE:' }}</span>
+            <span class="bold">${{ number_format($updatedDue, 2) }} MXN{{ $updatedDue <= 0 ? ' (LIQUIDADO)' : '' }}</span>
+        </div>
+        @if ($linkedOrder && abs($updatedDue - $dueAtSale) > 0.01)
+            <div class="row-flex" style="font-size: 10.5px;">
+                <span>Saldo inicial de esta nota:</span>
+                <span>${{ number_format($dueAtSale, 2) }} MXN</span>
+            </div>
+        @endif
+        @if ($linkedOrder && !empty($linkedOrder->invoice_no))
+            <div class="row-flex" style="font-size: 10.5px;">
+                <span>Nota por Cobrar:</span>
+                <span class="bold">{{ $linkedOrder->invoice_no }}</span>
+            </div>
+        @endif
         <div class="row-flex bold" style="font-size: 11.5px;">
             <span class="bold">ESTADO:</span>
-            <span class="bold">PAGO PARCIAL REGISTRADO</span>
+            <span class="bold">{{ $updatedDue > 0 ? 'NOTA CON SALDO PENDIENTE POR LIQUIDAR' : 'LIQUIDADO CON ABONOS POSTERIORES' }}</span>
         </div>
     @else
         <div class="row-flex bold" style="font-size: 12px; color: #16a34a;">

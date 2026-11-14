@@ -17,7 +17,7 @@
                     <div class="iq-error position-relative">
                         <h2 class="mb-0 mt-4">404</h2>
                         <p>Oops! This Page is Not Found.</p>
-                        <a class="btn btn-primary d-inline-flex align-items-center mt-3" href="{{ route('dashboard') }}"><i class="ri-home-4-line"></i>Back to Home</a>
+                        <a class="btn btn-primary d-inline-flex align-items-center mt-3" href="{{ \Illuminate\Support\Facades\Route::has('dashboard') ? route('dashboard') : url('/') }}"><i class="ri-home-4-line"></i>Back to Home</a>
                     </div>
                 </div>
             </div>

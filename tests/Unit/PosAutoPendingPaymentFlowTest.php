@@ -136,11 +136,10 @@ class PosAutoPendingPaymentFlowTest extends TestCase
         $this->assertStringContainsString('$1,000.00 MXN', $partialHtml);
         $this->assertStringContainsString('PAGO INICIAL / ABONADO HOY:', $partialHtml);
         $this->assertStringContainsString('$500.00 MXN', $partialHtml);
-        $this->assertStringContainsString('PAGO PARCIAL REGISTRADO', $partialHtml);
-        $this->assertStringNotContainsString('SALDO PENDIENTE ACTUALIZADO:', $partialHtml);
-        $this->assertStringNotContainsString('Saldo inicial de esta nota:', $partialHtml);
-        $this->assertStringNotContainsString('NOTA CON SALDO PENDIENTE POR LIQUIDAR', $partialHtml);
-        $this->assertStringNotContainsString('$350.00 MXN', $partialHtml);
+        $this->assertStringContainsString('SALDO PENDIENTE ACTUALIZADO:', $partialHtml);
+        $this->assertStringContainsString('$350.00 MXN', $partialHtml);
+        $this->assertStringContainsString('Saldo inicial de esta nota:', $partialHtml);
+        $this->assertStringContainsString('NOTA CON SALDO PENDIENTE POR LIQUIDAR', $partialHtml);
         $this->assertStringNotContainsString('(LIQUIDADO)', $partialHtml);
         $this->assertStringContainsString('MIXTO', $partialHtml);
         $this->assertStringContainsString('AUTH-8821', $partialHtml);
@@ -320,6 +319,162 @@ class PosAutoPendingPaymentFlowTest extends TestCase
         $invoiceOrderSource = file_get_contents(resource_path('views/orders/invoice-order.blade.php'));
         $this->assertNotEmpty(Blade::compileString($invoiceOrderSource));
         $this->assertStringNotContainsString('Debido:', $invoiceOrderSource);
+    }
+
+    public function test_pos_view_and_controller_allow_pending_balance_on_financieras_loans_and_tandas(): void
+    {
+        $viewSource = file_get_contents(resource_path('views/central-pos/index.blade.php'));
+        $this->assertNotEmpty(Blade::compileString($viewSource));
+
+        // Ya NO debe existir el bloqueo antiguo a financieras ni el requisito obligatorio de producto para saldo pendiente
+        $this->assertStringNotContainsString('Los abonos a financieras no permiten pago parcial', $viewSource);
+        $this->assertStringNotContainsString('Para dejar saldo pendiente en Nota por Cobrar debe existir al menos un producto', $viewSource);
+        $this->assertStringContainsString('hasCreditModuleConcept', $viewSource);
+        $this->assertStringContainsString('Acreditación completa en módulo:', $viewSource);
+        $this->assertStringContainsString('const usePendingButton = payState.isPendingMode && !payState.hasPendingNoteAbono && !payState.isOverpaidNonCash;', $viewSource);
+
+        // Regla "no pago pendiente sobre pago pendiente" se mantiene vigente para abono de nota pendiente
+        $this->assertStringContainsString('No se permite pago pendiente sobre pago pendiente', $viewSource);
+
+        $controllerSource = file_get_contents(app_path('Http/Controllers/Dashboard/UnifiedPosController.php'));
+        $this->assertStringNotContainsString('Los abonos a financieras no permiten pago parcial', $controllerSource);
+        $this->assertStringNotContainsString('Para dejar una Nota con Saldo Pendiente debe existir al menos un producto', $controllerSource);
+        $this->assertStringNotContainsString('debe cubrir al menos esos conceptos', $controllerSource);
+        $this->assertStringContainsString('$hasProductsInOrder || $dueAmount > 0', $controllerSource);
+        $this->assertStringContainsString('$includeCreditItemsInOrder = ($dueAmount > 0);', $controllerSource);
+        $this->assertStringContainsString('$resolvedExternalCustomerId || !$selectedCatalogCustomer || $customerLooksGeneric', $controllerSource);
+        $this->assertStringContainsString('No se permite pago pendiente sobre pago pendiente', $controllerSource);
+    }
+
+    public function test_allocate_payment_breakdown_prevents_phantom_cash_on_zero_and_partial_credit_sales(): void
+    {
+        $refClass = new \ReflectionClass(\App\Http\Controllers\Dashboard\UnifiedPosController::class);
+        $controller = $refClass->newInstanceWithoutConstructor();
+        $method = $refClass->getMethod('allocatePaymentBreakdown');
+        $method->setAccessible(true);
+
+        // 1. Abono Financiera de $553.00 con $0.00 pagado hoy -> desglose en $0.00 (cero dinero fantasma)
+        $poolZero = ['paid' => 0.0, 'cash' => 0.0, 'card' => 0.0, 'transfer' => 0.0];
+        $resZero = $method->invokeArgs($controller, [553.00, 0.00, 0.00, 0.00, 0.00, 553.00, &$poolZero]);
+        $this->assertSame(['efectivo' => 0.0, 'tarjeta' => 0.0, 'transferencia' => 0.0], $resZero);
+
+        // 2. Abono Financiera único de $553.00 pagado parcialmente con $200.00 Mixto ($120 efectivo + $80 transf) -> NO inflar a $553
+        $poolPartialSingle = ['paid' => 200.0, 'cash' => 120.0, 'card' => 0.0, 'transfer' => 80.0];
+        $resPartialSingle = $method->invokeArgs($controller, [553.00, 200.00, 120.00, 0.00, 80.00, 553.00, &$poolPartialSingle]);
+        $this->assertSame(['efectivo' => 120.0, 'tarjeta' => 0.0, 'transferencia' => 80.0], $resPartialSingle);
+        $this->assertEquals(0.0, $poolPartialSingle['paid']);
+
+        // 3. Múltiples conceptos parciales (Financiera $300 + Préstamo $400 = $700 total), cliente paga $200 Mixto ($120 efec + $80 transf)
+        $poolMulti = ['paid' => 200.0, 'cash' => 120.0, 'card' => 0.0, 'transfer' => 80.0];
+        $finShare = $method->invokeArgs($controller, [300.00, 200.00, 120.00, 0.00, 80.00, 700.00, &$poolMulti]);
+        $loanShare = $method->invokeArgs($controller, [400.00, 200.00, 120.00, 0.00, 80.00, 700.00, &$poolMulti]);
+        $this->assertEqualsWithDelta(120.00, $finShare['efectivo'] + $loanShare['efectivo'], 0.001);
+        $this->assertEqualsWithDelta(0.00, $finShare['tarjeta'] + $loanShare['tarjeta'], 0.001);
+        $this->assertEqualsWithDelta(80.00, $finShare['transferencia'] + $loanShare['transferencia'], 0.001);
+        $this->assertEqualsWithDelta(0.00, $poolMulti['paid'], 0.001);
+
+        // 4. Combinado Producto ($200) + Financiera ($553) = $753, cliente paga $200 efectivo hoy -> Financiera nunca excede $200 reales
+        $poolMixed = ['paid' => 200.0, 'cash' => 200.0, 'card' => 0.0, 'transfer' => 0.0];
+        $finMixed = $method->invokeArgs($controller, [553.00, 200.00, 200.00, 0.00, 0.00, 753.00, &$poolMixed]);
+        $this->assertLessThanOrEqual(200.00, $finMixed['efectivo'] + $finMixed['tarjeta'] + $finMixed['transferencia']);
+        $this->assertEquals(0.0, $finMixed['tarjeta']);
+        $this->assertEquals(0.0, $finMixed['transferencia']);
+    }
+
+    public function test_receipt_displays_exact_pending_balance_for_zero_and_partial_financiera_loan_tanda_sales(): void
+    {
+        $branch = new Branch(['name' => 'Allende']);
+        $user = new User(['name' => 'Cajero POS']);
+
+        // Caso A: Abono Financiera PayJoy $553.00 ($543 + $10 comisión) con $0.00 inicial -> deuda real $553.00 sin duplicar
+        $orderZero = new Order(['invoice_no' => 'INV-000901', 'due' => 553.00]);
+        $txZero = new PosTransaction([
+            'transaction_code' => 'MOV-20261114-FIN00',
+            'customer_name' => 'Maria Fernanda Torres',
+            'payment_method' => 'mixto',
+            'cash_amount' => 0.00,
+            'card_amount' => 0.00,
+            'transfer_amount' => 0.00,
+            'subtotal' => 543.00,
+            'commission_total' => 10.00,
+            'total_amount' => 553.00,
+            'paid_amount' => 0.00,
+            'change_amount' => 0.00,
+            'items_payload' => [
+                [
+                    'section' => 'financiera_abono',
+                    'title' => 'Abono Financiera (PayJoy)',
+                    'financiera_name' => 'PayJoy',
+                    'quantity' => 1,
+                    'amount' => 543.00,
+                    'commission' => 10.00,
+                ],
+            ],
+        ]);
+        $txZero->created_at = Carbon::parse('2026-11-14 13:05:00');
+        $txZero->setRelation('branch', $branch);
+        $txZero->setRelation('user', $user);
+        $txZero->setRelation('order', $orderZero);
+        $txZero->setRelation('financieraPayments', collect());
+
+        $this->app->instance('request', Request::create('/central-pos/receipt/10', 'GET', ['paper' => '80']));
+        $htmlZero = View::make('central-pos.receipt', ['transaction' => $txZero])->render();
+
+        $this->assertStringContainsString('TOTAL DE LA VENTA:', $htmlZero);
+        $this->assertStringContainsString('$553.00 MXN', $htmlZero);
+        $this->assertStringContainsString('PAGO INICIAL / ABONADO HOY:', $htmlZero);
+        $this->assertStringContainsString('$0.00 MXN', $htmlZero);
+        $this->assertStringContainsString('SALDO PENDIENTE:', $htmlZero);
+        $this->assertStringContainsString('INV-000901', $htmlZero);
+        $this->assertStringContainsString('NOTA CON SALDO PENDIENTE POR LIQUIDAR', $htmlZero);
+        $this->assertStringContainsString('(SIN ABONO INICIAL)', $htmlZero);
+        $this->assertStringNotContainsString('$1,106.00', $htmlZero);
+
+        // Caso B: Abono Préstamo ($300) + Aportación Tanda ($200) = $500 con abono Mixto $150 ($100 Efec + $50 Transf) -> Resta $350.00
+        $orderPartial = new Order(['invoice_no' => 'INV-000902', 'due' => 350.00]);
+        $txPartial = new PosTransaction([
+            'transaction_code' => 'MOV-20261114-PRTN1',
+            'customer_name' => 'Pedro Antonio Morales',
+            'payment_method' => 'mixto',
+            'cash_amount' => 100.00,
+            'card_amount' => 0.00,
+            'transfer_amount' => 50.00,
+            'subtotal' => 500.00,
+            'commission_total' => 0.00,
+            'total_amount' => 500.00,
+            'paid_amount' => 150.00,
+            'change_amount' => 0.00,
+            'items_payload' => [
+                [
+                    'section' => 'prestamo_abono',
+                    'title' => 'Abono Préstamo PREST-20261114-AB12 (Pago #2)',
+                    'quantity' => 1,
+                    'amount' => 300.00,
+                    'commission' => 0.00,
+                ],
+                [
+                    'section' => 'tanda_abono',
+                    'title' => 'Tanda: Tanda Decembrina (Periodo #3)',
+                    'quantity' => 1,
+                    'amount' => 200.00,
+                    'commission' => 0.00,
+                ],
+            ],
+        ]);
+        $txPartial->created_at = Carbon::parse('2026-11-14 13:10:00');
+        $txPartial->setRelation('branch', $branch);
+        $txPartial->setRelation('user', $user);
+        $txPartial->setRelation('order', $orderPartial);
+        $txPartial->setRelation('financieraPayments', collect());
+
+        $htmlPartial = View::make('central-pos.receipt', ['transaction' => $txPartial])->render();
+        $this->assertStringContainsString('$500.00 MXN', $htmlPartial);
+        $this->assertStringContainsString('$150.00 MXN', $htmlPartial);
+        $this->assertStringContainsString('SALDO PENDIENTE:', $htmlPartial);
+        $this->assertStringContainsString('$350.00 MXN', $htmlPartial);
+        $this->assertStringContainsString('INV-000902', $htmlPartial);
+        $this->assertStringContainsString('$100.00', $htmlPartial);
+        $this->assertStringContainsString('$50.00', $htmlPartial);
     }
 }
 
