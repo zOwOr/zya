@@ -273,7 +273,10 @@
         @if ($isArticle)
             <p>
                 Recibí a mi entera satisfacción el artículo descrito a continuación en calidad de compraventa a crédito
-                (Precio total: <strong>${{ number_format($loan->article_price, 2) }} MXN</strong>@if ((float) $loan->down_payment > 0), Enganche cubierto: <strong>${{ number_format($loan->down_payment, 2) }} MXN</strong>@endif, Monto financiado: <strong>${{ number_format($loan->principal_amount, 2) }} MXN</strong>).
+                (@if ($loan->article_price !== null && (float) $loan->article_price > 0)Precio total: <strong>${{ number_format((float) $loan->article_price, 2) }} MXN</strong>, @endif
+                @if ((float) ($loan->down_payment ?? 0) > 0)Enganche cubierto: <strong>${{ number_format((float) $loan->down_payment, 2) }} MXN</strong>, @endif
+                @if ($loan->principal_amount !== null)Monto financiado: <strong>${{ number_format((float) $loan->principal_amount, 2) }} MXN</strong>, @endif
+                Total final de la venta a crédito: <strong>${{ number_format($loan->resolved_credit_sale_total, 2) }} MXN</strong>).
                 Si dejo de cubrir cualquiera de las parcialidades en su fecha programada, se dará por vencido anticipadamente el saldo pendiente de este pagaré.
             </p>
         @else

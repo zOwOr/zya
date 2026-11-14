@@ -47,6 +47,7 @@
             Periodo consultado: <strong>{{ \Carbon\Carbon::parse($finStartDate)->format('d/m/Y') }}</strong> al <strong>{{ \Carbon\Carbon::parse($finEndDate)->format('d/m/Y') }}</strong>
         @endif
         &nbsp;|&nbsp; Sucursal: <strong>{{ $branchName ?? 'Todas las Sucursales' }}</strong>
+        &nbsp;|&nbsp; Financiera(s): <strong>{{ $financieraFilterLabel ?? 'Todas las Financieras' }}</strong>
         &nbsp;|&nbsp; Generado: {{ now()->format('d/m/Y H:i') }} por {{ auth()->user()->name ?? 'Sistema' }}
     </div>
 

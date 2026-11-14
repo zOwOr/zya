@@ -136,6 +136,20 @@ class PosTransaction extends Model
         return false;
     }
 
+    /**
+     * Determina si los conceptos del carrito contienen un abono a nota de venta pendiente.
+     */
+    public static function containsPendingNoteAbonoConcept(array $items): bool
+    {
+        foreach ($items as $item) {
+            if (is_array($item) && ($item['section'] ?? null) === 'nota_abono') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');

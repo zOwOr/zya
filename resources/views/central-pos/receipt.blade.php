@@ -219,9 +219,6 @@
         <span style="display:none;" id="paperLabel">Modo: 80mm</span>
     </div>
 
-    {{-- Secuencia ESC/POS invisible en caso de driver con modo texto --}}
-    <span style="display:none;">&#27;&#112;&#0;&#25;&#250;</span>
-
     <div class="center bold" style="font-size: 15px; letter-spacing: 1px;">ZYA</div>
     <div class="center" style="font-size: 11px;">CELULARES, ACCESORIOS Y REPARACIONES</div>
     <div class="center bold">Sucursal: {{ $transaction->branch?->name ?? 'Matriz' }}</div>
@@ -336,27 +333,51 @@
         </div>
     @endif
     @php
-        $paidToday = round((float) $transaction->paid_amount - (float) $transaction->change_amount, 2);
-        $dueAmount = max(0, round((float) $transaction->total_amount - $paidToday, 2));
+        $paidToday = max(0.0, round((float) $transaction->paid_amount - (float) $transaction->change_amount, 2));
+        $dueAtSale = max(0.0, round((float) $transaction->total_amount - $paidToday, 2));
+        if ($dueAtSale < 0.01) {
+            $dueAtSale = 0.0;
+        }
+        $linkedOrder = $transaction->relationLoaded('order') ? $transaction->order : null;
+        $updatedDue = $linkedOrder ? max(0.0, round((float) $linkedOrder->due, 2)) : $dueAtSale;
+        if ($updatedDue < 0.01) {
+            $updatedDue = 0.0;
+        }
+        $payRefs = is_array($transaction->payment_references) ? $transaction->payment_references : [];
+        $cardRef = trim((string) ($payRefs['card_ref'] ?? ''));
+        $transferRef = trim((string) ($payRefs['transfer_ref'] ?? ''));
     @endphp
 
     <div class="row-flex bold" style="font-size: 13.5px; margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
-        <span class="bold">TOTAL DE LA NOTA:</span>
+        <span class="bold">TOTAL DE LA VENTA:</span>
         <span class="bold" style="font-size: 15px;">${{ number_format($transaction->total_amount, 2) }} MXN</span>
     </div>
 
-    @if ($dueAmount > 0)
-        <div class="row-flex bold" style="font-size: 13px; color: #16a34a; margin: 2px 0;">
-            <span class="bold">ABONADO HOY:</span>
+    @if ($dueAtSale > 0 || $updatedDue > 0)
+        <div class="row-flex bold" style="font-size: 12.5px; color: #16a34a; margin: 2px 0;">
+            <span class="bold">PAGO INICIAL / ABONADO HOY:</span>
             <span class="bold">${{ number_format($paidToday, 2) }} MXN</span>
         </div>
-        <div class="row-flex bold" style="font-size: 13px; color: #dc2626; border: 1px dashed #dc2626; padding: 3px 5px; margin: 4px 0; background: #fff5f5;">
-            <span class="bold">SALDO PENDIENTE:</span>
-            <span class="bold">${{ number_format($dueAmount, 2) }} MXN</span>
-        </div>
-        <div class="center bold" style="font-size: 10px; color: #dc2626; margin-bottom: 4px;">
-            *** NOTA CON SALDO PENDIENTE POR LIQUIDAR ***
-        </div>
+        @if ($updatedDue > 0)
+            <div class="row-flex bold" style="font-size: 13px; color: #dc2626; border: 1px dashed #dc2626; padding: 3px 5px; margin: 4px 0; background: #fff5f5;">
+                <span class="bold">SALDO PENDIENTE ACTUALIZADO:</span>
+                <span class="bold">${{ number_format($updatedDue, 2) }} MXN</span>
+            </div>
+            @if (abs($updatedDue - $dueAtSale) >= 0.01)
+                <div class="row-flex" style="font-size: 10.5px; color: #444;">
+                    <span>Saldo inicial de esta nota:</span>
+                    <span>${{ number_format($dueAtSale, 2) }} MXN</span>
+                </div>
+            @endif
+            <div class="center bold" style="font-size: 10px; color: #dc2626; margin-bottom: 4px;">
+                *** NOTA CON SALDO PENDIENTE POR LIQUIDAR ***
+            </div>
+        @else
+            <div class="row-flex bold" style="font-size: 12px; color: #16a34a; margin: 2px 0;">
+                <span class="bold">SALDO PENDIENTE ACTUALIZADO:</span>
+                <span class="bold">$0.00 MXN (LIQUIDADO)</span>
+            </div>
+        @endif
     @else
         <div class="row-flex bold" style="font-size: 12px; color: #16a34a;">
             <span class="bold">ESTADO:</span>
@@ -367,7 +388,7 @@
 
     <div class="row-flex">
         <span>Método de Pago:</span>
-        <span class="bold">{{ strtoupper($transaction->payment_method) }}</span>
+        <span class="bold">{{ $paidToday > 0 ? strtoupper($transaction->payment_method) : strtoupper($transaction->payment_method) . ' (SIN ABONO INICIAL)' }}</span>
     </div>
     @if ($transaction->payment_method === 'mixto')
         @if ($transaction->cash_amount > 0)
@@ -387,6 +408,12 @@
             </div>
         @endif
     @endif
+    @if ($cardRef !== '')
+        <div class="row-flex" style="font-size: 10.5px;"><span>Ref. Tarjeta:</span><span class="bold">{{ $cardRef }}</span></div>
+    @endif
+    @if ($transferRef !== '')
+        <div class="row-flex" style="font-size: 10.5px;"><span>Ref. Transferencia:</span><span class="bold">{{ $transferRef }}</span></div>
+    @endif
 
     @if ($transaction->change_amount > 0)
         <div class="row-flex">
@@ -404,30 +431,8 @@
     {{-- Margen inferior calibrado para el corte de guillotina térmica sin sobrante de papel --}}
     <div style="height: 8mm; line-height: 8mm; overflow: hidden; page-break-inside: avoid;">&nbsp;</div>
 
+    <script src="{{ asset('assets/js/pos-hardware.js') }}?v=20261113"></script>
     <script>
-        window.ZyaPosHardware = {
-            KICK_BYTES: new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA, 0x10, 0x14, 0x01, 0x00, 0x05, 0x07, 0x0A]),
-            autoOpenUsbDrawer: async function () {
-                if (!('serial' in navigator)) return false;
-                try {
-                    const ports = await navigator.serial.getPorts();
-                    if (ports && ports.length > 0) {
-                        const port = ports[0];
-                        await port.open({ baudRate: 9600 });
-                        try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
-                        const writer = port.writable.getWriter();
-                        await writer.write(this.KICK_BYTES);
-                        writer.releaseLock();
-                        await new Promise(r => setTimeout(r, 120));
-                        try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
-                        await port.close();
-                        return true;
-                    }
-                } catch (e) {}
-                return false;
-            }
-        };
-
         function safeStorageGet(key) {
             try {
                 return window.localStorage ? window.localStorage.getItem(key) : null;

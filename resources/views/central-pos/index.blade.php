@@ -161,18 +161,192 @@
         padding: 12px 16px;
         border-radius: 12px 12px 0 0;
     }
-    .cart-items-scroll {
-        max-height: 250px;
-        overflow-y: auto;
-        border: 1px solid #f1f5f9;
+    .cart-summary-bar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
         border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 11.5px;
+    }
+    .cart-summary-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .cart-summary-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 7px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        color: #1e293b;
+    }
+    .cart-items-scroll {
+        max-height: 390px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 8px;
     }
     .cart-items-scroll::-webkit-scrollbar {
-        width: 5px;
+        width: 6px;
     }
     .cart-items-scroll::-webkit-scrollbar-thumb {
         background: #cbd5e1;
         border-radius: 4px;
+    }
+    .cart-group-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 9px;
+        margin: 8px 0 6px;
+        border-radius: 6px;
+        background: #e2e8f0;
+        color: #0f172a;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+    }
+    .cart-group-header:first-child {
+        margin-top: 0;
+    }
+    .cart-item-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid var(--cart-accent, #3b82f6);
+        border-radius: 8px;
+        padding: 9px 10px;
+        margin-bottom: 7px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        transition: box-shadow 0.15s ease, transform 0.15s ease, background-color 0.25s ease;
+    }
+    .cart-item-card:last-child {
+        margin-bottom: 0;
+    }
+    .cart-item-card:hover {
+        box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08);
+    }
+    @keyframes cartCardFlash {
+        0% { background-color: #eff6ff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35); }
+        100% { background-color: #ffffff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
+    }
+    .cart-item-card.is-highlighted {
+        animation: cartCardFlash 1.4s ease;
+    }
+    .cart-item-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .cart-item-index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 21px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 10px;
+        background: #0f172a;
+        color: #ffffff;
+        font-size: 10.5px;
+        font-weight: 700;
+    }
+    .cart-item-title {
+        font-weight: 700;
+        font-size: 13px;
+        color: #0f172a;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+    .cart-item-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+    }
+    .cart-meta-chip {
+        display: inline-block;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 10.5px;
+        line-height: 1.35;
+    }
+    .cart-item-controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        padding-top: 7px;
+        border-top: 1px dashed #e2e8f0;
+    }
+    .cart-qty-stepper {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+    .cart-qty-stepper button {
+        border: none;
+        background: #f8fafc;
+        color: #334155;
+        width: 24px;
+        height: 26px;
+        padding: 0;
+        font-weight: 800;
+        font-size: 13px;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .cart-qty-stepper button:hover:not(:disabled) {
+        background: #e2e8f0;
+    }
+    .cart-qty-stepper button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+    .cart-qty-stepper input {
+        width: 38px;
+        height: 26px;
+        border: none;
+        border-left: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
+        text-align: center;
+        font-weight: 700;
+        font-size: 12px;
+        padding: 0 2px;
+        -moz-appearance: textfield;
+    }
+    .cart-qty-stepper input::-webkit-outer-spin-button,
+    .cart-qty-stepper input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .cart-line-subtotal {
+        font-size: 14px;
+        font-weight: 800;
+        color: #0f172a;
+        text-align: right;
+        min-width: 72px;
     }
 
     /* Caja de Totales Resaltada */
@@ -258,6 +432,22 @@
     .btn-checkout-unified:active {
         transform: translateY(0);
     }
+    .btn-checkout-unified.btn-checkout-pending {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+        color: #ffffff;
+    }
+    .btn-checkout-unified.btn-checkout-pending:hover {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        box-shadow: 0 6px 16px rgba(217, 119, 6, 0.45);
+        color: #ffffff;
+    }
+    .pos-pending-alert-card {
+        background: #fffbeb;
+        border: 2px solid #f59e0b;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
 
     /* Estilos de Alta Visibilidad y Contraste para Método Transferencia */
     .text-transfer,
@@ -305,9 +495,14 @@
                 <i class="fa-solid fa-clock-rotate-left mr-1"></i> Historial de Tickets
             </button>
             @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cobros.open_drawer') || auth()->user()->can('cash.open_drawer'))
-                <button type="button" id="btnOpenPhysicalDrawer" class="btn btn-warning btn-sm mr-2 shadow-sm font-weight-bold">
-                    <i class="las la-lock-open mr-1"></i> Abrir Cajón Físico
-                </button>
+                <div class="btn-group btn-group-sm mr-2 shadow-sm" role="group" aria-label="Control de cajón">
+                    <button type="button" id="btnOpenPhysicalDrawer" class="btn btn-warning font-weight-bold">
+                        <i class="las la-lock-open mr-1"></i> Abrir Cajón Físico
+                    </button>
+                    <button type="button" id="btnConfigurePhysicalDrawer" class="btn btn-outline-warning font-weight-bold" title="Configurar / cambiar puerto USB-COM y baudios" onclick="window.open('{{ route('central-pos.open-drawer') }}', 'zyaDrawerConfig', 'width=540,height=660,resizable=yes,scrollbars=yes')">
+                        <i class="las la-cog"></i>
+                    </button>
+                </div>
             @endif
             @if (auth()->user()->isSuperAdmin() || auth()->user()->can('orders.menu') || auth()->user()->can('orders.read'))
                 <a href="{{ route('order.pendingDue') }}" class="btn btn-outline-warning btn-sm mr-2 shadow-sm font-weight-bold">
@@ -826,6 +1021,8 @@
                                                                 class="btn btn-xs btn-primary btn-add-stock-product"
                                                                 data-id="{{ $prod->id }}"
                                                                 data-name="{{ $prod->product_name }}"
+                                                                data-code="{{ $prod->product_code }}"
+                                                                data-imei="{{ $prod->imei }}"
                                                                 data-price="{{ $prod->selling_price }}"
                                                                 data-stock="{{ $prod->stock_quantity }}"
                                                                 {{ $prod->stock_quantity <= 0 ? 'disabled' : '' }}>
@@ -924,6 +1121,9 @@
                                             </thead>
                                             <tbody id="posGiftsTableBody">
                                                 @forelse ($gifts as $g)
+                                                    @php
+                                                        $giftBranchStock = $g->stockInBranch($branchId);
+                                                    @endphp
                                                     <tr>
                                                         <td><span class="badge badge-light border">{{ $g->code }}</span></td>
                                                         <td>
@@ -933,7 +1133,7 @@
                                                             </small>
                                                         </td>
                                                         <td class="text-center">
-                                                            <span class="badge badge-pill badge-success">{{ $g->stock_quantity }}</span>
+                                                            <span class="badge badge-pill badge-success">{{ $giftBranchStock }}</span>
                                                         </td>
                                                         <td class="text-right font-weight-bold text-success">$0.00</td>
                                                         <td class="text-right">
@@ -943,7 +1143,7 @@
                                                                 data-name="{{ $g->name }}"
                                                                 data-code="{{ $g->code }}"
                                                                 data-supplier="{{ $g->supplier_display_name }}"
-                                                                data-stock="{{ $g->stock_quantity }}">
+                                                                data-stock="{{ $giftBranchStock }}">
                                                                 <i class="fa-solid fa-plus"></i> Agregar
                                                             </button>
                                                         </td>
@@ -990,17 +1190,27 @@
                             <!-- Datos del Cliente para el Desglose y Ticket -->
                             <div class="card border mb-3 bg-light shadow-none">
                                 <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap" style="gap: 4px;">
                                         <label class="font-size-11 font-weight-bold text-muted text-uppercase mb-0">
                                             <i class="fa-solid fa-user-check text-primary mr-1"></i>Cliente para Ticket y Caja
                                         </label>
-                                        @if ($canPosExternalCustomers)
-                                            <div id="posExternalCustomerTriggerWrap" class="d-none">
-                                                <button type="button" id="btnTriggerExternalCustomer" class="btn btn-xs btn-warning text-dark font-weight-bold shadow-sm" disabled>
-                                                    <i class="fa-solid fa-user-tag mr-1"></i>Cliente Externo
-                                                </button>
-                                            </div>
-                                        @endif
+                                        <div class="d-flex align-items-center" style="gap: 4px;">
+                                            @if (auth()->user()->isSuperAdmin() || auth()->user()->can('customer.create') || auth()->user()->can('customer.menu'))
+                                                <a href="{{ route('customers.create') }}" target="_blank" id="btnPosNewCustomerLink" class="btn btn-xs btn-outline-primary font-weight-bold py-0 px-2" title="Dar de alta un nuevo cliente en catálogo">
+                                                    <i class="fa-solid fa-user-plus mr-1"></i>Nuevo Cliente
+                                                </a>
+                                            @endif
+                                            <button type="button" id="btnRefreshPosCustomers" class="btn btn-xs btn-outline-secondary py-0 px-2" title="Recargar catálogo de clientes">
+                                                <i class="fa-solid fa-rotate"></i>
+                                            </button>
+                                            @if ($canPosExternalCustomers)
+                                                <div id="posExternalCustomerTriggerWrap" class="d-none">
+                                                    <button type="button" id="btnTriggerExternalCustomer" class="btn btn-xs btn-warning text-dark font-weight-bold shadow-sm" disabled>
+                                                        <i class="fa-solid fa-user-tag mr-1"></i>Cliente Externo
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
                                     </div>
                                     @if ($canPosExternalCustomers)
                                         <div id="posSelectedExternalBanner" class="alert alert-warning border-warning py-1 px-2 mb-2 d-none font-size-12">
@@ -1043,20 +1253,13 @@
                                 </div>
                             </div>
 
-                            <!-- Lista de Conceptos en Carrito -->
-                            <div class="table-responsive cart-items-scroll mb-3">
-                                <table class="table table-sm table-hover mb-0 font-size-12">
-                                    <thead class="bg-light">
-                                        <tr>
-                                            <th>Concepto</th>
-                                            <th class="text-center" style="width: 52px;">Cant.</th>
-                                            <th class="text-right" style="width: 110px;">Importe</th>
-                                            <th class="text-right" style="width: 70px;">Comisión</th>
-                                            <th style="width: 35px;"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="tabCartItemsBody"></tbody>
-                                </table>
+                            <!-- Resumen rápido y alertas de carrito -->
+                            <div id="posCartSummaryBar" class="cart-summary-bar d-none mb-2"></div>
+                            <div id="posCartFeedbackBanner" class="d-none mb-2"></div>
+
+                            <!-- Lista organizada de Conceptos en Carrito -->
+                            <div class="cart-items-scroll mb-3">
+                                <div id="tabCartItemsBody" class="cart-items-list"></div>
                             </div>
 
                             <!-- Totales -->
@@ -1078,35 +1281,7 @@
                                 </div>
                             </div>
 
-                            <!-- Saldo Pendiente / Pago Parcial (Queda debiendo) -->
-                            <div class="card border border-warning bg-light p-2 mb-2 rounded shadow-none">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="font-size-12 font-weight-bold text-dark">
-                                        <i class="fa-solid fa-clock-rotate-left text-warning mr-1"></i>¿Pago Parcial o Saldo Pendiente?
-                                    </span>
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="posPartialPayCheck">
-                                        <label class="custom-control-label font-size-11 font-weight-bold text-primary" for="posPartialPayCheck">Activar</label>
-                                    </div>
-                                </div>
-                                <div id="posPartialPayDetails" class="d-none mt-2 pt-2 border-top">
-                                    <div class="row">
-                                        <div class="col-6 pr-1">
-                                            <label class="font-size-11 font-weight-bold text-success mb-0">Abonar / Cobrar Hoy ($)</label>
-                                            <input type="number" step="0.01" min="0" id="posPaidTodayInput" class="form-control form-control-sm font-weight-bold text-success font-size-13" placeholder="0.00">
-                                        </div>
-                                        <div class="col-6 pl-1">
-                                            <label class="font-size-11 font-weight-bold text-danger mb-0">Saldo Pendiente ($)</label>
-                                            <input type="text" id="posDueBalanceText" class="form-control form-control-sm font-weight-bold text-danger font-size-13 bg-white" readonly value="$0.00">
-                                        </div>
-                                    </div>
-                                    <small class="d-block text-danger mt-1 font-size-11 font-weight-bold">
-                                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>El cliente quedará registrado con este saldo pendiente en "Notas con Saldo Pendiente".
-                                    </small>
-                                </div>
-                            </div>
-
-                            <!-- Método de Pago Visual Moderno -->
+                            <!-- Método de Pago Visual Moderno (Detección automática de liquidación o saldo pendiente) -->
                             <div class="form-group mb-2">
                                 <label class="font-size-11 font-weight-bold text-muted mb-1 text-uppercase">Método de Pago</label>
                                 <div class="pay-methods-grid" id="paymentMethodBtnGroup">
@@ -1129,21 +1304,25 @@
                                 </div>
                             </div>
 
-                            <!-- SECCIÓN DINÁMICA DE DETALLE Y CAPTURA POR MÉTODO DE PAGO -->
-                            
-                            <!-- 1. Detalle para Efectivo -->
+                            <!-- SECCIÓN DINÁMICA UNIFICADA POR MÉTODO DE PAGO -->
+
+                            <!-- 1. Detalle para Efectivo (Campo único pre-cargado con el total) -->
                             <div id="posBoxEfectivo" class="p-2 rounded border mb-2 bg-light">
-                                <div class="row mb-2">
-                                    <div class="col-6 pr-1">
-                                        <label class="font-size-11 font-weight-bold text-success mb-0 text-uppercase">Monto Efectivo ($)</label>
-                                        <input type="number" step="0.01" min="0" id="posCashAmountInput" class="form-control form-control-sm font-weight-bold text-success font-size-14" placeholder="0.00">
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label for="posCashAmountInput" class="font-size-11 font-weight-bold text-success mb-0 text-uppercase">
+                                            Efectivo Recibido / Monto a Pagar ($)
+                                        </label>
+                                        <button type="button" class="btn btn-xs btn-outline-success py-0 px-2 font-size-10 font-weight-bold btn-pos-fill-total d-none" title="Restablecer al 100% del total">
+                                            Liquidar 100%
+                                        </button>
                                     </div>
-                                    <div class="col-6 pl-1">
-                                        <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Efectivo Recibido ($)</label>
-                                        <input type="number" step="0.01" min="0" id="posCashReceivedInput" class="form-control form-control-sm font-weight-bold font-size-14" placeholder="0.00">
-                                    </div>
+                                    <input type="number" step="0.01" min="0" id="posCashAmountInput" class="form-control form-control-sm font-weight-bold text-success font-size-15" placeholder="0.00">
+                                    <small class="text-muted font-size-10 d-block mt-1">
+                                        Ingresa un monto mayor para calcular cambio o menor para dejar saldo pendiente.
+                                    </small>
                                 </div>
-                                <div>
+                                <div id="posCashChangeContainer">
                                     <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Cambio a Entregar</label>
                                     <input type="text" id="posChangeOutput" class="form-control form-control-sm cash-change-display" value="$0.00" readonly>
                                 </div>
@@ -1152,13 +1331,16 @@
                             <!-- 2. Detalle para Tarjeta -->
                             <div id="posBoxTarjeta" class="p-2 rounded border mb-2 bg-light d-none">
                                 <div class="row">
-                                    <div class="col-6 pr-1">
-                                        <label class="font-size-11 font-weight-bold text-primary mb-0 text-uppercase">Monto Tarjeta ($)</label>
-                                        <input type="number" step="0.01" min="0" id="posCardAmountInput" class="form-control form-control-sm font-weight-bold text-primary font-size-14" placeholder="0.00">
+                                    <div class="col-7 pr-1">
+                                        <div class="d-flex justify-content-between align-items-center mb-0">
+                                            <label for="posCardAmountInput" class="font-size-11 font-weight-bold text-primary mb-0 text-uppercase">Monto Tarjeta ($)</label>
+                                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1 font-size-10 font-weight-bold btn-pos-fill-total d-none">100%</button>
+                                        </div>
+                                        <input type="number" step="0.01" min="0" id="posCardAmountInput" class="form-control form-control-sm font-weight-bold text-primary font-size-14 mt-1" placeholder="0.00">
                                     </div>
-                                    <div class="col-6 pl-1">
-                                        <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">No. Autoriz. / Voucher</label>
-                                        <input type="text" id="posCardRefInput" class="form-control form-control-sm font-size-13" placeholder="Opcional">
+                                    <div class="col-5 pl-1">
+                                        <label for="posCardRefInput" class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">No. Autoriz. / Voucher</label>
+                                        <input type="text" id="posCardRefInput" class="form-control form-control-sm font-size-13 mt-1" placeholder="Opcional">
                                     </div>
                                 </div>
                             </div>
@@ -1166,24 +1348,30 @@
                             <!-- 3. Detalle para Transferencia -->
                             <div id="posBoxTransferencia" class="p-2 rounded border mb-2 bg-light d-none">
                                 <div class="row">
-                                    <div class="col-6 pr-1">
-                                        <label class="font-size-11 font-weight-bold text-transfer mb-0 text-uppercase">Monto Transf. ($)</label>
-                                        <input type="number" step="0.01" min="0" id="posTransferAmountInput" class="form-control form-control-sm font-weight-bold text-transfer font-size-14" placeholder="0.00">
+                                    <div class="col-7 pr-1">
+                                        <div class="d-flex justify-content-between align-items-center mb-0">
+                                            <label for="posTransferAmountInput" class="font-size-11 font-weight-bold text-transfer mb-0 text-uppercase">Monto Transf. ($)</label>
+                                            <button type="button" class="btn btn-xs btn-outline-info py-0 px-1 font-size-10 font-weight-bold btn-pos-fill-total d-none">100%</button>
+                                        </div>
+                                        <input type="number" step="0.01" min="0" id="posTransferAmountInput" class="form-control form-control-sm font-weight-bold text-transfer font-size-14 mt-1" placeholder="0.00">
                                     </div>
-                                    <div class="col-6 pl-1">
-                                        <label class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Folio SPEI / Rastreo</label>
-                                        <input type="text" id="posTransferRefInput" class="form-control form-control-sm font-size-13" placeholder="Opcional">
+                                    <div class="col-5 pl-1">
+                                        <label for="posTransferRefInput" class="font-size-11 font-weight-bold text-muted mb-0 text-uppercase">Folio SPEI / Rastreo</label>
+                                        <input type="text" id="posTransferRefInput" class="form-control form-control-sm font-size-13 mt-1" placeholder="Opcional">
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- 4. Detalle para Pago Mixto con Notificación de Cantidad Faltante -->
+                            <!-- 4. Detalle para Pago Mixto (soporta liquidación completa o abono inicial mixto + saldo pendiente) -->
                             <div id="posBoxMixto" class="p-2 rounded border mb-2 bg-light d-none">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <small class="font-weight-bold text-warning text-uppercase">
                                         <i class="fa-solid fa-sliders mr-1"></i>Captura de Pago Mixto:
                                     </small>
-                                    <small class="text-muted font-size-11">Total: <strong id="lblMixTargetAmount" class="text-dark">$0.00</strong></small>
+                                    <div class="d-flex align-items-center" style="gap: 6px;">
+                                        <small class="text-muted font-size-11">Total: <strong id="lblMixTargetAmount" class="text-dark">$0.00</strong></small>
+                                        <button type="button" class="btn btn-xs btn-outline-warning text-dark py-0 px-1 font-size-10 font-weight-bold btn-pos-fill-total d-none">100%</button>
+                                    </div>
                                 </div>
                                 <div class="row mb-2">
                                     <div class="col-4 pr-1">
@@ -1200,13 +1388,11 @@
                                     </div>
                                 </div>
 
-                                <!-- Notificación en Tiempo Real de Cantidad Faltante en Pago Mixto -->
-                                <div id="posMixFaltanteAlertContainer" class="mb-2">
-                                    <!-- Render dinámico por JS -->
-                                </div>
+                                <!-- Resumen en Tiempo Real de Pago Mixto -->
+                                <div id="posMixFaltanteAlertContainer" class="mb-2"></div>
 
-                                <!-- Efectivo Recibido y Cambio para la porción en efectivo de Pago Mixto -->
-                                <div id="posMixCashDrawerRow" class="row mb-1">
+                                <!-- Efectivo Recibido y Cambio para la porción en efectivo (solo si cubre el total) -->
+                                <div id="posMixCashDrawerRow" class="row mb-1 d-none">
                                     <div class="col-6 pr-1">
                                         <label class="font-size-11 font-weight-bold text-muted mb-0">Efectivo Recibido ($)</label>
                                         <input type="number" step="0.01" min="0" id="posMixCashReceivedInput" class="form-control form-control-sm font-weight-bold" placeholder="0.00">
@@ -1228,6 +1414,9 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Indicador Automático en Tiempo Real: Liquidación vs Saldo Pendiente Restante -->
+                            <div id="posAutoPaymentStatusBox" class="mb-2 d-none"></div>
 
                             <div class="custom-control custom-checkbox mb-1">
                                 <input type="checkbox" class="custom-control-input" id="posOpenDrawerCheck" checked>
@@ -1317,7 +1506,7 @@
                                         <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold mr-1" onclick="window.openTicketPreviewModal('{{ route('central-pos.receipt', $rTx->id, false) }}', 'Ticket {{ $rTx->transaction_code }}')">
                                             <i class="fa-solid fa-eye mr-1"></i>Ver
                                         </button>
-                                        <button type="button" class="btn btn-xs btn-dark font-weight-bold" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $rTx->id, false) }}')">
+                                        <button type="button" class="btn btn-xs btn-dark font-weight-bold" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', ['transaction' => $rTx->id, 'skip_drawer' => 1], false) }}')">
                                             <i class="fa-solid fa-print"></i>
                                         </button>
                                     </td>
@@ -1479,6 +1668,9 @@ window.triggerPhysicalCashDrawer = async function () {
 document.addEventListener('DOMContentLoaded', function () {
     const STORAGE_KEY = 'zya_central_pos_tabs_v1_{{ auth()->id() ?? 0 }}_{{ $branchId ?? 0 }}';
     const CAN_POS_EXTERNAL_CUSTOMERS = @json((bool) $canPosExternalCustomers);
+    const CAN_CREATE_CUSTOMERS = @json((bool) (auth()->user()->isSuperAdmin() || auth()->user()->can('customer.create') || auth()->user()->can('customer.menu')));
+    const CUSTOMERS_CREATE_URL = @json(route('customers.create'));
+    const CUSTOMERS_LOOKUP_URL = @json(route('central-pos.lookup-customers', [], false));
 
     function getCsrfToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
@@ -1617,14 +1809,123 @@ document.addEventListener('DOMContentLoaded', function () {
                 customerName: '',
                 customerPhone: '',
                 paymentMethod: 'efectivo',
+                cashAmount: '',
+                cardAmount: '',
+                transferAmount: '',
+                cashTouched: false,
+                cardTouched: false,
+                transferTouched: false,
+                mixTouched: false,
                 mixCash: 0,
                 mixCard: 0,
                 mixTransfer: 0,
-                cashReceived: '',
+                mixCashReceived: '',
                 items: []
             }
         ]
     };
+
+    function normalizeTextKey(val) {
+        return String(val ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    function findMatchingCartIndex(items, candidate) {
+        if (!Array.isArray(items) || !candidate || !candidate.section) return -1;
+        const sec = candidate.section;
+
+        return items.findIndex((it) => {
+            if (!it || it.section !== sec) return false;
+
+            if (sec === 'producto_inventario') {
+                return String(it.product_id || '') !== '' && String(it.product_id) === String(candidate.product_id || '');
+            }
+            if (sec === 'gift') {
+                return String(it.gift_id || '') !== '' && String(it.gift_id) === String(candidate.gift_id || '');
+            }
+            if (sec === 'producto_dinamico') {
+                const itImei = normalizeTextKey(it.imei);
+                const candImei = normalizeTextKey(candidate.imei);
+                if (candImei !== '' || itImei !== '') {
+                    return candImei !== '' && itImei === candImei;
+                }
+                const itName = normalizeTextKey(it.name || it.title);
+                const candName = normalizeTextKey(candidate.name || candidate.title);
+                return itName !== ''
+                    && itName === candName
+                    && normalizeTextKey(it.category_status) === normalizeTextKey(candidate.category_status)
+                    && normalizeTextKey(it.brand) === normalizeTextKey(candidate.brand)
+                    && normalizeTextKey(it.model) === normalizeTextKey(candidate.model)
+                    && Math.abs((parseFloat(it.amount) || 0) - (parseFloat(candidate.amount) || 0)) < 0.005;
+            }
+            if (sec === 'financiera_abono') {
+                return String(it.sale_id || '') !== '' && String(it.sale_id) === String(candidate.sale_id || '');
+            }
+            if (sec === 'nota_abono') {
+                return String(it.order_id || '') !== '' && String(it.order_id) === String(candidate.order_id || '');
+            }
+            if (sec === 'financiera_externa') {
+                return String(it.financiera_id || '') === String(candidate.financiera_id || '')
+                    && normalizeTextKey(it.tag_contrato) === normalizeTextKey(candidate.tag_contrato);
+            }
+            if (sec === 'prestamo_abono') {
+                return String(it.installment_id || '') !== '' && String(it.installment_id) === String(candidate.installment_id || '');
+            }
+            if (sec === 'tanda_abono') {
+                return String(it.tanda_id || '') === String(candidate.tanda_id || '')
+                    && normalizeTextKey(it.participant_id || it.customer_name) === normalizeTextKey(candidate.participant_id || candidate.customer_name)
+                    && String(it.period_number || '1') === String(candidate.period_number || '1');
+            }
+            return false;
+        });
+    }
+
+    function consolidateTabItems(tab) {
+        if (!tab || !Array.isArray(tab.items) || tab.items.length <= 1) return;
+        const consolidated = [];
+        tab.items.forEach((rawItem) => {
+            if (!rawItem) return;
+            const item = Object.assign({}, rawItem);
+            const matchIdx = findMatchingCartIndex(consolidated, item);
+            if (matchIdx === -1) {
+                consolidated.push(item);
+                return;
+            }
+            const existing = consolidated[matchIdx];
+            if (item.section === 'producto_inventario' || item.section === 'gift' || (item.section === 'producto_dinamico' && !normalizeTextKey(item.imei))) {
+                const addQty = Math.max(1, parseInt(item.quantity) || 1);
+                let nextQty = Math.max(1, parseInt(existing.quantity) || 1) + addQty;
+                const maxStockRaw = existing.max_stock !== undefined ? existing.max_stock : item.max_stock;
+                const maxStock = (maxStockRaw !== undefined && maxStockRaw !== null && maxStockRaw !== '') ? parseInt(maxStockRaw) : null;
+                if (maxStock !== null && !isNaN(maxStock) && maxStock > 0) {
+                    nextQty = Math.min(nextQty, maxStock);
+                }
+                existing.quantity = nextQty;
+                if (existing.max_stock === undefined && item.max_stock !== undefined) {
+                    existing.max_stock = item.max_stock;
+                }
+            }
+        });
+        tab.items = consolidated;
+    }
+
+    function normalizeTabPaymentDefaults(t) {
+        if (!t) return;
+        if (!Array.isArray(t.items)) t.items = [];
+        if (!t.paymentMethod) t.paymentMethod = 'efectivo';
+        if (t.externalCustomerId === undefined) t.externalCustomerId = '';
+        if (t.cashAmount === undefined) t.cashAmount = '';
+        if (t.cardAmount === undefined) t.cardAmount = '';
+        if (t.transferAmount === undefined) t.transferAmount = '';
+        if (t.mixCashReceived === undefined) t.mixCashReceived = '';
+        if (t.cashTouched === undefined) t.cashTouched = false;
+        if (t.cardTouched === undefined) t.cardTouched = false;
+        if (t.transferTouched === undefined) t.transferTouched = false;
+        if (t.mixTouched === undefined) t.mixTouched = false;
+        // Limpiar banderas heredadas del flujo anterior con toggle manual
+        delete t.isPartial;
+        delete t.paidToday;
+        delete t.cashReceived;
+    }
 
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
@@ -1632,9 +1933,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const parsed = JSON.parse(saved);
             if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length > 0) {
                 parsed.tabs.forEach(t => {
-                    if (!Array.isArray(t.items)) t.items = [];
-                    if (!t.paymentMethod) t.paymentMethod = 'efectivo';
-                    if (t.externalCustomerId === undefined) t.externalCustomerId = '';
+                    normalizeTabPaymentDefaults(t);
+                    consolidateTabItems(t);
                 });
                 state = parsed;
             }
@@ -1650,11 +1950,65 @@ document.addEventListener('DOMContentLoaded', function () {
     function getActiveTab() {
         const tab = state.tabs.find(t => t.id === state.activeTabId) || state.tabs[0];
         if (tab) {
-            if (!Array.isArray(tab.items)) tab.items = [];
-            if (!tab.paymentMethod) tab.paymentMethod = 'efectivo';
-            if (tab.externalCustomerId === undefined) tab.externalCustomerId = '';
+            normalizeTabPaymentDefaults(tab);
         }
         return tab;
+    }
+
+    function tabHasProductConcept(tab) {
+        return Boolean(
+            tab
+            && Array.isArray(tab.items)
+            && tab.items.some(it => it.section === 'producto_inventario' || it.section === 'producto_dinamico')
+        );
+    }
+
+    function roundMoney(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return 0;
+        return Math.round((num + Number.EPSILON) * 100) / 100;
+    }
+
+    function normalizeWalkinText(val) {
+        return String(val ?? '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ');
+    }
+
+    function isGenericCustomerName(name) {
+        const norm = normalizeWalkinText(name);
+        if (!norm) return true;
+        return [
+            'cliente mostrador',
+            'mostrador',
+            'publico general',
+            'publico en general',
+            'venta al publico',
+            'venta publico',
+            'cliente general',
+            'general',
+            'sin nombre',
+            'anonimo',
+        ].includes(norm);
+    }
+
+    function hasRegisteredSpecificCustomer(tab) {
+        if (!tab || !tab.customerId || tab.externalCustomerId) {
+            return false;
+        }
+        const selectEl = document.getElementById('posCartCustomerSelect');
+        let optName = tab.customerName || '';
+        if (selectEl) {
+            const opt = Array.from(selectEl.options).find(o => String(o.value) === String(tab.customerId));
+            if (!opt) {
+                return false;
+            }
+            optName = opt.dataset.name || opt.textContent || optName;
+        }
+        return !isGenericCustomerName(optName) && !isGenericCustomerName(tab.customerName);
     }
 
     function tabHasFinancieraConcept(tab) {
@@ -1662,6 +2016,14 @@ document.addEventListener('DOMContentLoaded', function () {
             tab
             && Array.isArray(tab.items)
             && tab.items.some(it => it.section === 'financiera_abono' || it.section === 'financiera_externa')
+        );
+    }
+
+    function tabHasPendingNoteAbonoConcept(tab) {
+        return Boolean(
+            tab
+            && Array.isArray(tab.items)
+            && tab.items.some(it => it.section === 'nota_abono')
         );
     }
 
@@ -1693,10 +2055,10 @@ document.addEventListener('DOMContentLoaded', function () {
         state.tabs.forEach(tab => {
             const div = document.createElement('div');
             div.className = 'pos-tab-item ' + (tab.id === state.activeTabId ? 'active' : '');
-            const count = tab.items.length;
+            const totalUnits = tab.items.reduce((sum, it) => sum + Math.max(1, parseInt(it.quantity) || 1), 0);
             div.innerHTML = `
-                <span class="tab-label"><i class="fa-solid fa-receipt mr-1 text-primary"></i>${tab.name}${tab.customerName ? ' (' + tab.customerName.substring(0, 12) + ')' : ''}</span>
-                <span class="tab-badge">${count}</span>
+                <span class="tab-label"><i class="fa-solid fa-receipt mr-1 text-primary"></i>${escapeHtml(tab.name)}${tab.customerName ? ' (' + escapeHtml(tab.customerName.substring(0, 12)) + ')' : ''}</span>
+                <span class="tab-badge" title="${tab.items.length} conceptos / ${totalUnits} pzas">${totalUnits}</span>
                 ${state.tabs.length > 1 ? `<span class="tab-close" data-close-id="${tab.id}" title="Cerrar pestaña">&times;</span>` : ''}
             `;
 
@@ -1734,10 +2096,17 @@ document.addEventListener('DOMContentLoaded', function () {
             customerName: '',
             customerPhone: '',
             paymentMethod: 'efectivo',
+            cashAmount: '',
+            cardAmount: '',
+            transferAmount: '',
+            cashTouched: false,
+            cardTouched: false,
+            transferTouched: false,
+            mixTouched: false,
             mixCash: 0,
             mixCard: 0,
             mixTransfer: 0,
-            cashReceived: '',
+            mixCashReceived: '',
             items: []
         });
         state.activeTabId = newId;
@@ -1759,6 +2128,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let pendingNotesDebounceTimer = null;
     let pendingNotesRequestSeq = 0;
     let lastPendingNotesKey = '';
+    let lastPendingNotesList = [];
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -1769,10 +2139,31 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/'/g, '&#039;');
     }
 
+    function syncPendingNotesCartButtons(tab) {
+        if (!pendingNotesBox || !tab || !Array.isArray(tab.items)) return;
+        const inCartIds = new Set(
+            tab.items
+                .filter(it => it && it.section === 'nota_abono' && it.order_id)
+                .map(it => String(it.order_id))
+        );
+        pendingNotesBox.querySelectorAll('.btn-add-pending-note-abono').forEach(btn => {
+            const oid = String(btn.dataset.orderId || '');
+            const dueFmt = btn.dataset.dueFmt || '0.00';
+            const inCart = oid !== '' && inCartIds.has(oid);
+            btn.classList.toggle('btn-success', inCart);
+            btn.classList.toggle('btn-primary', !inCart);
+            btn.title = inCart ? 'Este abono ya está en el carrito actual' : 'Agregar abono de lo pendiente al carrito';
+            btn.innerHTML = inCart
+                ? '<i class="fa-solid fa-check mr-1"></i>Abono en carrito'
+                : `<i class="fa-solid fa-cart-plus mr-1"></i>Añadir abono ($${escapeHtml(dueFmt)})`;
+        });
+    }
+
     function renderCustomerPendingNotesBox(data, options = {}) {
         if (!pendingNotesBox) return;
 
         if (options.hidden) {
+            lastPendingNotesList = [];
             pendingNotesBox.classList.add('d-none');
             pendingNotesBox.innerHTML = '';
             return;
@@ -1781,6 +2172,7 @@ document.addEventListener('DOMContentLoaded', function () {
         pendingNotesBox.classList.remove('d-none');
 
         if (options.loading) {
+            lastPendingNotesList = [];
             pendingNotesBox.innerHTML = `
                 <div class="font-size-11 text-muted d-flex align-items-center py-1">
                     <i class="fa-solid fa-spinner fa-spin mr-1 text-primary"></i> Verificando notas pendientes del cliente...
@@ -1790,6 +2182,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (options.error) {
+            lastPendingNotesList = [];
             pendingNotesBox.innerHTML = `
                 <div class="font-size-11 text-muted py-1">
                     <i class="fa-solid fa-circle-info mr-1"></i>No se pudieron consultar las notas pendientes.
@@ -1799,12 +2192,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!data || !data.searched) {
+            lastPendingNotesList = [];
             pendingNotesBox.classList.add('d-none');
             pendingNotesBox.innerHTML = '';
             return;
         }
 
         if (!data.has_pending_notes || !Array.isArray(data.pending_notes) || data.pending_notes.length === 0) {
+            lastPendingNotesList = [];
             pendingNotesBox.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center bg-white rounded border px-2 py-1">
                     <span class="font-size-11 text-success font-weight-bold">
@@ -1818,17 +2213,32 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        lastPendingNotesList = data.pending_notes.slice();
+        const activeTab = getActiveTab();
+        const inCartIds = new Set(
+            (activeTab && Array.isArray(activeTab.items) ? activeTab.items : [])
+                .filter(it => it && it.section === 'nota_abono' && it.order_id)
+                .map(it => String(it.order_id))
+        );
+
         const totalDueFormatted = Number(data.total_due || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const rowsHtml = data.pending_notes.map(note => {
             const totalFmt = Number(note.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const payFmt = Number(note.pay || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const dueFmt = Number(note.due || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const linksHtml = (note.detail_url || note.pending_due_url) ? `
-                <div class="mt-1 d-flex justify-content-end" style="gap: 6px;">
-                    ${note.detail_url ? `<a href="${escapeHtml(note.detail_url)}" target="_blank" class="btn btn-xs btn-outline-secondary py-0 px-2 font-size-11"><i class="fa-solid fa-eye mr-1"></i>Ver nota</a>` : ''}
-                    ${note.pending_due_url ? `<a href="${escapeHtml(note.pending_due_url)}" target="_blank" class="btn btn-xs btn-warning text-dark font-weight-bold py-0 px-2 font-size-11"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>Abonar / Ver en Notas</a>` : ''}
+            const alreadyInCart = inCartIds.has(String(note.id));
+            const actionsHtml = `
+                <div class="mt-2 pt-1 border-top d-flex justify-content-end flex-wrap" style="gap: 6px;">
+                    <button type="button"
+                        class="btn btn-xs ${alreadyInCart ? 'btn-success' : 'btn-primary'} font-weight-bold py-1 px-2 font-size-11 btn-add-pending-note-abono"
+                        data-order-id="${Number(note.id)}"
+                        data-due-fmt="${escapeHtml(dueFmt)}"
+                        title="${alreadyInCart ? 'Este abono ya está en el carrito actual' : 'Agregar abono de lo pendiente al carrito'}">
+                        <i class="fa-solid ${alreadyInCart ? 'fa-check' : 'fa-cart-plus'} mr-1"></i>${alreadyInCart ? 'Abono en carrito' : `Añadir abono ($${dueFmt})`}
+                    </button>
+                    ${note.pending_due_url ? `<a href="${escapeHtml(note.pending_due_url)}" target="_blank" class="btn btn-xs btn-warning text-dark font-weight-bold py-1 px-2 font-size-11"><i class="fa-solid fa-up-right-from-square mr-1"></i>Ir a Saldos pendientes</a>` : ''}
                 </div>
-            ` : '';
+            `;
 
             return `
                 <div class="bg-white rounded border p-2 mt-1">
@@ -1847,14 +2257,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="font-size-11 text-muted">
                         Total: <strong>$${totalFmt}</strong> &middot; Pagado: <strong class="text-success">$${payFmt}</strong>
                     </div>
-                    ${linksHtml}
+                    ${actionsHtml}
                 </div>
             `;
         }).join('');
 
         pendingNotesBox.innerHTML = `
-            <div class="alert alert-warning border-warning mb-0 p-2 shadow-none">
-                <div class="d-flex justify-content-between align-items-center">
+            <div class="alert alert-warning d-block border-warning mb-0 p-2 shadow-none">
+                <div class="d-flex justify-content-between align-items-center mb-1">
                     <div class="font-size-12 font-weight-bold text-dark">
                         <i class="fa-solid fa-triangle-exclamation text-danger mr-1"></i>
                         ¡Tiene ${Number(data.pending_notes_count)} nota(s) pendiente(s)!
@@ -1866,7 +2276,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </button>
                     </div>
                 </div>
-                <div style="max-height: 185px; overflow-y: auto;">
+                <div style="max-height: 205px; overflow-y: auto;">
                     ${rowsHtml}
                 </div>
             </div>
@@ -1926,6 +2336,38 @@ document.addEventListener('DOMContentLoaded', function () {
         pendingNotesBox.addEventListener('click', function (e) {
             if (e.target.closest('.btn-refresh-pending-notes')) {
                 syncCustomerPendingNotes(getActiveTab(), true);
+                return;
+            }
+
+            const addBtn = e.target.closest('.btn-add-pending-note-abono');
+            if (addBtn) {
+                const oid = Number(addBtn.dataset.orderId || 0);
+                const note = lastPendingNotesList.find(n => Number(n.id) === oid);
+                if (!note || roundMoney(note.due) <= 0) {
+                    showCartFeedback('warning', 'La nota pendiente seleccionada no tiene saldo disponible para abonar.');
+                    return;
+                }
+
+                const tab = getActiveTab();
+                const dueAmt = roundMoney(note.due);
+                const subParts = [];
+                if (note.branch_name) subParts.push(`Suc. ${note.branch_name}`);
+                if (note.concepts) subParts.push(note.concepts);
+
+                addItemToCurrentTab({
+                    section: 'nota_abono',
+                    order_id: oid,
+                    invoice_no: String(note.invoice_no || ''),
+                    title: `Abono Nota ${note.invoice_no}`,
+                    subtitle: subParts.join(' | '),
+                    customer_id: note.customer_id || (tab ? tab.customerId : '') || '',
+                    customer_name: (tab && tab.customerName) ? tab.customerName : (note.customer_name || ''),
+                    original_due: dueAmt,
+                    max_amount: dueAmt,
+                    amount: dueAmt,
+                    commission: 0,
+                    quantity: 1,
+                });
             }
         });
 
@@ -1936,6 +2378,105 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    let highlightedCartIndex = -1;
+    let cartFeedbackTimer = null;
+
+    function showCartFeedback(type, message) {
+        const banner = document.getElementById('posCartFeedbackBanner');
+        if (!banner || !message) return;
+        const palette = {
+            added: 'alert-success border-success',
+            merged: 'alert-info border-info',
+            warning: 'alert-warning border-warning text-dark',
+        };
+        const icon = type === 'warning'
+            ? 'fa-triangle-exclamation'
+            : (type === 'merged' ? 'fa-layer-group' : 'fa-circle-check');
+
+        banner.className = `alert ${palette[type] || palette.added} py-1 px-2 mb-2 font-size-11 font-weight-bold d-flex justify-content-between align-items-center shadow-none`;
+        banner.innerHTML = `
+            <span><i class="fa-solid ${icon} mr-1"></i>${escapeHtml(message)}</span>
+            <button type="button" class="close font-size-14 ml-2 btn-dismiss-cart-feedback" aria-label="Cerrar" style="line-height: 1;">&times;</button>
+        `;
+        clearTimeout(cartFeedbackTimer);
+        cartFeedbackTimer = setTimeout(() => {
+            banner.className = 'd-none mb-2';
+        }, 4000);
+    }
+
+    const cartFeedbackBannerEl = document.getElementById('posCartFeedbackBanner');
+    if (cartFeedbackBannerEl) {
+        cartFeedbackBannerEl.addEventListener('click', function (e) {
+            if (e.target.closest('.btn-dismiss-cart-feedback')) {
+                clearTimeout(cartFeedbackTimer);
+                cartFeedbackBannerEl.className = 'd-none mb-2';
+            }
+        });
+    }
+
+    function formatCartMetaChips(item, commAmt, isEditableStock) {
+        const chips = [];
+        const seen = new Set();
+        const pushChip = (label, extraClass = '') => {
+            const text = String(label || '').trim();
+            const norm = text.toLowerCase();
+            if (!text || seen.has(norm)) return;
+            seen.add(norm);
+            chips.push(`<span class="cart-meta-chip ${extraClass}">${escapeHtml(text)}</span>`);
+        };
+
+        if (item.product_code) pushChip(`Cód: ${item.product_code}`);
+        if (item.imei) pushChip(`IMEI: ${item.imei}`);
+        if (item.brand) pushChip(`Marca: ${item.brand}`);
+        if (item.model) pushChip(`Mod: ${item.model}`);
+        if (item.warranty_time) pushChip(`Garantía: ${item.warranty_time}`);
+
+        if (item.subtitle) {
+            String(item.subtitle).split('|').forEach(part => {
+                const clean = part.trim();
+                const low = clean.toLowerCase();
+                if (!clean || low === 'impacto real en inventario' || low === 'sin impacto en inventario') {
+                    return;
+                }
+                pushChip(clean);
+            });
+        }
+
+        if (isEditableStock && item.max_stock !== undefined && item.max_stock !== null && item.max_stock !== '') {
+            pushChip(`Stock disp: ${item.max_stock}`, 'font-weight-bold text-primary');
+        }
+        if (item.section === 'nota_abono' && item.original_due !== undefined) {
+            pushChip(`Saldo pendiente nota: $${roundMoney(item.original_due).toFixed(2)}`, 'font-weight-bold text-danger');
+        }
+        if (commAmt > 0) {
+            pushChip(`+Comisión: $${commAmt.toFixed(2)}`, 'text-info font-weight-bold');
+        }
+
+        return chips.join('');
+    }
+
+    const CART_GROUPS = [
+        { key: 'products_stock', sections: ['producto_inventario'], label: 'Productos de Catálogo', shortLabel: 'Catálogo', icon: 'fa-solid fa-box', color: '#2563eb' },
+        { key: 'products_dynamic', sections: ['producto_dinamico'], label: 'Productos Libres y Servicios', shortLabel: 'Libres', icon: 'fa-solid fa-screwdriver-wrench', color: '#d97706' },
+        { key: 'gifts', sections: ['gift'], label: 'Regalos / Cortesías ($0.00)', shortLabel: 'Regalos', icon: 'fa-solid fa-gift', color: '#059669' },
+        { key: 'pending_notes', sections: ['nota_abono'], label: 'Abonos a Notas Pendientes', shortLabel: 'Notas Pend.', icon: 'fa-solid fa-file-invoice-dollar', color: '#dc2626' },
+        { key: 'financieras', sections: ['financiera_abono', 'financiera_externa'], label: 'Abonos a Financieras', shortLabel: 'Financieras', icon: 'fa-solid fa-credit-card', color: '#4f46e5' },
+        { key: 'loans', sections: ['prestamo_abono', 'prestamo_apertura'], label: 'Préstamos', shortLabel: 'Préstamos', icon: 'fa-solid fa-hand-holding-dollar', color: '#0d9488' },
+        { key: 'tandas', sections: ['tanda_abono'], label: 'Tandas', shortLabel: 'Tandas', icon: 'fa-solid fa-people-group', color: '#7c3aed' },
+    ];
+
+    const SECTION_UI_META = {
+        'financiera_abono': { badge: '<span class="badge badge-primary font-size-10">Financiera</span>', accent: '#4f46e5', group: 'financieras' },
+        'financiera_externa': { badge: '<span class="badge badge-warning text-dark font-size-10">Fin. Externa</span>', accent: '#eab308', group: 'financieras' },
+        'nota_abono': { badge: '<span class="badge badge-danger font-size-10">Abono Nota</span>', accent: '#dc2626', group: 'pending_notes' },
+        'prestamo_abono': { badge: '<span class="badge badge-success font-size-10">Préstamo</span>', accent: '#0d9488', group: 'loans' },
+        'prestamo_apertura': { badge: '<span class="badge badge-dark font-size-10">Apertura</span>', accent: '#0f766e', group: 'loans' },
+        'tanda_abono': { badge: '<span class="badge text-white font-size-10" style="background:#8b5cf6;">Tanda</span>', accent: '#7c3aed', group: 'tandas' },
+        'producto_inventario': { badge: '<span class="badge badge-primary font-size-10">Catálogo</span>', accent: '#2563eb', group: 'products_stock' },
+        'producto_dinamico': { badge: '<span class="badge badge-warning text-dark font-size-10">Producto Libre</span>', accent: '#d97706', group: 'products_dynamic' },
+        'gift': { badge: '<span class="badge badge-success font-size-10"><i class="fa-solid fa-gift mr-1"></i>Regalo ($0)</span>', accent: '#059669', group: 'gifts' },
+    };
 
     function renderActiveCart() {
         const tab = getActiveTab();
@@ -1991,120 +2532,222 @@ document.addEventListener('DOMContentLoaded', function () {
 
         syncCustomerPendingNotes(tab);
 
-        const tbody = document.getElementById('tabCartItemsBody');
-        tbody.innerHTML = '';
+        const cartListEl = document.getElementById('tabCartItemsBody');
+        const summaryBarEl = document.getElementById('posCartSummaryBar');
+        cartListEl.innerHTML = '';
 
         if (tab.items.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">
-                        <i class="fa-solid fa-basket-shopping fa-2x text-muted mb-2 d-block" style="opacity: 0.35;"></i>
-                        <span class="font-weight-bold">No hay conceptos en este proceso</span>
-                        <small class="d-block text-muted mt-1">Selecciona financieras, préstamos, tandas o productos del panel izquierdo.</small>
-                    </td>
-                </tr>
+            if (summaryBarEl) {
+                summaryBarEl.classList.add('d-none');
+                summaryBarEl.innerHTML = '';
+            }
+            cartListEl.innerHTML = `
+                <div class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-basket-shopping fa-2x text-muted mb-2 d-block" style="opacity: 0.35;"></i>
+                    <span class="font-weight-bold">No hay conceptos en este proceso</span>
+                    <small class="d-block text-muted mt-1">Selecciona financieras, préstamos, tandas o productos del panel izquierdo.</small>
+                </div>
             `;
         } else {
+            const groupedBuckets = {};
+            let totalUnitsCount = 0;
+
             tab.items.forEach((item, idx) => {
-                const badgeMap = {
-                    'financiera_abono': '<span class="badge badge-primary">Financiera</span>',
-                    'financiera_externa': '<span class="badge badge-warning text-dark">Fin. Externa</span>',
-                    'prestamo_abono': '<span class="badge badge-success">Préstamo</span>',
-                    'prestamo_apertura': '<span class="badge badge-dark">Apertura</span>',
-                    'tanda_abono': '<span class="badge text-white" style="background:#8b5cf6;">Tanda</span>',
-                    'producto_inventario': '<span class="badge badge-info">Stock</span>',
-                    'producto_dinamico': '<span class="badge badge-warning">Libre</span>',
-                    'gift': '<span class="badge badge-success"><i class="fa-solid fa-gift mr-1"></i>Regalo ($0)</span>',
-                };
-                const tr = document.createElement('tr');
                 const qty = Math.max(1, parseInt(item.quantity) || 1);
-                const isGift = (item.section === 'gift');
-                const unitAmt = isGift ? 0 : (parseFloat(item.amount) || 0);
-                const lineAmt = (item.section === 'prestamo_apertura' || isGift) ? 0 : (unitAmt * qty);
-                const commAmt = parseFloat(item.commission) || 0;
-                const isProduct = (item.section === 'producto_inventario' || item.section === 'producto_dinamico');
-                const isFinanciera = (item.section === 'financiera_abono' || item.section === 'financiera_externa');
-                const isEditable = isProduct || isFinanciera;
-
-                const originalAmt = item.original_amount !== undefined ? parseFloat(item.original_amount) : unitAmt;
-                const hasDiscount = isProduct && (originalAmt > unitAmt);
-                const isFree = (isProduct && (unitAmt === 0)) || isGift;
-
-                let amountCellHtml = '';
-                if (isGift) {
-                    amountCellHtml = `<span class="badge badge-success font-size-11 px-2 py-1">$0.00 (Regalo)</span>`;
-                } else if (isEditable) {
-                    amountCellHtml = `
-                        <div class="input-group input-group-sm ml-auto" style="max-width: 105px;">
-                            <div class="input-group-prepend"><span class="input-group-text p-1 font-size-11">$</span></div>
-                            <input type="number" step="0.01" min="0" class="form-control form-control-sm text-right font-weight-bold cart-item-price-input" data-idx="${idx}" value="${unitAmt.toFixed(2)}" title="Precio / Monto editable (0.00 o mayor)">
-                        </div>
-                        ${isFree ? '<span class="badge badge-success font-size-10 mt-1 d-block text-right">Gratis ($0)</span>' : ''}
-                        ${hasDiscount && !isFree ? `<small class="text-success font-size-11 d-block text-right font-weight-bold">Desc: -$${(originalAmt - unitAmt).toFixed(2)}</small>` : ''}
-                    `;
-                } else {
-                    amountCellHtml = `<span class="font-weight-bold text-dark">$${lineAmt.toFixed(2)}</span>`;
-                }
-
-                let qtyCellHtml = '';
-                if (isProduct || isGift) {
-                    qtyCellHtml = `
-                        <input type="number" min="1" class="form-control form-control-sm text-center cart-item-qty-input font-weight-bold p-1" data-idx="${idx}" value="${qty}" style="max-width: 48px; margin: 0 auto;">
-                    `;
-                } else {
-                    qtyCellHtml = `${qty}`;
-                }
-
-                tr.innerHTML = `
-                    <td>
-                        <div class="mb-1">${badgeMap[item.section] || ''}</div>
-                        <div class="font-weight-bold text-dark">${item.title}</div>
-                        ${item.subtitle ? `<small class="text-muted d-block font-size-11">${item.subtitle}</small>` : ''}
-                    </td>
-                    <td class="text-center font-weight-bold align-middle">${qtyCellHtml}</td>
-                    <td class="text-right align-middle">${amountCellHtml}</td>
-                    <td class="text-right text-info font-weight-bold align-middle">${commAmt > 0 ? '$' + commAmt.toFixed(2) : '-'}</td>
-                    <td class="text-right align-middle">
-                        <button type="button" class="btn btn-xs btn-outline-danger btn-remove-item" data-idx="${idx}" title="Quitar concepto">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                totalUnitsCount += qty;
+                const uiMeta = SECTION_UI_META[item.section] || { badge: '', accent: '#64748b', group: 'other' };
+                const gKey = uiMeta.group;
+                if (!groupedBuckets[gKey]) groupedBuckets[gKey] = [];
+                groupedBuckets[gKey].push({ item, idx, uiMeta });
             });
+
+            if (summaryBarEl) {
+                const pillHtml = CART_GROUPS
+                    .filter(g => groupedBuckets[g.key] && groupedBuckets[g.key].length > 0)
+                    .map(g => {
+                        const list = groupedBuckets[g.key];
+                        const units = list.reduce((s, e) => s + Math.max(1, parseInt(e.item.quantity) || 1), 0);
+                        return `<span class="cart-summary-pill"><span style="width:8px;height:8px;border-radius:50%;background:${g.color};display:inline-block;"></span>${g.shortLabel}: ${list.length}${units > list.length ? ' (' + units + 'u)' : ''}</span>`;
+                    }).join('');
+
+                summaryBarEl.classList.remove('d-none');
+                summaryBarEl.innerHTML = `
+                    <span class="font-weight-bold text-dark">
+                        <i class="fa-solid fa-layer-group text-primary mr-1"></i>${tab.items.length} concepto${tab.items.length === 1 ? '' : 's'} &bull; ${totalUnitsCount} pza${totalUnitsCount === 1 ? '' : 's'}
+                    </span>
+                    <div class="cart-summary-pills">${pillHtml}</div>
+                `;
+            }
+
+            let visualOrder = 0;
+            const renderOrder = [...CART_GROUPS, { key: 'other', label: 'Otros Conceptos', icon: 'fa-solid fa-list', color: '#64748b' }];
+
+            renderOrder.forEach(groupCfg => {
+                const entries = groupedBuckets[groupCfg.key];
+                if (!entries || entries.length === 0) return;
+
+                const groupUnits = entries.reduce((s, e) => s + Math.max(1, parseInt(e.item.quantity) || 1), 0);
+                const groupTotal = entries.reduce((s, e) => {
+                    const q = Math.max(1, parseInt(e.item.quantity) || 1);
+                    const isG = e.item.section === 'gift';
+                    const u = isG ? 0 : (parseFloat(e.item.amount) || 0);
+                    const l = (e.item.section === 'prestamo_apertura' || isG) ? 0 : (u * q);
+                    return s + l + (parseFloat(e.item.commission) || 0);
+                }, 0);
+
+                const groupHeader = document.createElement('div');
+                groupHeader.className = 'cart-group-header';
+                groupHeader.style.borderLeft = `3px solid ${groupCfg.color}`;
+                groupHeader.innerHTML = `
+                    <span><i class="${groupCfg.icon} mr-1" style="color:${groupCfg.color};"></i>${escapeHtml(groupCfg.label)} (${groupUnits} pza${groupUnits === 1 ? '' : 's'})</span>
+                    <span>$${groupTotal.toFixed(2)}</span>
+                `;
+                cartListEl.appendChild(groupHeader);
+
+                entries.forEach(({ item, idx, uiMeta }) => {
+                    visualOrder++;
+                    const qty = Math.max(1, parseInt(item.quantity) || 1);
+                    const isGift = (item.section === 'gift');
+                    const unitAmt = isGift ? 0 : (parseFloat(item.amount) || 0);
+                    const lineAmt = (item.section === 'prestamo_apertura' || isGift) ? 0 : (unitAmt * qty);
+                    const commAmt = parseFloat(item.commission) || 0;
+                    const lineTotalWithComm = lineAmt + commAmt;
+
+                    const isProduct = (item.section === 'producto_inventario' || item.section === 'producto_dinamico');
+                    const isFinanciera = (item.section === 'financiera_abono' || item.section === 'financiera_externa');
+                    const isPendingNoteAbono = (item.section === 'nota_abono');
+                    const isEditable = isProduct || isFinanciera || isPendingNoteAbono;
+                    const isStockBounded = (item.section === 'gift' || item.section === 'producto_inventario');
+
+                    const originalAmt = item.original_amount !== undefined ? parseFloat(item.original_amount) : unitAmt;
+                    const hasDiscount = isProduct && (originalAmt > unitAmt);
+                    const isFree = (isProduct && (unitAmt === 0)) || isGift;
+                    const maxPendingDue = isPendingNoteAbono
+                        ? roundMoney(item.original_due !== undefined ? item.original_due : (item.max_amount !== undefined ? item.max_amount : unitAmt))
+                        : null;
+                    const remainingNoteDue = isPendingNoteAbono && maxPendingDue !== null
+                        ? Math.max(0, roundMoney(maxPendingDue - unitAmt))
+                        : 0;
+
+                    const maxStockNum = (isStockBounded && item.max_stock !== undefined && item.max_stock !== null && item.max_stock !== '')
+                        ? parseInt(item.max_stock)
+                        : null;
+                    const atMaxStock = (maxStockNum !== null && !isNaN(maxStockNum) && qty >= maxStockNum);
+
+                    const metaHtml = formatCartMetaChips(item, commAmt, isStockBounded);
+
+                    let qtyControlHtml = '';
+                    if (isProduct || isGift) {
+                        qtyControlHtml = `
+                            <div class="cart-qty-stepper" title="Ajustar cantidad">
+                                <button type="button" class="btn-qty-minus" data-idx="${idx}" ${qty <= 1 ? 'disabled' : ''} title="Disminuir cantidad">&minus;</button>
+                                <input type="number" min="1" ${maxStockNum ? `max="${maxStockNum}"` : ''} class="cart-item-qty-input" data-idx="${idx}" value="${qty}">
+                                <button type="button" class="btn-qty-plus" data-idx="${idx}" ${atMaxStock ? 'disabled' : ''} title="${atMaxStock ? 'Stock máximo alcanzado' : 'Aumentar cantidad'}">+</button>
+                            </div>
+                        `;
+                    } else {
+                        qtyControlHtml = `<span class="badge badge-light border font-size-11 px-2 py-1">${qty} pza</span>`;
+                    }
+
+                    let priceInputHtml = '';
+                    if (isGift) {
+                        priceInputHtml = `<span class="badge badge-success font-size-11 px-2 py-1">Cortesía $0.00</span>`;
+                    } else if (item.section === 'prestamo_apertura') {
+                        priceInputHtml = `<span class="badge badge-light border font-size-11 px-2 py-1">${commAmt > 0 ? 'Solo comisión' : 'Sin cobro hoy'}</span>`;
+                    } else if (isEditable) {
+                        const minAttr = isPendingNoteAbono ? '0.01' : '0';
+                        const maxAttr = (isPendingNoteAbono && maxPendingDue > 0) ? `max="${maxPendingDue.toFixed(2)}"` : '';
+                        priceInputHtml = `
+                            <div class="d-flex align-items-center" style="gap: 4px;">
+                                <div class="input-group input-group-sm" style="width: 108px;">
+                                    <div class="input-group-prepend"><span class="input-group-text p-1 font-size-11">$</span></div>
+                                    <input type="number" step="0.01" min="${minAttr}" ${maxAttr} class="form-control form-control-sm text-right font-weight-bold cart-item-price-input" data-idx="${idx}" value="${unitAmt.toFixed(2)}" title="${isPendingNoteAbono ? 'Monto del abono a aplicar a esta nota' : 'Precio / Monto unitario editable'}">
+                                </div>
+                                <small class="text-muted font-size-10">${isProduct ? 'c/u' : 'abono'}</small>
+                            </div>
+                        `;
+                    }
+
+                    const statusBadge = isPendingNoteAbono
+                        ? (remainingNoteDue < 0.01
+                            ? '<span class="badge badge-success font-size-10 ml-1">Liquida nota</span>'
+                            : `<span class="badge badge-warning text-dark font-size-10 ml-1">Restará en nota: $${remainingNoteDue.toFixed(2)}</span>`)
+                        : (isFree && !isGift
+                            ? '<span class="badge badge-success font-size-10 ml-1">Gratis ($0)</span>'
+                            : (hasDiscount && !isFree ? `<span class="badge badge-soft-success border text-success font-size-10 ml-1">Desc: -$${(originalAmt - unitAmt).toFixed(2)}</span>` : ''));
+
+                    const card = document.createElement('div');
+                    card.className = 'cart-item-card' + (idx === highlightedCartIndex ? ' is-highlighted' : '');
+                    card.style.setProperty('--cart-accent', uiMeta.accent);
+                    card.innerHTML = `
+                        <div class="cart-item-top">
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <div class="d-flex align-items-center flex-wrap mb-1" style="gap: 4px;">
+                                    <span class="cart-item-index">#${visualOrder}</span>
+                                    ${uiMeta.badge}
+                                    ${statusBadge}
+                                </div>
+                                <div class="cart-item-title">${escapeHtml(item.title)}</div>
+                                ${metaHtml ? `<div class="cart-item-meta">${metaHtml}</div>` : ''}
+                            </div>
+                            <button type="button" class="btn btn-xs btn-outline-danger btn-remove-item flex-shrink-0" data-idx="${idx}" title="Quitar concepto">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                        <div class="cart-item-controls">
+                            <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
+                                ${qtyControlHtml}
+                                ${priceInputHtml}
+                            </div>
+                            <div class="cart-line-subtotal">
+                                $${lineTotalWithComm.toFixed(2)}
+                                ${qty > 1 && isProduct ? `<small class="d-block text-muted font-size-10 font-weight-normal">${qty} &times; $${unitAmt.toFixed(2)}</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    cartListEl.appendChild(card);
+                });
+            });
+
+            if (highlightedCartIndex >= 0) {
+                const highlightedEl = cartListEl.querySelector('.cart-item-card.is-highlighted');
+                if (highlightedEl && typeof highlightedEl.scrollIntoView === 'function') {
+                    highlightedEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+                highlightedCartIndex = -1;
+            }
         }
 
         const totals = calculateTabTotals(tab);
-        document.getElementById('tabSubtotalText').textContent = '$' + totals.subtotal.toFixed(2);
-        document.getElementById('tabCommissionText').textContent = '$' + totals.commission.toFixed(2);
-        document.getElementById('tabGrandTotalText').textContent = '$' + totals.total.toFixed(2);
+        const saleTotal = roundMoney(totals.total);
+        document.getElementById('tabSubtotalText').textContent = '$' + roundMoney(totals.subtotal).toFixed(2);
+        document.getElementById('tabCommissionText').textContent = '$' + roundMoney(totals.commission).toFixed(2);
+        document.getElementById('tabGrandTotalText').textContent = '$' + saleTotal.toFixed(2);
 
-        // Control de pago parcial / saldo pendiente (deshabilitado cuando hay abono a financiera)
-        const partialCheck = document.getElementById('posPartialPayCheck');
-        const partialDetails = document.getElementById('posPartialPayDetails');
-        const paidTodayInput = document.getElementById('posPaidTodayInput');
-        const dueText = document.getElementById('posDueBalanceText');
-        const hasFinAbonoItem = tabHasFinancieraConcept(tab);
-
-        if (hasFinAbonoItem && tab.isPartial) {
-            tab.isPartial = false;
-            tab.paidToday = totals.total;
-            saveState();
-        }
-        partialCheck.disabled = hasFinAbonoItem;
-
-        if (tab.isPartial && !hasFinAbonoItem) {
-            partialCheck.checked = true;
-            partialDetails.classList.remove('d-none');
-            const paid = (tab.paidToday !== undefined && tab.paidToday !== '') ? parseFloat(tab.paidToday) : 0;
-            paidTodayInput.value = (tab.paidToday !== undefined && tab.paidToday !== '') ? tab.paidToday : '';
-            const due = Math.max(0, totals.total - paid);
-            dueText.value = '$' + due.toFixed(2);
+        // Si el carrito queda en $0.00 o vacío, restablecer las banderas de edición manual de montos
+        if (saleTotal <= 0.005) {
+            tab.cashTouched = false;
+            tab.cardTouched = false;
+            tab.transferTouched = false;
+            tab.mixTouched = false;
+            tab.cashAmount = saleTotal > 0 ? saleTotal.toFixed(2) : '0.00';
+            tab.cardAmount = saleTotal > 0 ? saleTotal.toFixed(2) : '0.00';
+            tab.transferAmount = saleTotal > 0 ? saleTotal.toFixed(2) : '0.00';
+            tab.mixCash = 0;
+            tab.mixCard = 0;
+            tab.mixTransfer = 0;
+            tab.mixCashReceived = '';
         } else {
-            partialCheck.checked = false;
-            partialDetails.classList.add('d-none');
-            paidTodayInput.value = totals.total.toFixed(2);
-            dueText.value = '$0.00';
+            const totalStr = saleTotal.toFixed(2);
+            if (!tab.cashTouched) tab.cashAmount = totalStr;
+            if (!tab.cardTouched) tab.cardAmount = totalStr;
+            if (!tab.transferTouched) tab.transferAmount = totalStr;
+            if (!tab.mixTouched) {
+                tab.mixCash = saleTotal;
+                tab.mixCard = 0;
+                tab.mixTransfer = 0;
+                tab.mixCashReceived = '';
+            }
         }
 
         // Actualizar método de pago activo en la cuadrícula
@@ -2116,102 +2759,347 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Mostrar u ocultar cajas según el método de pago activo
+        // Mostrar u ocultar cajas según el método de pago activo y sincronizar valores pre-cargados
         $('#posBoxEfectivo, #posBoxTarjeta, #posBoxTransferencia, #posBoxMixto').addClass('d-none');
-        const targetTotal = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
 
         if (tab.paymentMethod === 'efectivo') {
             $('#posBoxEfectivo').removeClass('d-none');
-            const cashVal = (tab.cashAmount !== undefined && tab.cashAmount !== '') ? tab.cashAmount : targetTotal.toFixed(2);
-            document.getElementById('posCashAmountInput').value = cashVal;
-            document.getElementById('posCashReceivedInput').value = tab.cashReceived || '';
+            const cashInput = document.getElementById('posCashAmountInput');
+            if (cashInput && document.activeElement !== cashInput) {
+                cashInput.value = (tab.cashAmount !== undefined && tab.cashAmount !== '') ? tab.cashAmount : saleTotal.toFixed(2);
+            }
         } else if (tab.paymentMethod === 'tarjeta') {
             $('#posBoxTarjeta').removeClass('d-none');
-            const cardVal = (tab.cardAmount !== undefined && tab.cardAmount !== '') ? tab.cardAmount : targetTotal.toFixed(2);
-            document.getElementById('posCardAmountInput').value = cardVal;
+            const cardInput = document.getElementById('posCardAmountInput');
+            if (cardInput && document.activeElement !== cardInput) {
+                cardInput.value = (tab.cardAmount !== undefined && tab.cardAmount !== '') ? tab.cardAmount : saleTotal.toFixed(2);
+            }
             document.getElementById('posCardRefInput').value = tab.cardRef || '';
         } else if (tab.paymentMethod === 'transferencia') {
             $('#posBoxTransferencia').removeClass('d-none');
-            const transVal = (tab.transferAmount !== undefined && tab.transferAmount !== '') ? tab.transferAmount : targetTotal.toFixed(2);
-            document.getElementById('posTransferAmountInput').value = transVal;
+            const transInput = document.getElementById('posTransferAmountInput');
+            if (transInput && document.activeElement !== transInput) {
+                transInput.value = (tab.transferAmount !== undefined && tab.transferAmount !== '') ? tab.transferAmount : saleTotal.toFixed(2);
+            }
             document.getElementById('posTransferRefInput').value = tab.transferRef || '';
         } else if (tab.paymentMethod === 'mixto') {
             $('#posBoxMixto').removeClass('d-none');
-            document.getElementById('lblMixTargetAmount').textContent = '$' + targetTotal.toFixed(2);
-            document.getElementById('mixCashInput').value = tab.mixCash !== undefined ? tab.mixCash : 0;
-            document.getElementById('mixCardInput').value = tab.mixCard !== undefined ? tab.mixCard : 0;
-            document.getElementById('mixTransferInput').value = tab.mixTransfer !== undefined ? tab.mixTransfer : 0;
-            document.getElementById('posMixCashReceivedInput').value = tab.mixCashReceived || '';
+            document.getElementById('lblMixTargetAmount').textContent = '$' + saleTotal.toFixed(2);
+            const mixCashEl = document.getElementById('mixCashInput');
+            const mixCardEl = document.getElementById('mixCardInput');
+            const mixTransferEl = document.getElementById('mixTransferInput');
+            const mixRecEl = document.getElementById('posMixCashReceivedInput');
+            if (mixCashEl && document.activeElement !== mixCashEl) mixCashEl.value = roundMoney(tab.mixCash);
+            if (mixCardEl && document.activeElement !== mixCardEl) mixCardEl.value = roundMoney(tab.mixCard);
+            if (mixTransferEl && document.activeElement !== mixTransferEl) mixTransferEl.value = roundMoney(tab.mixTransfer);
+            if (mixRecEl && document.activeElement !== mixRecEl) mixRecEl.value = tab.mixCashReceived || '';
             document.getElementById('mixCardRefInput').value = tab.cardRef || '';
             document.getElementById('mixTransferRefInput').value = tab.transferRef || '';
-            renderMixFaltanteAlert(targetTotal);
         }
 
-        updateChangeCalculation();
+        refreshLivePaymentUI();
+        syncPendingNotesCartButtons(tab);
         if (typeof renderOpenLoansList === 'function') {
             renderOpenLoansList();
         }
     }
 
-    function renderMixFaltanteAlert(targetTotal) {
-        const tab = getActiveTab();
+    function evaluateTabPaymentState(tab) {
+        const totals = calculateTabTotals(tab);
+        const saleTotal = roundMoney(totals.total);
+        const method = tab.paymentMethod || 'efectivo';
+        const hasItems = Array.isArray(tab.items) && tab.items.length > 0;
+
+        let rawEntered = 0;
+        let paidToday = 0;
+        let cashAmt = 0;
+        let cardAmt = 0;
+        let transAmt = 0;
+        let cashReceived = 0;
+        let changeAmt = 0;
+        let isBlankInput = false;
+        let isOverpaidNonCash = false;
+        let overpayExcess = 0;
+
+        if (method === 'efectivo') {
+            const rawStr = String(tab.cashAmount ?? '').trim();
+            isBlankInput = (saleTotal > 0 && rawStr === '');
+            rawEntered = rawStr === '' ? 0 : Math.max(0, roundMoney(parseFloat(rawStr)));
+            paidToday = saleTotal > 0 ? Math.min(saleTotal, rawEntered) : 0;
+            cashAmt = paidToday;
+            cashReceived = rawEntered;
+            changeAmt = (saleTotal > 0 && rawEntered >= saleTotal)
+                ? Math.max(0, roundMoney(rawEntered - saleTotal))
+                : 0;
+        } else if (method === 'tarjeta') {
+            const rawStr = String(tab.cardAmount ?? '').trim();
+            isBlankInput = (saleTotal > 0 && rawStr === '');
+            rawEntered = rawStr === '' ? 0 : Math.max(0, roundMoney(parseFloat(rawStr)));
+            if (rawEntered > saleTotal + 0.009) {
+                isOverpaidNonCash = true;
+                overpayExcess = roundMoney(rawEntered - saleTotal);
+            }
+            paidToday = Math.min(saleTotal, rawEntered);
+            cardAmt = paidToday;
+        } else if (method === 'transferencia') {
+            const rawStr = String(tab.transferAmount ?? '').trim();
+            isBlankInput = (saleTotal > 0 && rawStr === '');
+            rawEntered = rawStr === '' ? 0 : Math.max(0, roundMoney(parseFloat(rawStr)));
+            if (rawEntered > saleTotal + 0.009) {
+                isOverpaidNonCash = true;
+                overpayExcess = roundMoney(rawEntered - saleTotal);
+            }
+            paidToday = Math.min(saleTotal, rawEntered);
+            transAmt = paidToday;
+        } else {
+            const c = Math.max(0, roundMoney(tab.mixCash));
+            const k = Math.max(0, roundMoney(tab.mixCard));
+            const t = Math.max(0, roundMoney(tab.mixTransfer));
+            const sumMix = roundMoney(c + k + t);
+            rawEntered = sumMix;
+            if (sumMix > saleTotal + 0.009) {
+                isOverpaidNonCash = true;
+                overpayExcess = roundMoney(sumMix - saleTotal);
+            }
+            paidToday = Math.min(saleTotal, sumMix);
+            cashAmt = c;
+            cardAmt = k;
+            transAmt = t;
+            const mixCoversFull = (saleTotal <= 0 || sumMix >= saleTotal - 0.009);
+            const rawMixRec = parseFloat(tab.mixCashReceived);
+            cashReceived = (c > 0 && mixCoversFull && !isNaN(rawMixRec) && rawMixRec > c)
+                ? roundMoney(rawMixRec)
+                : c;
+            changeAmt = (c > 0 && mixCoversFull)
+                ? Math.max(0, roundMoney(cashReceived - c))
+                : 0;
+        }
+
+        const rawDue = Math.max(0, roundMoney(saleTotal - paidToday));
+        const dueAmount = rawDue < 0.01 ? 0 : rawDue;
+        const isPendingMode = hasItems && saleTotal > 0 && dueAmount > 0;
+
+        return {
+            hasItems,
+            saleTotal,
+            method,
+            rawEntered,
+            paidToday,
+            dueAmount,
+            isPendingMode,
+            cashAmt,
+            cardAmt,
+            transAmt,
+            cashReceived,
+            changeAmt,
+            isBlankInput,
+            isOverpaidNonCash,
+            overpayExcess,
+            hasPendingNoteAbono: tabHasPendingNoteAbonoConcept(tab),
+            hasFinAbono: tabHasFinancieraConcept(tab),
+            hasProductConcept: tabHasProductConcept(tab),
+            hasSpecificCustomer: hasRegisteredSpecificCustomer(tab),
+        };
+    }
+
+    function renderMixFaltanteAlert(payState) {
         const container = document.getElementById('posMixFaltanteAlertContainer');
         if (!container) return;
 
-        const cash = parseFloat(tab.mixCash) || 0;
-        const card = parseFloat(tab.mixCard) || 0;
-        const transfer = parseFloat(tab.mixTransfer) || 0;
-        const sum = Math.round((cash + card + transfer) * 100) / 100;
-        const diff = Math.round((targetTotal - sum) * 100) / 100;
+        if (!payState.hasItems || payState.saleTotal <= 0) {
+            container.innerHTML = '';
+            return;
+        }
 
-        if (diff > 0.005) {
+        const sum = roundMoney(payState.cashAmt + payState.cardAmt + payState.transAmt);
+        const total = payState.saleTotal;
+
+        if (payState.isOverpaidNonCash) {
             container.innerHTML = `
                 <div class="alert alert-danger py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
-                    <span><i class="fa-solid fa-circle-exclamation mr-1"></i>Cantidad Faltante:</span>
-                    <span class="badge badge-danger font-size-14 px-2 py-1">$${diff.toFixed(2)}</span>
+                    <span><i class="fa-solid fa-triangle-exclamation mr-1"></i>Excedente sobre el Total:</span>
+                    <span class="badge badge-danger font-size-13">+$${payState.overpayExcess.toFixed(2)}</span>
                 </div>
                 <small class="text-danger d-block font-size-11 font-weight-bold">
-                    Asignado: $${sum.toFixed(2)} / Total: $${targetTotal.toFixed(2)}. Falta cubrir <strong>$${diff.toFixed(2)}</strong>.
+                    La suma asignada ($${sum.toFixed(2)}) supera el total de la venta ($${total.toFixed(2)}). Ajústala a máximo $${total.toFixed(2)}.
                 </small>
             `;
-        } else if (Math.abs(diff) <= 0.005) {
+            return;
+        }
+
+        if (!payState.isPendingMode) {
             container.innerHTML = `
                 <div class="alert alert-success py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
                     <span><i class="fa-solid fa-circle-check mr-1"></i>¡Monto Cubierto al 100%!</span>
                     <span class="badge badge-success font-size-13">$${sum.toFixed(2)}</span>
                 </div>
             `;
-        } else {
-            const extra = Math.abs(diff);
+            return;
+        }
+
+        if (payState.hasPendingNoteAbono) {
             container.innerHTML = `
-                <div class="alert alert-warning py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
-                    <span><i class="fa-solid fa-triangle-exclamation mr-1"></i>Excedente sobre el Total:</span>
-                    <span class="badge badge-warning font-size-13 text-dark">+$${extra.toFixed(2)}</span>
+                <div class="alert alert-danger py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-ban mr-1"></i>Pago Mixto Incompleto:</span>
+                    <span class="badge badge-danger font-size-13">Faltan $${payState.dueAmount.toFixed(2)}</span>
                 </div>
-                <small class="text-warning d-block font-size-11 font-weight-bold">
-                    La suma asignada ($${sum.toFixed(2)}) supera el total por $${extra.toFixed(2)}.
+                <small class="text-danger d-block font-size-11 font-weight-bold">
+                    No se permite pago pendiente sobre pago pendiente. Cubre el 100% ($${total.toFixed(2)}) al incluir el abono de una nota pendiente.
                 </small>
             `;
+            return;
+        }
+
+        const parts = [];
+        if (payState.cashAmt > 0) parts.push(`Efectivo $${payState.cashAmt.toFixed(2)}`);
+        if (payState.cardAmt > 0) parts.push(`Tarjeta $${payState.cardAmt.toFixed(2)}`);
+        if (payState.transAmt > 0) parts.push(`Transf. $${payState.transAmt.toFixed(2)}`);
+        const breakdownStr = parts.length ? parts.join(' + ') : 'Sin abono inicial hoy';
+
+        container.innerHTML = `
+            <div class="alert alert-warning py-2 px-3 mb-1 font-size-12 font-weight-bold shadow-sm d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-clock-rotate-left mr-1"></i>Abono Mixto Hoy:</span>
+                <span class="badge badge-warning text-dark font-size-13">$${sum.toFixed(2)} / $${total.toFixed(2)}</span>
+            </div>
+            <small class="text-dark d-block font-size-11 font-weight-bold">
+                ${breakdownStr} &bull; Restará saldo pendiente de <strong class="text-danger">$${payState.dueAmount.toFixed(2)}</strong>.
+            </small>
+        `;
+    }
+
+    function refreshLivePaymentUI() {
+        const tab = getActiveTab();
+        const payState = evaluateTabPaymentState(tab);
+
+        // 1. Cambio en efectivo (oculto / $0.00 cuando falta dinero por cubrir)
+        const cashChangeWrap = document.getElementById('posCashChangeContainer');
+        const cashChangeOut = document.getElementById('posChangeOutput');
+        if (cashChangeWrap && cashChangeOut) {
+            if (payState.method === 'efectivo' && !payState.isPendingMode && payState.saleTotal > 0) {
+                cashChangeWrap.classList.remove('d-none');
+                cashChangeOut.value = '$' + payState.changeAmt.toFixed(2);
+            } else {
+                cashChangeWrap.classList.add('d-none');
+                cashChangeOut.value = '$0.00';
+            }
+        }
+
+        // 2. Cambio de efectivo en Mixto (solo cuando cubre el 100% y hay porción en efectivo)
+        const mixDrawerRow = document.getElementById('posMixCashDrawerRow');
+        const mixChangeOut = document.getElementById('posMixChangeOutput');
+        if (mixDrawerRow && mixChangeOut) {
+            if (payState.method === 'mixto' && !payState.isPendingMode && !payState.isOverpaidNonCash && payState.cashAmt > 0 && payState.saleTotal > 0) {
+                mixDrawerRow.classList.remove('d-none');
+                mixChangeOut.value = '$' + payState.changeAmt.toFixed(2);
+            } else {
+                mixDrawerRow.classList.add('d-none');
+                mixChangeOut.value = '$0.00';
+            }
+        }
+
+        if (payState.method === 'mixto') {
+            renderMixFaltanteAlert(payState);
+        }
+
+        // 3. Mostrar botón rápido "100%" solo cuando el monto difiere del total
+        const showFillBtn = payState.hasItems && payState.saleTotal > 0 && (payState.isPendingMode || payState.isOverpaidNonCash || payState.changeAmt > 0);
+        document.querySelectorAll('.btn-pos-fill-total').forEach(btn => {
+            btn.classList.toggle('d-none', !showFillBtn);
+        });
+
+        // 4. Indicador dinámico de estado (Liquidación vs Saldo Pendiente Restante)
+        const statusBox = document.getElementById('posAutoPaymentStatusBox');
+        const checkoutBtn = document.getElementById('btnCompleteUnifiedSale');
+
+        if (statusBox) {
+            if (!payState.hasItems || payState.saleTotal <= 0) {
+                statusBox.classList.add('d-none');
+                statusBox.innerHTML = '';
+            } else if (payState.isOverpaidNonCash) {
+                statusBox.classList.remove('d-none');
+                statusBox.innerHTML = `
+                    <div class="alert alert-danger d-block py-2 px-3 mb-0 font-size-12 font-weight-bold">
+                        <i class="fa-solid fa-circle-exclamation mr-1"></i>
+                        El monto capturado ($${payState.rawEntered.toFixed(2)}) excede el total de la venta ($${payState.saleTotal.toFixed(2)}). Ajusta el monto para continuar.
+                    </div>
+                `;
+            } else if (payState.isPendingMode) {
+                statusBox.classList.remove('d-none');
+                if (payState.hasPendingNoteAbono) {
+                    statusBox.innerHTML = `
+                        <div class="alert alert-danger d-block py-2 px-3 mb-0 font-size-12 font-weight-bold">
+                            <i class="fa-solid fa-ban mr-1"></i>
+                            No se permite pago pendiente sobre pago pendiente desde el Punto de Venta: al incluir el abono de una nota pendiente debes cubrir el 100% del total (<strong>$${payState.saleTotal.toFixed(2)}</strong>). Faltan <strong>$${payState.dueAmount.toFixed(2)}</strong> <br><strong>Para realizar abono a nota pendinte favor de hacerlo desde el modulo de Órdenes y Ventas > Saldo Pendiente.</strong>
+                        </div>
+                    `;
+                } else if (payState.hasFinAbono) {
+                    statusBox.innerHTML = `
+                        <div class="alert alert-danger d-block py-2 px-3 mb-0 font-size-12 font-weight-bold">
+                            <i class="fa-solid fa-ban mr-1"></i>
+                            Los abonos a financieras no permiten pago parcial ni saldo pendiente. Cubre los $${payState.saleTotal.toFixed(2)} o edita el importe directo en el carrito.
+                        </div>
+                    `;
+                } else if (!payState.hasProductConcept) {
+                    statusBox.innerHTML = `
+                        <div class="alert alert-danger d-block py-2 px-3 mb-0 font-size-12 font-weight-bold">
+                            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                            Para dejar saldo pendiente en Nota por Cobrar debe existir al menos un producto en el carrito. Para préstamos o tandas, edita directamente el importe en el concepto.
+                        </div>
+                    `;
+                } else {
+                    const custAlertHtml = payState.hasSpecificCustomer
+                        ? `<div class="d-flex align-items-center text-success font-size-11 font-weight-bold mt-2 pt-2 border-top border-warning">
+                                <i class="fa-solid fa-user-check mr-1"></i>
+                                <span>Saldo pendiente asignado a: <strong>${escapeHtml(tab.customerName)}</strong></span>
+                           </div>`
+                        : `<div class="alert alert-danger d-block py-2 px-2 mt-2 mb-0 font-size-11 font-weight-bold">
+                                <div class="mb-1">
+                                    <i class="fa-solid fa-user-lock mr-1"></i>
+                                    Cliente requerido: Selecciona un cliente específico registrado.
+                                </div>
+                           </div>`;
+
+                    statusBox.innerHTML = `
+                        <div class="pos-pending-alert-card shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="font-size-12 font-weight-bold text-dark">
+                                    <i class="fa-solid fa-clock-rotate-left text-warning mr-1"></i>Saldo Pendiente Restante:
+                                </span>
+                                <span class="badge badge-danger font-size-15 px-2 py-1">$${payState.dueAmount.toFixed(2)}</span>
+                            </div>
+                            <div class="d-flex justify-content-between font-size-11 text-muted mt-1">
+                                <span>Total venta: <strong class="text-dark">$${payState.saleTotal.toFixed(2)}</strong></span>
+                                <span>Pagado hoy: <strong class="text-success">$${payState.paidToday.toFixed(2)}</strong></span>
+                            </div>
+                            ${custAlertHtml}
+                        </div>
+                    `;
+                }
+            } else {
+                statusBox.classList.remove('d-none');
+                statusBox.innerHTML = `
+                    <div class="alert alert-success py-2 px-3 mb-0 font-size-12 font-weight-bold d-flex justify-content-between align-items-center">
+                        <span><i class="fa-solid fa-circle-check mr-1"></i>Pago completo ($${payState.saleTotal.toFixed(2)})</span>
+                        ${payState.changeAmt > 0 ? `<span class="badge badge-success font-size-12">Cambio: $${payState.changeAmt.toFixed(2)}</span>` : '<span class="badge badge-success">Liquidado</span>'}
+                    </div>
+                `;
+            }
+        }
+
+        // 5. Botón principal dinámico: Verde (Liquidado) vs Ámbar/Naranja (Saldo Pendiente)
+        if (checkoutBtn && !isCheckoutInFlight) {
+            const usePendingButton = payState.isPendingMode && !payState.hasPendingNoteAbono && !payState.hasFinAbono && payState.hasProductConcept && !payState.isOverpaidNonCash;
+            checkoutBtn.classList.toggle('btn-checkout-pending', usePendingButton);
+            if (usePendingButton) {
+                checkoutBtn.innerHTML = '<i class="fa-solid fa-clock-rotate-left mr-2"></i>Pagar y Dejar Saldo Pendiente';
+            } else {
+                checkoutBtn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket';
+            }
         }
     }
 
     function updateChangeCalculation() {
-        const tab = getActiveTab();
-        const totals = calculateTabTotals(tab);
-        const targetTotal = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
-
-        if (tab.paymentMethod === 'efectivo') {
-            const cashToPay = parseFloat(document.getElementById('posCashAmountInput').value) || targetTotal;
-            const received = parseFloat(document.getElementById('posCashReceivedInput').value) || 0;
-            const change = Math.max(0, received - cashToPay);
-            document.getElementById('posChangeOutput').value = '$' + change.toFixed(2);
-        } else if (tab.paymentMethod === 'mixto') {
-            const cashPortion = parseFloat(tab.mixCash) || 0;
-            const received = parseFloat(document.getElementById('posMixCashReceivedInput').value) || 0;
-            const change = Math.max(0, received - cashPortion);
-            document.getElementById('posMixChangeOutput').value = '$' + change.toFixed(2);
-            renderMixFaltanteAlert(targetTotal);
-        }
+        refreshLivePaymentUI();
     }
 
     function renderAll() {
@@ -2227,20 +3115,120 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!tab.externalCustomerId && !tab.customerId && item.customer_id) {
             tab.customerId = item.customer_id;
         }
+
+        const matchIdx = findMatchingCartIndex(tab.items, item);
+        if (matchIdx !== -1) {
+            const existing = tab.items[matchIdx];
+            const sec = item.section;
+
+            if (sec === 'producto_inventario' || sec === 'gift' || (sec === 'producto_dinamico' && !normalizeTextKey(item.imei))) {
+                const addQty = Math.max(1, parseInt(item.quantity) || 1);
+                const curQty = Math.max(1, parseInt(existing.quantity) || 1);
+                const nextQty = curQty + addQty;
+                const maxStockRaw = existing.max_stock !== undefined ? existing.max_stock : item.max_stock;
+                const maxStock = (maxStockRaw !== undefined && maxStockRaw !== null && maxStockRaw !== '') ? parseInt(maxStockRaw) : null;
+
+                if (maxStock !== null && !isNaN(maxStock) && nextQty > maxStock) {
+                    highlightedCartIndex = matchIdx;
+                    renderAll();
+                    showCartFeedback('warning', `Stock máximo alcanzado para "${existing.title}" (Disponible: ${maxStock}).`);
+                    return;
+                }
+
+                existing.quantity = nextQty;
+                if (existing.max_stock === undefined && item.max_stock !== undefined) {
+                    existing.max_stock = item.max_stock;
+                }
+                if (!existing.product_code && item.product_code) existing.product_code = item.product_code;
+                if (!existing.imei && item.imei) existing.imei = item.imei;
+
+                highlightedCartIndex = matchIdx;
+                saveState();
+                renderAll();
+                showCartFeedback('merged', `Cantidad actualizada: "${existing.title}" ahora tiene ${nextQty} pzas.`);
+                return;
+            }
+
+            highlightedCartIndex = matchIdx;
+            renderAll();
+            showCartFeedback('warning', `"${existing.title}" ya está en el carrito. Modifica su monto o datos directamente en el concepto existente.`);
+            return;
+        }
+
+        const initialQty = Math.max(1, parseInt(item.quantity) || 1);
+        const maxStockInit = (item.max_stock !== undefined && item.max_stock !== null && item.max_stock !== '') ? parseInt(item.max_stock) : null;
+        if (maxStockInit !== null && !isNaN(maxStockInit) && initialQty > maxStockInit) {
+            showCartFeedback('warning', `Stock insuficiente para "${item.title}" (Disponible: ${maxStockInit}).`);
+            return;
+        }
+
         tab.items.push(item);
+        highlightedCartIndex = tab.items.length - 1;
+        saveState();
+        renderAll();
+        showCartFeedback('added', `Agregado: "${item.title}".`);
+    }
+
+    function updateCartItemQuantity(idx, newQty) {
+        const tab = getActiveTab();
+        if (!tab || !tab.items[idx]) return;
+        const item = tab.items[idx];
+        const qVal = parseInt(newQty);
+
+        if (isNaN(qVal) || qVal < 1) {
+            showCartFeedback('warning', 'La cantidad mínima es 1.');
+            renderActiveCart();
+            return;
+        }
+
+        const isStockBounded = (item.section === 'gift' || item.section === 'producto_inventario');
+        const maxStockRaw = item.max_stock;
+        const maxStock = (maxStockRaw !== undefined && maxStockRaw !== null && maxStockRaw !== '') ? parseInt(maxStockRaw) : null;
+        if (isStockBounded && maxStock !== null && !isNaN(maxStock) && qVal > maxStock) {
+            highlightedCartIndex = idx;
+            renderActiveCart();
+            showCartFeedback('warning', `Solo hay ${maxStock} unidad(es) disponibles de "${item.title}".`);
+            return;
+        }
+
+        item.quantity = qVal;
         saveState();
         renderAll();
     }
 
     // Eventos del carrito
     document.getElementById('tabCartItemsBody').addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-remove-item');
-        if (btn) {
-            const idx = parseInt(btn.dataset.idx);
+        const removeBtn = e.target.closest('.btn-remove-item');
+        if (removeBtn) {
+            const idx = parseInt(removeBtn.dataset.idx);
             const tab = getActiveTab();
             tab.items.splice(idx, 1);
             saveState();
             renderAll();
+            return;
+        }
+
+        const minusBtn = e.target.closest('.btn-qty-minus');
+        if (minusBtn) {
+            const idx = parseInt(minusBtn.dataset.idx);
+            const tab = getActiveTab();
+            if (tab && tab.items[idx]) {
+                const cur = Math.max(1, parseInt(tab.items[idx].quantity) || 1);
+                if (cur > 1) {
+                    updateCartItemQuantity(idx, cur - 1);
+                }
+            }
+            return;
+        }
+
+        const plusBtn = e.target.closest('.btn-qty-plus');
+        if (plusBtn) {
+            const idx = parseInt(plusBtn.dataset.idx);
+            const tab = getActiveTab();
+            if (tab && tab.items[idx]) {
+                const cur = Math.max(1, parseInt(tab.items[idx].quantity) || 1);
+                updateCartItemQuantity(idx, cur + 1);
+            }
         }
     });
 
@@ -2257,7 +3245,24 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             const tab = getActiveTab();
             if (tab && tab.items[idx]) {
-                tab.items[idx].amount = Math.round(val * 100) / 100;
+                const targetItem = tab.items[idx];
+                const nextAmt = Math.round(val * 100) / 100;
+                if (targetItem.section === 'nota_abono') {
+                    if (nextAmt <= 0) {
+                        alert('⚠️ El abono a una nota pendiente debe ser mayor a $0.00.');
+                        renderActiveCart();
+                        return;
+                    }
+                    const maxDue = roundMoney(targetItem.original_due !== undefined ? targetItem.original_due : (targetItem.max_amount ?? nextAmt));
+                    if (maxDue > 0 && nextAmt > maxDue + 0.01) {
+                        alert(`⚠️ El abono ($${nextAmt.toFixed(2)}) no puede exceder el saldo pendiente de la nota ($${maxDue.toFixed(2)}).`);
+                        targetItem.amount = maxDue;
+                        saveState();
+                        renderActiveCart();
+                        return;
+                    }
+                }
+                targetItem.amount = nextAmt;
                 saveState();
                 renderActiveCart();
             }
@@ -2267,24 +3272,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const qtyInput = e.target.closest('.cart-item-qty-input');
         if (qtyInput) {
             const idx = parseInt(qtyInput.dataset.idx);
-            const qVal = parseInt(qtyInput.value);
-            if (isNaN(qVal) || qVal < 1) {
-                alert('La cantidad mínima es 1.');
-                renderActiveCart();
-                return;
-            }
-            const tab = getActiveTab();
-            if (tab && tab.items[idx]) {
-                if (tab.items[idx].section === 'gift' && tab.items[idx].max_stock !== undefined && qVal > parseInt(tab.items[idx].max_stock)) {
-                    alert(`Solo hay ${tab.items[idx].max_stock} unidades disponibles de este regalo en sucursal.`);
-                    renderActiveCart();
-                    return;
-                }
-                tab.items[idx].quantity = qVal;
-                saveState();
-                renderActiveCart();
-            }
-            return;
+            updateCartItemQuantity(idx, qtyInput.value);
         }
     });
 
@@ -2295,9 +3283,104 @@ document.addEventListener('DOMContentLoaded', function () {
         tab.customerPhone = '';
         tab.customerId = '';
         tab.externalCustomerId = '';
+        tab.cashAmount = '';
+        tab.cardAmount = '';
+        tab.transferAmount = '';
+        tab.cashTouched = false;
+        tab.cardTouched = false;
+        tab.transferTouched = false;
+        tab.mixTouched = false;
+        tab.mixCash = 0;
+        tab.mixCard = 0;
+        tab.mixTransfer = 0;
+        tab.mixCashReceived = '';
+        tab.cardRef = '';
+        tab.transferRef = '';
+        highlightedCartIndex = -1;
+        const fb = document.getElementById('posCartFeedbackBanner');
+        if (fb) fb.className = 'd-none mb-2';
         saveState();
         renderAll();
     });
+
+    function refreshRegisteredCustomersList(showFeedback = false) {
+        const selectEl = document.getElementById('posCartCustomerSelect');
+        if (!selectEl || !CUSTOMERS_LOOKUP_URL) return;
+
+        const btnRefresh = document.getElementById('btnRefreshPosCustomers');
+        if (btnRefresh) btnRefresh.disabled = true;
+
+        posFetchJson(CUSTOMERS_LOOKUP_URL, { timeoutMs: 12000 })
+            .then(data => {
+                if (!data || !Array.isArray(data.customers)) return;
+                const currentVal = $(selectEl).val() || (getActiveTab()?.customerId ?? '');
+                let optionsHtml = '<option value="">-- Buscar cliente registrado en catálogo --</option>';
+                data.customers.forEach(c => {
+                    const phone = c.tit_phone ? escapeHtml(c.tit_phone) : 'Sin tel';
+                    const name = escapeHtml(c.tit_name || '');
+                    const phoneAttr = escapeHtml(c.tit_phone || '');
+                    optionsHtml += `<option value="${escapeHtml(c.id)}" data-name="${name}" data-phone="${phoneAttr}">${name} (${phone})</option>`;
+                });
+                selectEl.innerHTML = optionsHtml;
+                if (currentVal && Array.from(selectEl.options).some(o => String(o.value) === String(currentVal))) {
+                    $(selectEl).val(String(currentVal)).trigger('change.select2');
+                } else {
+                    $(selectEl).trigger('change.select2');
+                }
+                refreshLivePaymentUI();
+                if (showFeedback && typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: `Catálogo actualizado (${data.customers.length} clientes)`,
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                }
+            })
+            .catch(err => console.warn('No se pudo actualizar el catálogo de clientes:', err))
+            .finally(() => {
+                if (btnRefresh) btnRefresh.disabled = false;
+            });
+    }
+
+    const btnRefreshCustEl = document.getElementById('btnRefreshPosCustomers');
+    if (btnRefreshCustEl) {
+        btnRefreshCustEl.addEventListener('click', () => refreshRegisteredCustomersList(true));
+    }
+
+    let openedNewCustomerTab = false;
+    const newCustomerLinkEl = document.getElementById('btnPosNewCustomerLink');
+    if (newCustomerLinkEl) {
+        newCustomerLinkEl.addEventListener('click', () => {
+            openedNewCustomerTab = true;
+        });
+    }
+    window.addEventListener('focus', function () {
+        if (openedNewCustomerTab) {
+            openedNewCustomerTab = false;
+            refreshRegisteredCustomersList(false);
+        }
+    });
+
+    const autoStatusContainer = document.getElementById('posAutoPaymentStatusBox');
+    if (autoStatusContainer) {
+        autoStatusContainer.addEventListener('click', function (e) {
+            const focusBtn = e.target.closest('.btn-pos-focus-customer');
+            if (focusBtn) {
+                const selectEl = document.getElementById('posCartCustomerSelect');
+                if (selectEl) {
+                    selectEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    try {
+                        $(selectEl).select2('open');
+                    } catch (_) {
+                        selectEl.focus();
+                    }
+                }
+            }
+        });
+    }
 
     document.getElementById('tabCustomerName').addEventListener('input', function () {
         const tab = getActiveTab();
@@ -2312,6 +3395,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         saveState();
         renderTabsBar();
+        refreshLivePaymentUI();
         scheduleCustomerPendingNotesCheck(tab);
     });
 
@@ -2328,6 +3412,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!cid) {
             tab.customerId = '';
             saveState();
+            refreshLivePaymentUI();
             syncCustomerPendingNotes(tab, true);
             return;
         }
@@ -2340,6 +3425,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('tabCustomerName').value = tab.customerName;
         document.getElementById('tabCustomerPhone').value = tab.customerPhone;
         renderTabsBar();
+        refreshLivePaymentUI();
         syncCustomerPendingNotes(tab, true);
 
         if ($('#posLoanCustomerSelect').length && $('#posLoanCustomerSelect').val() != cid) {
@@ -2356,6 +3442,9 @@ document.addEventListener('DOMContentLoaded', function () {
         addItemToCurrentTab({
             section: 'producto_inventario',
             product_id: opt.dataset.id,
+            product_code: opt.dataset.code || '',
+            imei: opt.dataset.imei || '',
+            max_stock: parseInt(opt.dataset.stock) || 0,
             title: opt.dataset.name,
             subtitle: `Impacto real en Inventario | Código: ${opt.dataset.code || '-'}${opt.dataset.imei ? ' | IMEI: ' + opt.dataset.imei : ''}`,
             quantity: 1,
@@ -2395,142 +3484,69 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function resetActiveMethodToSaleTotal(tab) {
+        const saleTotal = roundMoney(calculateTabTotals(tab).total);
+        const totalStr = saleTotal.toFixed(2);
+        const method = tab.paymentMethod || 'efectivo';
+        if (method === 'efectivo') {
+            tab.cashTouched = false;
+            tab.cashAmount = totalStr;
+        } else if (method === 'tarjeta') {
+            tab.cardTouched = false;
+            tab.cardAmount = totalStr;
+        } else if (method === 'transferencia') {
+            tab.transferTouched = false;
+            tab.transferAmount = totalStr;
+        } else if (method === 'mixto') {
+            tab.mixTouched = false;
+            tab.mixCash = saleTotal;
+            tab.mixCard = 0;
+            tab.mixTransfer = 0;
+            tab.mixCashReceived = '';
+        }
+    }
+
     document.querySelectorAll('#paymentMethodBtnGroup [data-method]').forEach(lbl => {
         lbl.addEventListener('click', function () {
             const tab = getActiveTab();
             tab.paymentMethod = this.dataset.method;
-            if (tab.paymentMethod === 'mixto') {
-                const totals = calculateTabTotals(tab);
-                const base = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
-                tab.mixCash = base;
-                tab.mixCard = 0;
-                tab.mixTransfer = 0;
-            }
+            resetActiveMethodToSaleTotal(tab);
             saveState();
             renderActiveCart();
         });
     });
 
-    document.getElementById('posPartialPayCheck').addEventListener('change', function () {
-        const tab = getActiveTab();
-        if (this.checked && tabHasFinancieraConcept(tab)) {
-            this.checked = false;
-            tab.isPartial = false;
-            alert('⚠️ Los abonos a financieras no permiten pago parcial ni saldo pendiente en nota. Ajusta directamente el monto del abono en el carrito si es menor.');
+    document.querySelectorAll('.btn-pos-fill-total').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const tab = getActiveTab();
+            resetActiveMethodToSaleTotal(tab);
             saveState();
             renderActiveCart();
-            return;
-        }
-        const totals = calculateTabTotals(tab);
-        tab.isPartial = this.checked;
-        if (tab.isPartial) {
-            if (tab.paidToday === undefined || tab.paidToday === '') {
-                tab.paidToday = 0;
-            }
-        }
-        saveState();
-        renderActiveCart();
-    });
-
-    document.getElementById('posPaidTodayInput').addEventListener('input', function () {
-        const tab = getActiveTab();
-        const totals = calculateTabTotals(tab);
-        let val = parseFloat(this.value);
-        if (isNaN(val) || val < 0) val = 0;
-        tab.paidToday = this.value;
-        const due = Math.max(0, totals.total - val);
-        document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
-        if (tab.paymentMethod === 'efectivo') {
-            tab.cashAmount = val;
-            document.getElementById('posCashAmountInput').value = val;
-        } else if (tab.paymentMethod === 'tarjeta') {
-            tab.cardAmount = val;
-            document.getElementById('posCardAmountInput').value = val;
-        } else if (tab.paymentMethod === 'transferencia') {
-            tab.transferAmount = val;
-            document.getElementById('posTransferAmountInput').value = val;
-        } else if (tab.paymentMethod === 'mixto') {
-            tab.mixCash = val;
-            tab.mixCard = 0;
-            tab.mixTransfer = 0;
-            document.getElementById('mixCashInput').value = val;
-            document.getElementById('mixCardInput').value = 0;
-            document.getElementById('mixTransferInput').value = 0;
-            document.getElementById('lblMixTargetAmount').textContent = '$' + val.toFixed(2);
-            renderMixFaltanteAlert(val);
-        }
-        saveState();
-        updateChangeCalculation();
+        });
     });
 
     document.getElementById('posCashAmountInput').addEventListener('input', function () {
         const tab = getActiveTab();
-        const totals = calculateTabTotals(tab);
-        const val = parseFloat(this.value);
         tab.cashAmount = this.value;
-        if (!isNaN(val) && val < totals.total && val >= 0) {
-            tab.isPartial = true;
-            tab.paidToday = val;
-            document.getElementById('posPartialPayCheck').checked = true;
-            $('#posPartialPayDetails').removeClass('d-none');
-            document.getElementById('posPaidTodayInput').value = val;
-            const due = totals.total - val;
-            document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
-        } else if (!isNaN(val) && val >= totals.total) {
-            tab.isPartial = false;
-            tab.paidToday = totals.total;
-            document.getElementById('posPartialPayCheck').checked = false;
-            $('#posPartialPayDetails').addClass('d-none');
-            document.getElementById('posDueBalanceText').value = '$0.00';
-        }
+        tab.cashTouched = true;
         saveState();
-        updateChangeCalculation();
+        refreshLivePaymentUI();
     });
 
     document.getElementById('posCardAmountInput').addEventListener('input', function () {
         const tab = getActiveTab();
-        const totals = calculateTabTotals(tab);
-        const val = parseFloat(this.value);
         tab.cardAmount = this.value;
-        if (!isNaN(val) && val < totals.total && val >= 0) {
-            tab.isPartial = true;
-            tab.paidToday = val;
-            document.getElementById('posPartialPayCheck').checked = true;
-            $('#posPartialPayDetails').removeClass('d-none');
-            document.getElementById('posPaidTodayInput').value = val;
-            const due = totals.total - val;
-            document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
-        } else if (!isNaN(val) && val >= totals.total) {
-            tab.isPartial = false;
-            tab.paidToday = totals.total;
-            document.getElementById('posPartialPayCheck').checked = false;
-            $('#posPartialPayDetails').addClass('d-none');
-            document.getElementById('posDueBalanceText').value = '$0.00';
-        }
+        tab.cardTouched = true;
         saveState();
+        refreshLivePaymentUI();
     });
 
     document.getElementById('posTransferAmountInput').addEventListener('input', function () {
         const tab = getActiveTab();
-        const totals = calculateTabTotals(tab);
-        const val = parseFloat(this.value);
         tab.transferAmount = this.value;
-        if (!isNaN(val) && val < totals.total && val >= 0) {
-            tab.isPartial = true;
-            tab.paidToday = val;
-            document.getElementById('posPartialPayCheck').checked = true;
-            $('#posPartialPayDetails').removeClass('d-none');
-            document.getElementById('posPaidTodayInput').value = val;
-            const due = totals.total - val;
-            document.getElementById('posDueBalanceText').value = '$' + due.toFixed(2);
-        } else if (!isNaN(val) && val >= totals.total) {
-            tab.isPartial = false;
-            tab.paidToday = totals.total;
-            document.getElementById('posPartialPayCheck').checked = false;
-            $('#posPartialPayDetails').addClass('d-none');
-            document.getElementById('posDueBalanceText').value = '$0.00';
-        }
+        tab.transferTouched = true;
         saveState();
+        refreshLivePaymentUI();
     });
 
     document.getElementById('posCardRefInput').addEventListener('input', function () {
@@ -2563,8 +3579,9 @@ document.addEventListener('DOMContentLoaded', function () {
             tab.mixCash = parseFloat(document.getElementById('mixCashInput').value) || 0;
             tab.mixCard = parseFloat(document.getElementById('mixCardInput').value) || 0;
             tab.mixTransfer = parseFloat(document.getElementById('mixTransferInput').value) || 0;
+            tab.mixTouched = true;
             saveState();
-            updateChangeCalculation();
+            refreshLivePaymentUI();
         });
     });
 
@@ -2572,17 +3589,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const tab = getActiveTab();
         tab.mixCashReceived = this.value;
         saveState();
-        updateChangeCalculation();
-    });
-
-    document.getElementById('posCashReceivedInput').addEventListener('input', function () {
-        const tab = getActiveTab();
-        tab.cashReceived = this.value;
-        saveState();
-        updateChangeCalculation();
-        if (typeof renderOpenLoansList === 'function') {
-            renderOpenLoansList();
-        }
+        refreshLivePaymentUI();
     });
 
     // ==================== 1. BÚSQUEDA Y ABONO DE FINANCIERAS ====================
@@ -3282,8 +4289,11 @@ document.addEventListener('DOMContentLoaded', function () {
             addItemToCurrentTab({
                 section: 'producto_inventario',
                 product_id: btn.dataset.id,
+                product_code: btn.dataset.code || '',
+                imei: btn.dataset.imei || '',
+                max_stock: parseInt(btn.dataset.stock) || 0,
                 title: btn.dataset.name,
-                subtitle: 'Impacto real en Inventario',
+                subtitle: `Impacto real en Inventario${btn.dataset.code ? ' | Código: ' + btn.dataset.code : ''}${btn.dataset.imei ? ' | IMEI: ' + btn.dataset.imei : ''}`,
                 quantity: 1,
                 amount: initialPrice,
                 original_amount: initialPrice,
@@ -3367,13 +4377,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const giftId = btn.dataset.id;
             const maxStock = Math.max(0, parseInt(btn.dataset.stock) || 0);
-            const tab = getActiveTab();
-            const existingQty = tab.items
-                .filter(i => i.section === 'gift' && String(i.gift_id) === String(giftId))
-                .reduce((acc, i) => acc + Math.max(1, parseInt(i.quantity) || 1), 0);
-
-            if (maxStock <= 0 || existingQty >= maxStock) {
-                alert(`Stock insuficiente para entregar más unidades del regalo "${btn.dataset.name}" (Disponible en sucursal: ${maxStock}).`);
+            if (maxStock <= 0) {
+                showCartFeedback('warning', `Sin stock disponible de "${btn.dataset.name}" en esta sucursal.`);
                 return;
             }
 
@@ -3446,10 +4451,116 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    async function showPendingCustomerRequiredAlert(dueAmount) {
+        const selectEl = document.getElementById('posCartCustomerSelect');
+        if (typeof Swal !== 'undefined') {
+            const swalResult = await Swal.fire({
+                icon: 'warning',
+                title: 'Cliente obligatorio para Saldo Pendiente',
+                html: `
+                    <p class="font-size-13 mb-2">Para registrar una nota con saldo pendiente de <strong class="text-danger">$${dueAmount.toFixed(2)}</strong>, debes seleccionar un <strong>cliente específico registrado</strong> en el catálogo.</p>
+                    <p class="font-size-12 text-muted mb-0">No se permite dejar crédito a <em>Público General</em> ni a clientes sin registrar.</p>
+                `,
+                showCancelButton: CAN_CREATE_CUSTOMERS,
+                confirmButtonText: '<i class="fa-solid fa-magnifying-glass mr-1"></i>Seleccionar Cliente',
+                confirmButtonColor: '#d97706',
+                cancelButtonText: '<i class="fa-solid fa-user-plus mr-1"></i>Dar de Alta Cliente',
+                cancelButtonColor: '#2563eb',
+                showCloseButton: true,
+            });
+            if (swalResult.dismiss === Swal.DismissReason.cancel && CAN_CREATE_CUSTOMERS) {
+                openedNewCustomerTab = true;
+                window.open(CUSTOMERS_CREATE_URL, '_blank');
+                return;
+            }
+        } else {
+            alert('⚠️ Para dejar Saldo Pendiente ($' + dueAmount.toFixed(2) + '), selecciona un cliente específico registrado (no se permite Público General ni cliente sin registrar).');
+        }
+
+        if (selectEl) {
+            selectEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            try {
+                $(selectEl).select2('open');
+            } catch (_) {
+                selectEl.focus();
+            }
+        }
+    }
+
+    function describePayMethodForConfirm(payState) {
+        if (payState.paidToday <= 0) {
+            return 'Sin abono inicial hoy ($0.00)';
+        }
+        if (payState.method === 'mixto') {
+            const parts = [];
+            if (payState.cashAmt > 0) parts.push('Efectivo $' + payState.cashAmt.toFixed(2));
+            if (payState.cardAmt > 0) parts.push('Tarjeta $' + payState.cardAmt.toFixed(2));
+            if (payState.transAmt > 0) parts.push('Transferencia $' + payState.transAmt.toFixed(2));
+            return 'Mixto (' + parts.join(' + ') + ')';
+        }
+        const labels = {
+            efectivo: 'Efectivo',
+            tarjeta: 'Tarjeta',
+            transferencia: 'Transferencia',
+        };
+        return labels[payState.method] || payState.method.toUpperCase();
+    }
+
+    async function confirmPendingSaleDialog(tab, payState) {
+        const methodDesc = describePayMethodForConfirm(payState);
+        if (typeof Swal === 'undefined') {
+            return window.confirm(
+                `Confirmar Nota con Saldo Pendiente\n\n` +
+                `Cliente: ${tab.customerName}\n` +
+                `Total de Venta: $${payState.saleTotal.toFixed(2)}\n` +
+                `Monto Pagado Hoy: $${payState.paidToday.toFixed(2)} (${methodDesc})\n` +
+                `Saldo Pendiente a Cuenta: $${payState.dueAmount.toFixed(2)}\n\n` +
+                `¿Deseas registrar esta venta y generar el ticket?`
+            );
+        }
+
+        const result = await Swal.fire({
+            icon: 'question',
+            title: 'Confirmar Venta con Saldo Pendiente',
+            html: `
+                <div class="text-left border rounded p-3 bg-light font-size-13">
+                    <div class="d-flex justify-content-between mb-2 pb-1 border-bottom">
+                        <span class="text-muted">Cliente:</span>
+                        <strong class="text-dark">${escapeHtml(tab.customerName)}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Total de Venta:</span>
+                        <strong class="text-dark">$${payState.saleTotal.toFixed(2)}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Monto Pagado Hoy:</span>
+                        <strong class="text-success">$${payState.paidToday.toFixed(2)}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Método:</span>
+                        <span class="font-weight-bold text-dark">${escapeHtml(methodDesc)}</span>
+                    </div>
+                    <div class="d-flex justify-content-between pt-2 border-top text-danger" style="font-size: 15px;">
+                        <strong>Saldo Pendiente a Cuenta:</strong>
+                        <strong>$${payState.dueAmount.toFixed(2)}</strong>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-check mr-1"></i>Confirmar y Generar Ticket',
+            cancelButtonText: 'Cancelar y Revisar',
+            confirmButtonColor: '#d97706',
+            cancelButtonColor: '#64748b',
+            reverseButtons: true,
+        });
+
+        return Boolean(result && result.isConfirmed);
+    }
+
     const btnCompleteSaleEl = document.getElementById('btnCompleteUnifiedSale');
     let isCheckoutInFlight = false;
     if (btnCompleteSaleEl) {
-        btnCompleteSaleEl.addEventListener('click', function () {
+        btnCompleteSaleEl.addEventListener('click', async function () {
             if (isCheckoutInFlight || this.disabled) {
                 return;
             }
@@ -3470,67 +4581,66 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            const totals = calculateTabTotals(tab);
             if (tab.items.length === 0) {
                 alert('Esta pestaña no tiene conceptos agregados. Agrega productos, préstamos, financieras o tandas antes de cerrar el cobro.');
                 return;
             }
 
-            const effectivePaidAmount = tab.isPartial ? (parseFloat(tab.paidToday) || 0) : totals.total;
-            const effectiveDueAmount = Math.max(0, totals.total - effectivePaidAmount);
-            const hasFinAbono = tabHasFinancieraConcept(tab);
+            const payState = evaluateTabPaymentState(tab);
 
-            if (hasFinAbono && effectiveDueAmount > 0.01) {
-                alert('⚠️ Los abonos a financieras no permiten pago parcial ni dejar saldo pendiente. Cubre el total completo o edita directamente el monto del abono.');
+            if (payState.isBlankInput) {
+                alert('⚠️ Ingresa el monto a pagar hoy (o captura 0.00 si no habrá abono inicial).');
+                const focusTargetId = payState.method === 'efectivo'
+                    ? 'posCashAmountInput'
+                    : (payState.method === 'tarjeta' ? 'posCardAmountInput' : 'posTransferAmountInput');
+                document.getElementById(focusTargetId)?.focus();
                 return;
             }
 
-            if (effectiveDueAmount > 0) {
-                const cName = (tab.customerName || '').trim();
-                if (!cName || cName.toLowerCase() === 'cliente mostrador') {
-                    alert('⚠️ Para registrar una Nota con Saldo Pendiente (el cliente queda debiendo $' + effectiveDueAmount.toFixed(2) + '), es obligatorio escribir o seleccionar el Nombre del Cliente.');
-                    document.getElementById('tabCustomerName').focus();
+            if (payState.isOverpaidNonCash) {
+                alert(`⚠️ El monto asignado ($${payState.rawEntered.toFixed(2)}) excede el total de la venta ($${payState.saleTotal.toFixed(2)}) por $${payState.overpayExcess.toFixed(2)}. Ajusta el monto para continuar.`);
+                return;
+            }
+
+            if (payState.isPendingMode) {
+                if (payState.hasPendingNoteAbono) {
+                    alert('⚠️ No se permite pago pendiente sobre pago pendiente: al incluir el abono de una nota pendiente en el carrito debes cubrir el 100% del total ($' + payState.saleTotal.toFixed(2) + ').');
+                    const focusId = payState.method === 'efectivo'
+                        ? 'posCashAmountInput'
+                        : (payState.method === 'tarjeta' ? 'posCardAmountInput' : (payState.method === 'transferencia' ? 'posTransferAmountInput' : 'mixCashInput'));
+                    document.getElementById(focusId)?.focus();
+                    return;
+                }
+                if (payState.hasFinAbono) {
+                    alert('⚠️ Los abonos a financieras no permiten pago parcial ni dejar saldo pendiente. Cubre el total completo o edita directamente el monto del abono.');
+                    return;
+                }
+                if (!payState.hasProductConcept) {
+                    alert('⚠️ Para dejar saldo pendiente en Nota por Cobrar debe existir al menos un producto en el carrito. En préstamos o tandas, edita directamente el importe del concepto.');
+                    return;
+                }
+                if (!payState.hasSpecificCustomer) {
+                    await showPendingCustomerRequiredAlert(payState.dueAmount);
+                    return;
+                }
+
+                const confirmed = await confirmPendingSaleDialog(tab, payState);
+                if (!confirmed) {
                     return;
                 }
             }
 
-            let cashAmt = 0;
-            let cardAmt = 0;
-            let transAmt = 0;
-            let refs = {};
-
-            tab.paymentMethod = tab.paymentMethod || 'efectivo';
-
-            if (tab.paymentMethod === 'efectivo') {
-                cashAmt = effectivePaidAmount;
-            } else if (tab.paymentMethod === 'tarjeta') {
-                cardAmt = effectivePaidAmount;
+            const refs = {};
+            if (payState.method === 'tarjeta' || payState.method === 'mixto') {
                 refs.card_ref = tab.cardRef || '';
-            } else if (tab.paymentMethod === 'transferencia') {
-                transAmt = effectivePaidAmount;
+            }
+            if (payState.method === 'transferencia' || payState.method === 'mixto') {
                 refs.transfer_ref = tab.transferRef || '';
-            } else if (tab.paymentMethod === 'mixto') {
-                cashAmt = parseFloat(tab.mixCash) || 0;
-                cardAmt = parseFloat(tab.mixCard) || 0;
-                transAmt = parseFloat(tab.mixTransfer) || 0;
-                refs.card_ref = tab.cardRef || '';
-                refs.transfer_ref = tab.transferRef || '';
-
-                const sumMix = Math.round((cashAmt + cardAmt + transAmt) * 100) / 100;
-                const diffMix = Math.round((effectivePaidAmount - sumMix) * 100) / 100;
-
-                if (diffMix > 0.05) {
-                    alert(`⚠️ En Pago Mixto, falta cubrir $${diffMix.toFixed(2)}.\n\nTotal a cobrar: $${effectivePaidAmount.toFixed(2)}\nSuma asignada: $${sumMix.toFixed(2)}\nCantidad Faltante: $${diffMix.toFixed(2)}`);
-                    return;
-                } else if (diffMix < -0.05) {
-                    alert(`⚠️ En Pago Mixto, la suma asignada ($${sumMix.toFixed(2)}) excede el total a cobrar ($${effectivePaidAmount.toFixed(2)}) por $${Math.abs(diffMix).toFixed(2)}.`);
-                    return;
-                }
             }
 
             const shouldAutoOpenDrawer = !!document.getElementById('posOpenDrawerCheck')?.checked && (
-                (tab.paymentMethod === 'efectivo' && cashAmt > 0) ||
-                (tab.paymentMethod === 'mixto' && cashAmt > 0)
+                (payState.method === 'efectivo' && payState.cashAmt > 0) ||
+                (payState.method === 'mixto' && payState.cashAmt > 0)
             );
             const shouldAutoPrint = !!document.getElementById('posAutoPrintCheck')?.checked;
 
@@ -3548,18 +4658,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     external_customer_id: (CAN_POS_EXTERNAL_CUSTOMERS && tabHasFinancieraConcept(tab) && tab.externalCustomerId) ? tab.externalCustomerId : null,
                     customer_name: tab.customerName || 'Cliente Mostrador',
                     customer_phone: tab.customerPhone || null,
-                    payment_method: tab.paymentMethod,
-                    cash_amount: cashAmt,
-                    card_amount: cardAmt,
-                    transfer_amount: transAmt,
+                    payment_method: payState.method,
+                    cash_amount: payState.cashAmt,
+                    card_amount: payState.cardAmt,
+                    transfer_amount: payState.transAmt,
                     payment_references: refs,
-                    cash_received: parseFloat(tab.paymentMethod === 'mixto' ? (tab.mixCashReceived || tab.cashReceived) : tab.cashReceived) || 0,
-                    paid_amount: tab.isPartial ? effectivePaidAmount : null,
+                    cash_received: payState.cashReceived,
+                    paid_amount: payState.paidToday,
                     open_drawer: document.getElementById('posOpenDrawerCheck')?.checked ? 1 : 0,
                     items: tab.items
                 }
             })
-            .then(res => {
+            .then(async res => {
                 if (!res.success) {
                     alert(res.message || 'No se pudo procesar el cobro.');
                     return;
@@ -3571,12 +4681,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 tab.customerPhone = '';
                 tab.customerId = '';
                 tab.externalCustomerId = '';
-                tab.cashReceived = '';
-                tab.isPartial = false;
-                tab.paidToday = '';
                 tab.cashAmount = '';
                 tab.cardAmount = '';
                 tab.transferAmount = '';
+                tab.cashTouched = false;
+                tab.cardTouched = false;
+                tab.transferTouched = false;
+                tab.mixTouched = false;
                 tab.cardRef = '';
                 tab.transferRef = '';
                 tab.mixCash = 0;
@@ -3586,27 +4697,54 @@ document.addEventListener('DOMContentLoaded', function () {
                 saveState();
                 renderAll();
 
-                // Apertura AUTOMÁTICA del cajón por USB únicamente cuando el cobro involucra efectivo
-                if (shouldAutoOpenDrawer && window.ZyaPosHardware && typeof window.ZyaPosHardware.autoOpenUsbDrawer === 'function') {
-                    Promise.resolve(window.ZyaPosHardware.autoOpenUsbDrawer()).catch((hwErr) => {
+                // Apertura AUTOMÁTICA del cajón por USB esperando cierre limpio del puerto antes de mandar imprimir al spooler
+                if (shouldAutoOpenDrawer && window.ZyaPosHardware) {
+                    try {
+                        if (typeof window.ZyaPosHardware.autoOpenUsbDrawerBounded === 'function') {
+                            await window.ZyaPosHardware.autoOpenUsbDrawerBounded(700);
+                        } else if (typeof window.ZyaPosHardware.autoOpenUsbDrawer === 'function') {
+                            await window.ZyaPosHardware.autoOpenUsbDrawer();
+                        }
+                    } catch (hwErr) {
                         console.warn('Error al abrir cajón USB:', hwErr);
-                    });
+                    }
                 }
 
                 const normalizedReceiptUrl = normalizePosUrl(res.receipt_url);
                 if (normalizedReceiptUrl) {
                     showSaleSuccessBanner(res.transaction_code, normalizedReceiptUrl);
-                    if (window.openTicketPreviewModal) {
+                    const isTouch = Boolean(window._zyaTicketBrowser && window._zyaTicketBrowser.isTouchMobile());
+
+                    if (shouldAutoPrint && !isTouch) {
+                        const sep = normalizedReceiptUrl.includes('?') ? '&' : '?';
+                        let previewOpened = false;
+                        const openPreviewAfterPrint = function () {
+                            if (previewOpened) return;
+                            previewOpened = true;
+                            if (window.openTicketPreviewModal) {
+                                window.openTicketPreviewModal(
+                                    normalizedReceiptUrl,
+                                    'Ticket ' + res.transaction_code
+                                );
+                            }
+                        };
+                        const previewFallbackTimer = setTimeout(openPreviewAfterPrint, 1800);
+                        printTicketDirectly(
+                            normalizedReceiptUrl + sep + 'skip_drawer=1&paper=' + getTicketPaperMode(),
+                            {
+                                userInitiated: false,
+                                skipModalFallback: true,
+                                title: 'Ticket ' + res.transaction_code,
+                                onPrintTriggered: function () {
+                                    clearTimeout(previewFallbackTimer);
+                                    openPreviewAfterPrint();
+                                }
+                            }
+                        );
+                    } else if (window.openTicketPreviewModal) {
                         window.openTicketPreviewModal(
                             normalizedReceiptUrl,
                             'Ticket ' + res.transaction_code
-                        );
-                    }
-                    if (shouldAutoPrint) {
-                        const sep = normalizedReceiptUrl.includes('?') ? '&' : '?';
-                        printTicketDirectly(
-                            normalizedReceiptUrl + sep + 'skip_drawer=1&paper=' + getTicketPaperMode(),
-                            { userInitiated: false, skipModalFallback: true, title: 'Ticket ' + res.transaction_code }
                         );
                     }
                 }
@@ -3618,7 +4756,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .finally(() => {
                 isCheckoutInFlight = false;
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i>Cerrar Cobro y Generar Ticket';
+                refreshLivePaymentUI();
             });
         });
     }

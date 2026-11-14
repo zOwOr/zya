@@ -27,7 +27,12 @@
         <script>
             window.addEventListener('DOMContentLoaded', function () {
                 if (typeof window.printTicketDirectly === 'function') {
-                    window.printTicketDirectly(@json(session('print_ticket_url')));
+                    var ticketUrl = @json(session('print_ticket_url'));
+                    if (window.ZyaPosHardware && typeof window.ZyaPosHardware.wasRecentlyKickedAcrossPages === 'function' && window.ZyaPosHardware.wasRecentlyKickedAcrossPages(10000)) {
+                        var sep = ticketUrl.indexOf('?') !== -1 ? '&' : '?';
+                        ticketUrl = ticketUrl + sep + 'skip_drawer=1';
+                    }
+                    window.printTicketDirectly(ticketUrl);
                 }
             });
         </script>
@@ -923,15 +928,24 @@
                 $('<input>').attr({type: 'hidden', name: 'cash_received', value: $('#modalMixCashReceived').val() || c}).appendTo('#payDueForm');
             }
 
-            // Disparo de apertura automática de cajón USB si se cobró efectivo
+            // Disparo de apertura automática de cajón USB si se cobró efectivo (esperar cierre antes de enviar POST)
             const hasCash = (method === 'efectivo' || (method === 'mixto' && (parseFloat($('#modalMixCash').val()) || 0) > 0));
-            if (hasCash && window.ZyaPosHardware) {
+            const formEl = this;
+            $('#btnSubmitAbono').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin mr-2"></i>Registrando...');
+
+            if (hasCash && window.ZyaPosHardware && typeof window.ZyaPosHardware.autoOpenUsbDrawerBounded === 'function' && !$(formEl).data('drawerSubmitting')) {
+                e.preventDefault();
+                $(formEl).data('drawerSubmitting', true);
+                Promise.resolve(window.ZyaPosHardware.autoOpenUsbDrawerBounded(600))
+                    .finally(function () {
+                        formEl.submit();
+                    });
+                return false;
+            } else if (hasCash && window.ZyaPosHardware) {
                 try {
                     ZyaPosHardware.autoOpenUsbDrawer();
-                } catch (e) {}
+                } catch (hwErr) {}
             }
-
-            $('#btnSubmitAbono').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin mr-2"></i>Registrando...');
         });
     });
 
@@ -969,7 +983,7 @@
                                 <td class="font-size-12">${h.branch_name}</td>
                                 <td class="font-size-11 text-muted">${h.note || '-'}</td>
                                 <td class="text-center">
-                                    <button type="button" onclick="window.printTicketDirectly('${h.ticket_url}')" class="btn btn-xs btn-outline-primary" title="Imprimir Ticket">
+                                    <button type="button" onclick="window.printTicketDirectly('${h.ticket_url}${(h.ticket_url && h.ticket_url.indexOf('?') !== -1) ? '&' : '?'}skip_drawer=1')" class="btn btn-xs btn-outline-primary" title="Imprimir Ticket">
                                         <i class="fa-solid fa-print"></i>
                                     </button>
                                 </td>

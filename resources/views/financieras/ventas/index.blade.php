@@ -75,16 +75,39 @@
                         <option value="contado" {{ request('sale_type') == 'contado' ? 'selected' : '' }}>De Contado</option>
                     </select>
                 </div>
+                @php
+                    $canMultiFinFilter = $canMultiFilterFinancieras ?? \App\Services\FinancieraFilterService::userCanFilterMultiple();
+                    $selectedFinFilterIds = $selectedFinancieraIds ?? \App\Services\FinancieraFilterService::resolveSelectedIds(
+                        \App\Services\FinancieraFilterService::rawInputFromRequest(request()),
+                        null,
+                        $canMultiFinFilter
+                    );
+                @endphp
                 <div class="col-lg-3 col-md-6 mb-2">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">
                         <i class="fa-solid fa-building-columns mr-1 text-info"></i>Financiera
+                        @if($canMultiFinFilter)
+                            <span class="badge badge-info ml-1 text-capitalize">Múltiple</span>
+                        @endif
                     </label>
-                    <select name="financiera_id" class="form-control form-control-sm custom-select custom-select-sm">
-                        <option value="">Todas las financieras</option>
-                        @foreach ($financieras as $f)
-                            <option value="{{ $f->id }}" {{ request('financiera_id') == $f->id ? 'selected' : '' }}>{{ $f->name }}</option>
-                        @endforeach
-                    </select>
+                    @if($canMultiFinFilter)
+                        <select name="financiera_id[]"
+                                id="ventasFinancieraSelect"
+                                class="form-control form-control-sm select2-autocomplete select2-multi-sm"
+                                multiple="multiple"
+                                data-placeholder="Todas las financieras (selección múltiple)">
+                            @foreach ($financieras as $f)
+                                <option value="{{ $f->id }}" {{ in_array((int) $f->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $f->name }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <select name="financiera_id" class="form-control form-control-sm custom-select custom-select-sm">
+                            <option value="">Todas las financieras</option>
+                            @foreach ($financieras as $f)
+                                <option value="{{ $f->id }}" {{ in_array((int) $f->id, $selectedFinFilterIds, true) ? 'selected' : '' }}>{{ $f->name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
                 </div>
                 <div class="col-lg-2 col-md-6 mb-2">
                     <label class="font-size-11 font-weight-bold text-uppercase text-muted mb-1">

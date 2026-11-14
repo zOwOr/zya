@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\ModulePermissionTrait;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\DailyCut;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\LoanPayment;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class LoanController extends Controller
 {
@@ -268,6 +270,43 @@ class LoanController extends Controller
         ];
     }
 
+    /**
+     * Valida las condiciones particulares del enganche y método de pago en venta a crédito de artículos.
+     *
+     * @return array<string, string>
+     */
+    protected function validateArticleCreditConditions(array $validated, ?float $cashPrice, float $downPayment, ?int $branchId): array
+    {
+        $errors = [];
+
+        if ($cashPrice !== null && $downPayment >= $cashPrice) {
+            $errors['down_payment'] = 'El enganche no puede ser mayor o igual al precio de contado; debe existir un saldo financiado mayor a $0.00.';
+        }
+
+        if ($downPayment > 0) {
+            $downMethod = $validated['down_payment_method'] ?? null;
+            if (empty($downMethod)) {
+                $errors['down_payment_method'] = 'Selecciona el método de pago del enganche cuando el enganche es mayor a $0.00.';
+            } elseif ($downMethod === 'mixto') {
+                $mixSum = round(
+                    (float) ($validated['down_payment_cash'] ?? 0)
+                    + (float) ($validated['down_payment_card'] ?? 0)
+                    + (float) ($validated['down_payment_transfer'] ?? 0),
+                    2
+                );
+                if (abs($mixSum - $downPayment) > 0.01) {
+                    $errors['down_payment_method'] = 'El desglose del pago mixto debe sumar exactamente $' . number_format($downPayment, 2) . '.';
+                }
+            }
+
+            if (!$branchId) {
+                $errors['down_payment'] = 'No se pudo determinar una sucursal con caja activa para registrar el enganche.';
+            }
+        }
+
+        return $errors;
+    }
+
     public function store(Request $request)
     {
         $operationType = $request->input('operation_type') === 'credito_articulo' ? 'credito_articulo' : 'prestamo';
@@ -278,8 +317,8 @@ class LoanController extends Controller
             'customer_id' => 'required|exists:customers,id',
             'loan_type_id' => 'nullable|exists:loan_types,id',
             'branch_id' => 'nullable|exists:branches,id',
-            'principal_amount' => ($operationType === 'credito_articulo' ? 'nullable' : 'required') . '|numeric|min:1',
-            'article_price' => ($operationType === 'credito_articulo' ? 'required' : 'nullable') . '|numeric|min:1',
+            'principal_amount' => ($operationType === 'credito_articulo' ? 'nullable|numeric|min:0' : 'required|numeric|min:1'),
+            'article_price' => 'nullable|numeric|min:0',
             'down_payment' => 'nullable|numeric|min:0',
             'down_payment_method' => 'nullable|in:efectivo,tarjeta,transferencia,mixto',
             'down_payment_cash' => 'nullable|numeric|min:0',
@@ -295,7 +334,7 @@ class LoanController extends Controller
             'article_serial' => 'nullable|string|max:120',
             'article_warranty' => 'nullable|string|max:150',
             'article_observations' => 'nullable|string|max:2000',
-            'installment_amount' => 'nullable|numeric|min:0.01',
+            'installment_amount' => ($operationType === 'credito_articulo' ? 'required' : 'nullable') . '|numeric|min:0.01',
             'interest_rate' => 'nullable|numeric|min:0',
             'opening_commission' => 'nullable|numeric|min:0',
             'payment_frequency' => 'required|in:12_26,quincenal,semanal,mensual',
@@ -318,38 +357,61 @@ class LoanController extends Controller
         ]);
 
         $branchId = $this->resolveBranchId($request->input('branch_id'));
+        $periods = (int) $validated['term_periods'];
         $articlePrice = null;
         $downPayment = 0.0;
+        $creditSaleTotal = null;
 
         if ($operationType === 'credito_articulo') {
-            $articlePrice = round((float) $validated['article_price'], 2);
+            $cashPrice = (isset($validated['article_price']) && $validated['article_price'] !== '' && (float) $validated['article_price'] > 0)
+                ? round((float) $validated['article_price'], 2)
+                : null;
             $downPayment = round((float) ($validated['down_payment'] ?? 0), 2);
-            if ($downPayment >= $articlePrice) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['down_payment' => 'El enganche no puede ser mayor o igual al precio del artículo; debe existir un monto financiado mayor a $0.00.']);
+
+            $articleErrors = $this->validateArticleCreditConditions($validated, $cashPrice, $downPayment, $branchId);
+            if (!empty($articleErrors)) {
+                return back()->withInput()->withErrors($articleErrors);
             }
-            $principal = round($articlePrice - $downPayment, 2);
+
+            $manualPrincipal = (isset($validated['principal_amount']) && $validated['principal_amount'] !== '' && (float) $validated['principal_amount'] > 0)
+                ? (float) $validated['principal_amount']
+                : null;
+
+            $summary = Loan::calculateArticleCreditSummary(
+                (float) $validated['installment_amount'],
+                $periods,
+                $downPayment,
+                $cashPrice,
+                $manualPrincipal
+            );
+
+            $articlePrice = $summary['cash_price'];
+            $principal = $summary['principal_amount'];
+            $installmentAmount = $summary['installment_amount'];
+            $totalAmount = $summary['installments_total'];
+            $creditSaleTotal = $summary['credit_sale_total'];
+            $interestAmount = $summary['interest_amount'];
+            $rate = $summary['interest_rate'];
+            $openingCommission = 0.0;
         } else {
             $principal = round((float) $validated['principal_amount'], 2);
+
+            // Si se captura el abono por cuota directamente, se calculan total, interés y tasa
+            if (!empty($validated['installment_amount']) && (float) $validated['installment_amount'] > 0) {
+                $installmentAmount = round((float) $validated['installment_amount'], 2);
+                $totalAmount = round($installmentAmount * $periods, 2);
+                $interestAmount = max(0, round($totalAmount - $principal, 2));
+                $rate = $principal > 0 ? round(($interestAmount / $principal) * 100, 2) : 0;
+            } else {
+                $rate = round((float) ($validated['interest_rate'] ?? 0), 2);
+                $interestAmount = round($principal * ($rate / 100), 2);
+                $totalAmount = round($principal + $interestAmount, 2);
+                $installmentAmount = round($totalAmount / $periods, 2);
+            }
+
+            $openingCommission = round((float) ($validated['opening_commission'] ?? 0), 2);
         }
 
-        $periods = (int) $validated['term_periods'];
-
-        // Si se captura el abono por cuota directamente, se calculan total, interés y tasa
-        if (!empty($validated['installment_amount']) && (float) $validated['installment_amount'] > 0) {
-            $installmentAmount = round((float) $validated['installment_amount'], 2);
-            $totalAmount = round($installmentAmount * $periods, 2);
-            $interestAmount = max(0, round($totalAmount - $principal, 2));
-            $rate = $principal > 0 ? round(($interestAmount / $principal) * 100, 2) : 0;
-        } else {
-            $rate = round((float) ($validated['interest_rate'] ?? 0), 2);
-            $interestAmount = round($principal * ($rate / 100), 2);
-            $totalAmount = round($principal + $interestAmount, 2);
-            $installmentAmount = round($totalAmount / $periods, 2);
-        }
-
-        $openingCommission = round((float) ($validated['opening_commission'] ?? 0), 2);
         $deliveryMethod = $validated['delivery_method']
             ?? ($operationType === 'credito_articulo' ? 'mercancia' : null);
 
@@ -375,12 +437,19 @@ class LoanController extends Controller
             $rate,
             $interestAmount,
             $totalAmount,
+            $creditSaleTotal,
             $periods,
             $installmentAmount,
             $openingCommission,
             $videoPath,
             $promissoryPath
         ) {
+            if ($operationType === 'credito_articulo' && $downPayment > 0 && DailyCut::hasTodayCorteZ((int) $branchId, true)) {
+                throw ValidationException::withMessages([
+                    'down_payment' => 'No es posible registrar el enganche en caja porque el Corte Final (Corte Z) del día de hoy ya fue aplicado en esta sucursal.',
+                ]);
+            }
+
             $prefix = $operationType === 'credito_articulo' ? 'CRED-' : 'PREST-';
             $loanCode = $prefix . date('Ymd') . '-' . strtoupper(Str::random(4));
             $startDate = Carbon::parse($validated['start_date']);
@@ -449,6 +518,7 @@ class LoanController extends Controller
                 'interest_rate' => $rate,
                 'interest_amount' => $interestAmount,
                 'total_amount' => $totalAmount,
+                'credit_sale_total' => $creditSaleTotal,
                 'opening_commission' => $openingCommission,
                 'paid_amount' => 0,
                 'balance_amount' => $totalAmount,
@@ -456,6 +526,7 @@ class LoanController extends Controller
                 'term_periods' => $periods,
                 'installment_amount' => $installmentAmount,
                 'start_date' => $startDate->toDateString(),
+                'first_payment_date' => $firstPaymentDate?->toDateString(),
                 'due_date' => $dueDate->toDateString(),
                 'type_specific_data' => $typeSpecificData,
                 'video_path' => $videoPath,

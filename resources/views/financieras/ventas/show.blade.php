@@ -7,10 +7,24 @@
             @if (session('success'))
                 <div class="alert text-white bg-success alert-dismissible fade show" role="alert">
                     <i class="fa-solid fa-circle-check mr-2"></i>{{ session('success') }}
+                    @if (session('print_receipt_url'))
+                        <button type="button" onclick="window.printTicketDirectly('{{ session('print_receipt_url') }}?skip_drawer=1')" class="btn btn-sm btn-light text-dark font-weight-bold ml-3">
+                            <i class="fa-solid fa-print mr-1"></i>Imprimir Ticket
+                        </button>
+                    @endif
                     <button type="button" class="close text-white" data-dismiss="alert" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
+                @if (session('print_receipt_url'))
+                    <script>
+                        window.addEventListener('DOMContentLoaded', function () {
+                            if (typeof window.printTicketDirectly === 'function') {
+                                window.printTicketDirectly(@json(session('print_receipt_url')));
+                            }
+                        });
+                    </script>
+                @endif
             @endif
 
             @if (session('error'))
@@ -306,7 +320,7 @@
                                                 <td>{{ $abono->user?->name ?? 'Sistema' }}</td>
                                                 <td class="text-right">
                                                     @if ($abono->pos_transaction_id && !$isCancelledAbono)
-                                                        <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', $abono->pos_transaction_id) }}')" class="btn btn-xs btn-outline-dark" title="Imprimir Ticket">
+                                                        <button type="button" onclick="window.printTicketDirectly('{{ route('central-pos.receipt', ['transaction' => $abono->pos_transaction_id, 'skip_drawer' => 1]) }}')" class="btn btn-xs btn-outline-dark" title="Imprimir Ticket">
                                                             <i class="fa-solid fa-print"></i>
                                                         </button>
                                                     @elseif ($isCancelledAbono)

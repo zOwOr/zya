@@ -15,6 +15,7 @@ use App\Models\PosTransaction;
 use App\Models\Product;
 use App\Services\CashFlowService;
 use App\Services\DateFilterService;
+use App\Services\FinancieraFilterService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -82,7 +83,7 @@ class DashboardController extends Controller
     protected function buildFinancieraPaymentsQuery(Request $request, ?array $dateFilter = null)
     {
         $dateFilter = $dateFilter ?? $this->resolveFinancieraDateFilter($request);
-        $financieraId = $request->input('financiera_id');
+        $rawFinanciera = FinancieraFilterService::rawInputFromRequest($request);
         $branchId = $this->resolveBranchFilter($request);
         $search = trim((string) $request->input('fin_search', ''));
 
@@ -93,9 +94,9 @@ class DashboardController extends Controller
             });
 
         DateFilterService::apply($query, 'payment_date', $dateFilter);
+        FinancieraFilterService::applyToQuery($query, $rawFinanciera, 'financiera_id');
 
         return $query
-            ->when($financieraId, fn($q) => $q->where('financiera_id', $financieraId))
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
@@ -183,6 +184,13 @@ class DashboardController extends Controller
         $branches = Branch::orderBy('name')->get(['id', 'name']);
         $todayClosedBranchIds = DailyCut::todayClosedBranchIds();
 
+        $canMultiFilterFinancieras = FinancieraFilterService::userCanFilterMultiple();
+        $selectedFinancieraIds = FinancieraFilterService::resolveSelectedIds(
+            FinancieraFilterService::rawInputFromRequest($request),
+            null,
+            $canMultiFilterFinancieras
+        );
+
         return view('dashboard.index', [
             'total_paid' => Order::sum('pay'),
             'total_due' => Order::sum('due'),
@@ -211,6 +219,8 @@ class DashboardController extends Controller
             'minAllowedDate' => $finDateFilter['min_allowed_date'],
             'dateRestrictionTriggered' => $finDateFilter['was_restricted'] || $movDateFilter['was_restricted'],
             'financieras' => $financieras,
+            'canMultiFilterFinancieras' => $canMultiFilterFinancieras,
+            'selectedFinancieraIds' => $selectedFinancieraIds,
             'branches' => $branches,
             'branchId' => $branchId,
             'todayClosedBranchIds' => $todayClosedBranchIds,
@@ -234,6 +244,10 @@ class DashboardController extends Controller
         $finPeriodLabel = DateFilterService::periodLabel($finDateFilter);
         $branchId = $this->resolveBranchFilter($request);
         $branchName = $branchId ? (Branch::find($branchId)?->name ?? 'Sucursal') : 'Todas las Sucursales';
+        $selectedFinancieraIds = FinancieraFilterService::resolveSelectedIds(
+            FinancieraFilterService::rawInputFromRequest($request)
+        );
+        $financieraFilterLabel = FinancieraFilterService::filterLabel($selectedFinancieraIds);
 
         $groupedPayments = $payments
             ->groupBy(fn($p) => $p->financiera?->name ?? ($p->sale?->financiera?->name ?? 'Sin Financiera'))
@@ -259,7 +273,7 @@ class DashboardController extends Controller
 
         $pdf = Pdf::loadView(
             'dashboard.financiera-payments-pdf',
-            compact('payments', 'groupedPayments', 'totals', 'finFilterType', 'finStartDate', 'finEndDate', 'finPeriodLabel', 'branchName')
+            compact('payments', 'groupedPayments', 'totals', 'finFilterType', 'finStartDate', 'finEndDate', 'finPeriodLabel', 'branchName', 'financieraFilterLabel')
         )->setPaper('letter', 'portrait');
 
         $fileSuffix = DateFilterService::fileSuffix($finDateFilter);
@@ -357,6 +371,10 @@ class DashboardController extends Controller
         $periodLabel = DateFilterService::periodLabel($movDateFilter);
         $branchId = $this->resolveBranchFilter($request);
         $branchName = $branchId ? (Branch::find($branchId)?->name ?? 'Sucursal') : 'Todas las Sucursales';
+        $selectedFinancieraIds = FinancieraFilterService::resolveSelectedIds(
+            FinancieraFilterService::rawInputFromRequest($request)
+        );
+        $financieraFilterLabel = FinancieraFilterService::filterLabel($selectedFinancieraIds);
 
         $pdf = Pdf::loadView(
             'dashboard.ventas-pdf',

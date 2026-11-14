@@ -9,7 +9,7 @@
                     <div class="iq-alert-text">
                         <i class="fa-solid fa-circle-check mr-2"></i>{{ session('success') }}
                         @if (session('print_ticket_url'))
-                            <button type="button" onclick="window.printTicketDirectly('{{ session('print_ticket_url') }}')" class="btn btn-sm btn-light text-dark font-weight-bold ml-3">
+                            <button type="button" onclick="window.printTicketDirectly('{{ session('print_ticket_url') }}?skip_drawer=1')" class="btn btn-sm btn-light text-dark font-weight-bold ml-3">
                                 <i class="fa-solid fa-print mr-1"></i>Imprimir Ticket (Sin Saldo Pendiente)
                             </button>
                         @endif
@@ -18,6 +18,15 @@
                         <i class="ri-close-line"></i>
                     </button>
                 </div>
+                @if (session('print_ticket_url'))
+                    <script>
+                        window.addEventListener('DOMContentLoaded', function () {
+                            if (typeof window.printTicketDirectly === 'function') {
+                                window.printTicketDirectly(@json(session('print_ticket_url')));
+                            }
+                        });
+                    </script>
+                @endif
             @endif
             @if (session('error'))
                 <div class="alert text-white bg-danger alert-dismissible fade show" role="alert">
@@ -248,7 +257,7 @@
                                                 <td class="font-weight-bold text-success">${{ number_format($pmt->amount, 2) }}</td>
                                                 <td>{{ $pmt->user?->name ?? 'Sistema' }}</td>
                                                 <td class="text-right">
-                                                    <button type="button" onclick="window.printTicketDirectly('{{ route('loans.ticket', $pmt->id) }}')" class="btn btn-xs btn-outline-dark" title="Imprimir ticket sin saldo pendiente">
+                                                    <button type="button" onclick="window.printTicketDirectly('{{ route('loans.ticket', ['payment' => $pmt->id, 'skip_drawer' => 1]) }}')" class="btn btn-xs btn-outline-dark" title="Imprimir ticket sin saldo pendiente">
                                                         <i class="fa-solid fa-print mr-1"></i>Ticket
                                                     </button>
                                                 </td>
@@ -280,21 +289,27 @@
                             </div>
                             @if ($isArticle)
                                 <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-muted">Precio del Artículo:</span>
-                                    <strong>${{ number_format($loan->article_price, 2) }}</strong>
+                                    <span class="text-muted">Precio de Contado:</span>
+                                    @if ($loan->article_price !== null && (float) $loan->article_price > 0)
+                                        <strong>${{ number_format((float) $loan->article_price, 2) }}</strong>
+                                    @else
+                                        <span class="text-muted font-italic">No especificado</span>
+                                    @endif
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Enganche (Caja):</span>
-                                    <strong class="text-success">${{ number_format($loan->down_payment, 2) }}</strong>
+                                    <strong class="text-success">${{ number_format((float) ($loan->down_payment ?? 0), 2) }}</strong>
                                 </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-muted">Monto Financiado:</span>
-                                    <strong>${{ number_format($loan->principal_amount, 2) }}</strong>
-                                </div>
+                                @if ($loan->principal_amount !== null)
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Monto Financiado:</span>
+                                        <strong>${{ number_format((float) $loan->principal_amount, 2) }}</strong>
+                                    </div>
+                                @endif
                             @else
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Capital Prestado:</span>
-                                    <strong>${{ number_format($loan->principal_amount, 2) }}</strong>
+                                    <strong>${{ number_format((float) ($loan->principal_amount ?? 0), 2) }}</strong>
                                 </div>
                                 @if ($loan->delivery_method)
                                     <div class="d-flex justify-content-between mb-2">
@@ -304,13 +319,33 @@
                                 @endif
                             @endif
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">Interés ({{ $loan->interest_rate }}%):</span>
-                                <strong>${{ number_format($loan->interest_amount, 2) }}</strong>
+                                @if ($isArticle)
+                                    <span class="text-muted">Interés generado:</span>
+                                    @if ($loan->interest_amount !== null)
+                                        <strong>
+                                            ${{ number_format((float) $loan->interest_amount, 2) }}
+                                            @if ($loan->interest_rate !== null)
+                                                ({{ number_format((float) $loan->interest_rate, 2) }}%)
+                                            @endif
+                                        </strong>
+                                    @else
+                                        <span class="text-muted font-italic">Sin calcular</span>
+                                    @endif
+                                @else
+                                    <span class="text-muted">Interés ({{ $loan->interest_rate }}%):</span>
+                                    <strong>${{ number_format((float) ($loan->interest_amount ?? 0), 2) }}</strong>
+                                @endif
                             </div>
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">{{ $isArticle ? 'Total del Financiamiento:' : 'Monto Total del Préstamo:' }}</span>
-                                <strong class="text-primary">${{ number_format($loan->total_amount, 2) }}</strong>
+                                <span class="text-muted">{{ $isArticle ? 'Total de Cuotas:' : 'Monto Total del Préstamo:' }}</span>
+                                <strong class="text-primary">${{ number_format((float) $loan->total_amount, 2) }}</strong>
                             </div>
+                            @if ($isArticle)
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted font-weight-bold">Total Final de Venta:</span>
+                                    <strong class="text-dark">${{ number_format($loan->resolved_credit_sale_total, 2) }}</strong>
+                                </div>
+                            @endif
                             @if (!$isArticle || (float) $loan->opening_commission > 0)
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Comisión por Apertura (Caja):</span>

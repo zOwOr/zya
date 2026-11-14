@@ -611,7 +611,21 @@ class CashController extends Controller
 
         return redirect()
             ->route('cash.index', ['branch_id' => $branchId])
-            ->with('success', 'Movimiento registrado en caja correctamente.');
+            ->with('success', 'Movimiento registrado en caja correctamente.')
+            ->with('open_cash_drawer', $cashAmount > 0);
+    }
+
+    /**
+     * Vista dedicada para abrir o configurar el puerto USB-COM del cajón desde Caja de Sucursal.
+     */
+    public function openDrawer()
+    {
+        $user = auth()->user();
+        if (!$user || (!$user->isSuperAdmin() && !$user->can('cash.open_drawer') && !$user->can('cobros.open_drawer'))) {
+            abort(403, 'No tienes permisos para abrir el cajón de dinero.');
+        }
+
+        return view('central-pos.open-drawer');
     }
 
     /**

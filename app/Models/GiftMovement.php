@@ -13,6 +13,7 @@ class GiftMovement extends Model
 
     protected $fillable = [
         'gift_id',
+        'gift_transfer_id',
         'branch_id',
         'user_id',
         'movement_type',
@@ -38,6 +39,11 @@ class GiftMovement extends Model
     public function gift()
     {
         return $this->belongsTo(Gift::class, 'gift_id');
+    }
+
+    public function transfer()
+    {
+        return $this->belongsTo(GiftTransfer::class, 'gift_transfer_id');
     }
 
     public function branch()

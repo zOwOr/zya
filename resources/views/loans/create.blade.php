@@ -265,7 +265,7 @@
                         </div>
                     </div>
 
-                    <!-- Columna Derecha: Condiciones Financieras, Amortización y Comisión por Apertura -->
+                    <!-- Columna Derecha: Condiciones Financieras, Amortización y Enganche/Comisión -->
                     <div class="col-lg-6">
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-header {{ $isArticle ? 'bg-info' : 'bg-primary' }} text-white py-3">
@@ -275,27 +275,23 @@
                             </div>
                             <div class="card-body">
                                 @if ($isArticle)
-                                    <div class="mb-2">
-                                        <small class="text-muted font-weight-bold mr-1">Tasas Predefinidas:</small>
-                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="20">20%</button>
-                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="40">40%</button>
-                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="50">50%</button>
-                                        <button type="button" class="btn btn-xs btn-outline-info btn-rate-preset mr-1 mb-1" data-rate="60">60%</button>
-                                        <button type="button" class="btn btn-xs btn-outline-secondary btn-rate-clear mb-1" title="Captura personalizada directa">Directo / Libre</button>
-                                    </div>
-
                                     <div class="row bg-light rounded p-2 mb-3 border border-info">
                                         <div class="col-md-4 form-group mb-2">
-                                            <label class="font-weight-bold font-size-12 mb-1">Precio del Artículo ($) <span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" min="1" name="article_price" id="articlePriceInput" class="form-control font-weight-bold text-dark" value="{{ old('article_price', 6500) }}" required>
+                                            <label class="font-weight-bold font-size-12 mb-1">Precio de contado ($) <small class="text-muted">(Opcional)</small></label>
+                                            <input type="number" step="0.01" min="0" name="article_price" id="articlePriceInput" class="form-control font-weight-bold text-dark" value="{{ old('article_price') }}" placeholder="Opcional">
+                                            <small class="text-muted font-size-10 d-block mt-1">Si lo capturas se calcula el interés generado.</small>
                                         </div>
                                         <div class="col-md-4 form-group mb-2">
                                             <label class="font-weight-bold font-size-12 text-success mb-1">Enganche ($) <small class="text-muted">(Opcional)</small></label>
-                                            <input type="number" step="0.01" min="0" name="down_payment" id="downPaymentInput" class="form-control font-weight-bold text-success" value="{{ old('down_payment', 1500) }}">
+                                            <input type="number" step="0.01" min="0" name="down_payment" id="downPaymentInput" class="form-control font-weight-bold text-success" value="{{ old('down_payment', 0) }}">
+                                            <small class="text-muted font-size-10 d-block mt-1">Ingresa automáticamente a la caja activa.</small>
                                         </div>
                                         <div class="col-md-4 form-group mb-2">
-                                            <label class="font-weight-bold font-size-12 mb-1">Método de Enganche</label>
-                                            <select name="down_payment_method" id="downPaymentMethodSelect" class="form-control form-control-sm">
+                                            <label class="font-weight-bold font-size-12 mb-1">
+                                                Método de pago del enganche <span id="downPaymentMethodRequiredMark" class="text-danger {{ (float) old('down_payment', 0) > 0 ? '' : 'd-none' }}">*</span>
+                                            </label>
+                                            <select name="down_payment_method" id="downPaymentMethodSelect" class="form-control form-control-sm" {{ (float) old('down_payment', 0) > 0 ? 'required' : '' }}>
+                                                <option value="">-- Seleccionar --</option>
                                                 <option value="efectivo" {{ old('down_payment_method') === 'efectivo' ? 'selected' : '' }}>Efectivo</option>
                                                 <option value="transferencia" {{ old('down_payment_method') === 'transferencia' ? 'selected' : '' }}>Transferencia</option>
                                                 <option value="tarjeta" {{ old('down_payment_method') === 'tarjeta' ? 'selected' : '' }}>Tarjeta</option>
@@ -303,19 +299,19 @@
                                             </select>
                                         </div>
 
-                                        <div id="downPaymentMixedBox" class="col-12 d-none mt-1">
+                                        <div id="downPaymentMixedBox" class="col-12 {{ ((float) old('down_payment', 0) > 0 && old('down_payment_method') === 'mixto') ? '' : 'd-none' }} mt-1">
                                             <div class="row">
                                                 <div class="col-4">
                                                     <label class="font-size-11">Enganche Efectivo</label>
-                                                    <input type="number" step="0.01" min="0" name="down_payment_cash" class="form-control form-control-sm" value="{{ old('down_payment_cash', 0) }}">
+                                                    <input type="number" step="0.01" min="0" name="down_payment_cash" id="downPaymentCashInput" class="form-control form-control-sm" value="{{ old('down_payment_cash', 0) }}">
                                                 </div>
                                                 <div class="col-4">
                                                     <label class="font-size-11">Enganche Tarjeta</label>
-                                                    <input type="number" step="0.01" min="0" name="down_payment_card" class="form-control form-control-sm" value="{{ old('down_payment_card', 0) }}">
+                                                    <input type="number" step="0.01" min="0" name="down_payment_card" id="downPaymentCardInput" class="form-control form-control-sm" value="{{ old('down_payment_card', 0) }}">
                                                 </div>
                                                 <div class="col-4">
                                                     <label class="font-size-11">Enganche Transferencia</label>
-                                                    <input type="number" step="0.01" min="0" name="down_payment_transfer" class="form-control form-control-sm" value="{{ old('down_payment_transfer', 0) }}">
+                                                    <input type="number" step="0.01" min="0" name="down_payment_transfer" id="downPaymentTransferInput" class="form-control form-control-sm" value="{{ old('down_payment_transfer', 0) }}">
                                                 </div>
                                             </div>
                                         </div>
@@ -323,86 +319,148 @@
                                 @endif
 
                                 <div class="row">
-                                    <div class="col-md-6 form-group">
-                                        <label class="font-weight-bold">{{ $isArticle ? 'Monto Financiado ($)' : 'Capital Prestado ($)' }} <span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="1" name="principal_amount" id="principalInput" class="form-control form-control-lg font-weight-bold text-dark {{ $isArticle ? 'bg-light' : '' }}" value="{{ old('principal_amount', 5000) }}" {{ $isArticle ? 'readonly' : 'required' }}>
-                                        <small class="text-muted font-size-11">{{ $isArticle ? 'Calculado automáticamente (Precio - Enganche)' : 'Monto entregado (sin salida de caja)' }}</small>
-                                    </div>
-                                    <div class="col-md-6 form-group">
-                                        <label class="font-weight-bold text-primary">Abono por Pago / Cuota ($) <span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0.01" name="installment_amount" id="installmentInput" class="form-control form-control-lg font-weight-bold text-primary border-primary" value="{{ old('installment_amount', 854) }}" placeholder="Ej. 854.00" required>
-                                        <small class="text-muted font-size-11">Monto de cada abono a pagar</small>
-                                    </div>
-
-                                    <div class="col-md-4 form-group">
-                                        <label class="font-weight-bold">No. de Pagos <span class="text-danger">*</span></label>
-                                        <input type="number" min="1" max="240" name="term_periods" id="periodsInput" class="form-control font-weight-bold" value="{{ old('term_periods', 8) }}" required>
-                                    </div>
-                                    <div class="col-md-4 form-group">
-                                        <label class="font-weight-bold">Frecuencia <span class="text-danger">*</span></label>
-                                        <select name="payment_frequency" id="frequencyInput" class="form-control font-weight-bold" required>
-                                            <option value="12_26" {{ old('payment_frequency') === '12_26' ? 'selected' : '' }}>12 y 26 (Días 12 y 26)</option>
-                                            <option value="quincenal" {{ old('payment_frequency') === 'quincenal' ? 'selected' : '' }}>Quincenal (15 y 30)</option>
-                                            <option value="semanal" {{ old('payment_frequency') === 'semanal' ? 'selected' : '' }}>Semanal (Cada 7 días)</option>
-                                            <option value="mensual" {{ old('payment_frequency') === 'mensual' ? 'selected' : '' }}>Mensual (Un día al mes)</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 form-group">
-                                        <label class="font-weight-bold">Tasa Interés (%)</label>
-                                        <div class="input-group">
-                                            <input type="number" step="0.01" min="0" name="interest_rate" id="rateInput" class="form-control font-weight-bold" value="{{ old('interest_rate', 36.64) }}">
-                                            <div class="input-group-append">
-                                                <span class="input-group-text font-size-12">%</span>
-                                            </div>
+                                    @if ($isArticle)
+                                        <div class="col-md-6 form-group">
+                                            <label class="font-weight-bold text-primary">Importe de cada Abono / Cuota ($) <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="0.01" name="installment_amount" id="installmentInput" class="form-control form-control-lg font-weight-bold text-primary border-primary" value="{{ old('installment_amount') }}" placeholder="Ej. 750.00" required>
+                                            <small class="text-muted font-size-11">Monto de cada abono programado</small>
                                         </div>
-                                        <small class="text-muted font-size-11">Calculada automáticamente</small>
-                                    </div>
+                                        <div class="col-md-6 form-group">
+                                            <label class="font-weight-bold">No. de Pagos <span class="text-danger">*</span></label>
+                                            <input type="number" min="1" max="240" name="term_periods" id="periodsInput" class="form-control form-control-lg font-weight-bold" value="{{ old('term_periods', 8) }}" required>
+                                        </div>
+
+                                        <div class="col-md-4 form-group">
+                                            <label class="font-weight-bold">Frecuencia <span class="text-danger">*</span></label>
+                                            <select name="payment_frequency" id="frequencyInput" class="form-control font-weight-bold" required>
+                                                <option value="12_26" {{ old('payment_frequency') === '12_26' ? 'selected' : '' }}>Quincenal (días 12 y 26)</option>
+                                                <option value="quincenal" {{ old('payment_frequency') === 'quincenal' ? 'selected' : '' }}>Quincenal (días 15 y 30)</option>
+                                                <option value="semanal" {{ old('payment_frequency') === 'semanal' ? 'selected' : '' }}>Semanal</option>
+                                                <option value="mensual" {{ old('payment_frequency') === 'mensual' ? 'selected' : '' }}>Mensual</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 form-group">
+                                            <label class="font-weight-bold">Monto Financiado ($) <small class="text-muted">(Opcional)</small></label>
+                                            <input type="number" step="0.01" min="0" name="principal_amount" id="principalInput" class="form-control font-weight-bold text-dark bg-light" value="{{ old('principal_amount') }}" placeholder="Opcional" readonly>
+                                            <small class="text-muted font-size-11">No requerido; derivado si capturas contado</small>
+                                        </div>
+                                        <div class="col-md-4 form-group">
+                                            <label class="font-weight-bold">Tasa Referencial (%)</label>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" name="interest_rate" id="rateInput" class="form-control font-weight-bold bg-light" value="{{ old('interest_rate') }}" placeholder="Sin calcular" readonly>
+                                                <div class="input-group-append">
+                                                    <span class="input-group-text font-size-12">%</span>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted font-size-11">Solo cuando hay precio de contado</small>
+                                        </div>
+                                    @else
+                                        <div class="col-md-6 form-group">
+                                            <label class="font-weight-bold">Capital Prestado ($) <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="1" name="principal_amount" id="principalInput" class="form-control form-control-lg font-weight-bold text-dark" value="{{ old('principal_amount', 5000) }}" required>
+                                            <small class="text-muted font-size-11">Monto entregado (sin salida de caja)</small>
+                                        </div>
+                                        <div class="col-md-6 form-group">
+                                            <label class="font-weight-bold text-primary">Abono por Pago / Cuota ($) <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="0.01" name="installment_amount" id="installmentInput" class="form-control form-control-lg font-weight-bold text-primary border-primary" value="{{ old('installment_amount', 854) }}" placeholder="Ej. 854.00" required>
+                                            <small class="text-muted font-size-11">Monto de cada abono a pagar</small>
+                                        </div>
+
+                                        <div class="col-md-4 form-group">
+                                            <label class="font-weight-bold">No. de Pagos <span class="text-danger">*</span></label>
+                                            <input type="number" min="1" max="240" name="term_periods" id="periodsInput" class="form-control font-weight-bold" value="{{ old('term_periods', 8) }}" required>
+                                        </div>
+                                        <div class="col-md-4 form-group">
+                                            <label class="font-weight-bold">Frecuencia <span class="text-danger">*</span></label>
+                                            <select name="payment_frequency" id="frequencyInput" class="form-control font-weight-bold" required>
+                                                <option value="12_26" {{ old('payment_frequency') === '12_26' ? 'selected' : '' }}>12 y 26 (Días 12 y 26)</option>
+                                                <option value="quincenal" {{ old('payment_frequency') === 'quincenal' ? 'selected' : '' }}>Quincenal (15 y 30)</option>
+                                                <option value="semanal" {{ old('payment_frequency') === 'semanal' ? 'selected' : '' }}>Semanal (Cada 7 días)</option>
+                                                <option value="mensual" {{ old('payment_frequency') === 'mensual' ? 'selected' : '' }}>Mensual (Un día al mes)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 form-group">
+                                            <label class="font-weight-bold">Tasa Interés (%)</label>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" min="0" name="interest_rate" id="rateInput" class="form-control font-weight-bold" value="{{ old('interest_rate', 36.64) }}">
+                                                <div class="input-group-append">
+                                                    <span class="input-group-text font-size-12">%</span>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted font-size-11">Calculada automáticamente</small>
+                                        </div>
+                                    @endif
 
                                     <!-- Campos Condicionales por Frecuencia -->
                                     <div class="col-md-6 form-group d-none" id="weeklyDayGroup">
                                         <label class="font-weight-bold font-size-12">Día de cobro semanal</label>
                                         <select name="payment_day_of_week" id="weeklyDaySelect" class="form-control form-control-sm">
-                                            <option value="1">Lunes</option>
-                                            <option value="2">Martes</option>
-                                            <option value="3">Miércoles</option>
-                                            <option value="4">Jueves</option>
-                                            <option value="5">Viernes</option>
-                                            <option value="6" selected>Sábado</option>
-                                            <option value="7">Domingo</option>
+                                            <option value="1" {{ old('payment_day_of_week') == '1' ? 'selected' : '' }}>Lunes</option>
+                                            <option value="2" {{ old('payment_day_of_week') == '2' ? 'selected' : '' }}>Martes</option>
+                                            <option value="3" {{ old('payment_day_of_week') == '3' ? 'selected' : '' }}>Miércoles</option>
+                                            <option value="4" {{ old('payment_day_of_week') == '4' ? 'selected' : '' }}>Jueves</option>
+                                            <option value="5" {{ old('payment_day_of_week') == '5' ? 'selected' : '' }}>Viernes</option>
+                                            <option value="6" {{ old('payment_day_of_week', '6') == '6' ? 'selected' : '' }}>Sábado</option>
+                                            <option value="7" {{ old('payment_day_of_week') == '7' ? 'selected' : '' }}>Domingo</option>
                                         </select>
                                     </div>
 
                                     <div class="col-md-6 form-group d-none" id="monthlyDayGroup">
                                         <label class="font-weight-bold font-size-12">Día de cobro del mes (1 al 31)</label>
-                                        <input type="number" min="1" max="31" name="payment_day_of_month" id="monthlyDayInput" class="form-control form-control-sm" value="{{ date('j') }}">
+                                        <input type="number" min="1" max="31" name="payment_day_of_month" id="monthlyDayInput" class="form-control form-control-sm" value="{{ old('payment_day_of_month', date('j')) }}">
                                     </div>
 
                                     <div class="col-md-6 form-group">
-                                        <label class="font-weight-bold font-size-12">Fecha de Inicio / Firma *</label>
+                                        <label class="font-weight-bold font-size-12">{{ $isArticle ? 'Fecha de firma (Entrega / Desembolso) *' : 'Fecha de Inicio / Firma *' }}</label>
                                         <input type="date" name="start_date" id="startDateInput" class="form-control form-control-sm" value="{{ old('start_date', date('Y-m-d')) }}" required>
                                     </div>
 
                                     <div class="col-md-6 form-group">
-                                        <label class="font-weight-bold font-size-12 text-primary">Fecha del Primer Pago</label>
+                                        <label class="font-weight-bold font-size-12 text-primary">Fecha del Primer Pago @if ($isArticle)<small class="text-muted">(Opcional)</small>@endif</label>
                                         <input type="date" name="first_payment_date" id="firstPaymentDateInput" class="form-control form-control-sm" value="{{ old('first_payment_date') }}">
-                                        <small class="text-muted font-size-10">Calculada automáticamente; puedes ajustarla.</small>
+                                        <small class="text-muted font-size-10">
+                                            {{ $isArticle ? 'Opcional: si la capturas, proyecta el calendario desde esa fecha.' : 'Calculada automáticamente; puedes ajustarla.' }}
+                                        </small>
                                     </div>
                                 </div>
 
                                 <!-- Resumen Financiero Calculado -->
                                 <div class="alert alert-info py-2 px-3 mb-3 border-info">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="font-size-13 font-weight-bold">Total a Pagar (Capital + Interés):</span>
-                                        <strong id="calcTotalDisplay" class="font-size-16 text-dark">$6,832.00</strong>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="font-size-13">Interés generado:</span>
-                                        <span id="calcInterestDisplay" class="font-weight-bold text-primary">$1,832.00 (36.64%)</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="font-size-13">Vencimiento final estimado:</span>
-                                        <strong id="calcDueDateDisplay" class="text-dark font-size-13">-</strong>
-                                    </div>
+                                    @if ($isArticle)
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="font-size-13 font-weight-bold">Total de cuotas (Pagos × Abono):</span>
+                                            <strong id="calcInstallmentsTotalDisplay" class="font-size-15 text-dark">$0.00</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="font-size-13">Enganche:</span>
+                                            <strong id="calcDownPaymentDisplay" class="font-size-14 text-success">$0.00</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom border-info">
+                                            <span class="font-size-13 font-weight-bold">Total final de la venta a crédito:</span>
+                                            <strong id="calcFinalSaleTotalDisplay" class="font-size-16 text-dark">$0.00</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="font-size-13">Interés generado:</span>
+                                            <span id="calcInterestDisplay" class="font-weight-bold text-primary">Sin calcular</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="font-size-13">Vencimiento final estimado:</span>
+                                            <strong id="calcDueDateDisplay" class="text-dark font-size-13">-</strong>
+                                        </div>
+                                    @else
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="font-size-13 font-weight-bold">Total a Pagar (Capital + Interés):</span>
+                                            <strong id="calcTotalDisplay" class="font-size-16 text-dark">$6,832.00</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="font-size-13">Interés generado:</span>
+                                            <span id="calcInterestDisplay" class="font-weight-bold text-primary">$1,832.00 (36.64%)</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="font-size-13">Vencimiento final estimado:</span>
+                                            <strong id="calcDueDateDisplay" class="text-dark font-size-13">-</strong>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <!-- Calendario / Amortización Preliminar en Vivo -->
@@ -429,39 +487,41 @@
                                     </div>
                                 </div>
 
-                                <hr>
-                                <!-- Comisión por Apertura (Conservada exactamente con su impacto contable y desglose) -->
-                                <div class="bg-light p-3 rounded border border-success">
-                                    <label class="font-weight-bold text-success mb-1">
-                                        <i class="fa-solid fa-cash-register mr-1"></i>Comisión por Apertura ($) — {{ $isArticle ? 'Opcional (se suma al ingreso de caja)' : 'Único impacto en Caja hoy' }}
-                                    </label>
-                                    <input type="number" step="0.01" min="0" name="opening_commission" id="commissionInput" class="form-control form-control-lg font-weight-bold text-success mb-2" value="{{ old('opening_commission', $isArticle ? 0 : 150) }}">
+                                @if (!$isArticle)
+                                    <hr>
+                                    <!-- Comisión por Apertura (Conservada exactamente con su impacto contable y desglose) -->
+                                    <div class="bg-light p-3 rounded border border-success">
+                                        <label class="font-weight-bold text-success mb-1">
+                                            <i class="fa-solid fa-cash-register mr-1"></i>Comisión por Apertura ($) — Único impacto en Caja hoy
+                                        </label>
+                                        <input type="number" step="0.01" min="0" name="opening_commission" id="commissionInput" class="form-control form-control-lg font-weight-bold text-success mb-2" value="{{ old('opening_commission', 150) }}">
 
-                                    <div class="form-group mb-2">
-                                        <label class="font-size-12 font-weight-bold">Método de Pago de la Comisión</label>
-                                        <select name="commission_payment_method" id="commMethodSelect" class="form-control form-control-sm">
-                                            <option value="efectivo">Efectivo</option>
-                                            <option value="transferencia">Transferencia</option>
-                                            <option value="tarjeta">Tarjeta</option>
-                                            <option value="mixto">Pago Mixto (Combinado)</option>
-                                        </select>
-                                    </div>
+                                        <div class="form-group mb-2">
+                                            <label class="font-size-12 font-weight-bold">Método de Pago de la Comisión</label>
+                                            <select name="commission_payment_method" id="commMethodSelect" class="form-control form-control-sm">
+                                                <option value="efectivo">Efectivo</option>
+                                                <option value="transferencia">Transferencia</option>
+                                                <option value="tarjeta">Tarjeta</option>
+                                                <option value="mixto">Pago Mixto (Combinado)</option>
+                                            </select>
+                                        </div>
 
-                                    <div id="commMixedBox" class="row d-none mt-2">
-                                        <div class="col-4">
-                                            <label class="font-size-11">Efectivo</label>
-                                            <input type="number" step="0.01" min="0" name="commission_cash" class="form-control form-control-sm" value="0">
-                                        </div>
-                                        <div class="col-4">
-                                            <label class="font-size-11">Tarjeta</label>
-                                            <input type="number" step="0.01" min="0" name="commission_card" class="form-control form-control-sm" value="0">
-                                        </div>
-                                        <div class="col-4">
-                                            <label class="font-size-11">Transferencia</label>
-                                            <input type="number" step="0.01" min="0" name="commission_transfer" class="form-control form-control-sm" value="0">
+                                        <div id="commMixedBox" class="row d-none mt-2">
+                                            <div class="col-4">
+                                                <label class="font-size-11">Efectivo</label>
+                                                <input type="number" step="0.01" min="0" name="commission_cash" class="form-control form-control-sm" value="0">
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="font-size-11">Tarjeta</label>
+                                                <input type="number" step="0.01" min="0" name="commission_card" class="form-control form-control-sm" value="0">
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="font-size-11">Transferencia</label>
+                                                <input type="number" step="0.01" min="0" name="commission_transfer" class="form-control form-control-sm" value="0">
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                @endif
 
                                 <button type="submit" class="btn {{ $isArticle ? 'btn-info' : 'btn-primary' }} btn-block btn-lg mt-4">
                                     <i class="fa-solid fa-check-circle mr-1"></i>{{ $isArticle ? 'Registrar Venta a Crédito y Generar Documentos' : 'Crear Préstamo y Generar Pagaré' }}
@@ -477,6 +537,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const isArticleMode = @json($isArticle);
+    const loanForm = document.getElementById('loanForm');
     const customerSelect = document.getElementById('customerSelect');
     const alertBox = document.getElementById('customerLoanAlertBox');
     const alertSummary = document.getElementById('customerAlertSummary');
@@ -503,15 +565,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const articlePriceInput = document.getElementById('articlePriceInput');
     const downPaymentInput = document.getElementById('downPaymentInput');
     const downPaymentMethodSelect = document.getElementById('downPaymentMethodSelect');
+    const downPaymentMethodRequiredMark = document.getElementById('downPaymentMethodRequiredMark');
     const downPaymentMixedBox = document.getElementById('downPaymentMixedBox');
+    const downPaymentCashInput = document.getElementById('downPaymentCashInput');
+    const downPaymentCardInput = document.getElementById('downPaymentCardInput');
+    const downPaymentTransferInput = document.getElementById('downPaymentTransferInput');
 
     const calcTotalDisplay = document.getElementById('calcTotalDisplay');
+    const calcInstallmentsTotalDisplay = document.getElementById('calcInstallmentsTotalDisplay');
+    const calcDownPaymentDisplay = document.getElementById('calcDownPaymentDisplay');
+    const calcFinalSaleTotalDisplay = document.getElementById('calcFinalSaleTotalDisplay');
     const calcInterestDisplay = document.getElementById('calcInterestDisplay');
     const calcDueDateDisplay = document.getElementById('calcDueDateDisplay');
     const scheduleCountBadge = document.getElementById('scheduleCountBadge');
     const schedulePreviewBody = document.getElementById('schedulePreviewBody');
 
     let lastEditedMode = 'installment'; // 'installment' o 'rate'
+
+    function formatCurrency(value) {
+        const sign = value < 0 ? '-$' : '$';
+        return sign + Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     // Formatear fecha YYYY-MM-DD a DD/MM/YYYY
     function formatDateDMY(dateStr) {
@@ -546,11 +620,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } else if (frequency === 'quincenal') {
                 const day = start.getDate();
+                const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+                const endOfMonthDay = Math.min(30, lastDay);
                 if (day < 15) {
                     current = new Date(start.getFullYear(), start.getMonth(), 15);
-                } else if (day < 30) {
-                    const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-                    current = new Date(start.getFullYear(), start.getMonth(), Math.min(30, lastDay));
+                } else if (day < endOfMonthDay) {
+                    current = new Date(start.getFullYear(), start.getMonth(), endOfMonthDay);
                 } else {
                     current = new Date(start.getFullYear(), start.getMonth() + 1, 15);
                 }
@@ -614,8 +689,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return dates;
     }
 
-    // Sugerir automáticamente la fecha del primer pago
+    // Sugerir automáticamente la fecha del primer pago (en crédito de artículo queda opcional)
     function autoSuggestFirstPaymentDate() {
+        if (isArticleMode) return;
         const startDateStr = startDateInput.value;
         const freq = frequencyInput.value;
         const dates = calculateInstallmentDatesJS(startDateStr, freq, 1, null, weeklyDaySelect.value, monthlyDayInput.value);
@@ -658,8 +734,52 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function updateArticleCreditCalculations() {
+        const rawCashPrice = (articlePriceInput && articlePriceInput.value !== '') ? parseFloat(articlePriceInput.value) : NaN;
+        const hasCashPrice = !Number.isNaN(rawCashPrice) && rawCashPrice > 0;
+        const downPayment = downPaymentInput ? Math.max(0, parseFloat(downPaymentInput.value) || 0) : 0;
+        const quota = Math.max(0, parseFloat(installmentInput.value) || 0);
+        const periods = Math.max(1, parseInt(periodsInput.value) || 1);
+
+        const installmentsTotal = quota * periods;
+        const finalSaleTotal = installmentsTotal + downPayment;
+
+        if (hasCashPrice) {
+            const principal = Math.max(0, rawCashPrice - downPayment);
+            principalInput.value = principal.toFixed(2);
+
+            const interest = finalSaleTotal - rawCashPrice;
+            const rateBase = principal > 0 ? principal : rawCashPrice;
+            const rate = rateBase > 0 ? (interest / rateBase) * 100 : 0;
+
+            rateInput.value = rate.toFixed(2);
+            calcInterestDisplay.textContent = formatCurrency(interest) + ' (' + rate.toFixed(2) + '%)';
+        } else {
+            principalInput.value = '';
+            rateInput.value = '';
+            calcInterestDisplay.textContent = 'Sin calcular';
+        }
+
+        if (calcInstallmentsTotalDisplay) {
+            calcInstallmentsTotalDisplay.textContent = formatCurrency(installmentsTotal);
+        }
+        if (calcDownPaymentDisplay) {
+            calcDownPaymentDisplay.textContent = formatCurrency(downPayment);
+        }
+        if (calcFinalSaleTotalDisplay) {
+            calcFinalSaleTotalDisplay.textContent = formatCurrency(finalSaleTotal);
+        }
+
+        scheduleCountBadge.textContent = periods + (periods === 1 ? ' pago' : ' pagos');
+        renderSchedulePreview(periods, quota, installmentsTotal);
+    }
+
     // Actualizar cálculos cuando el usuario introduce Abono de cada pago
     function updateFromInstallment() {
+        if (isArticleMode) {
+            updateArticleCreditCalculations();
+            return;
+        }
         lastEditedMode = 'installment';
         const principal = parseFloat(principalInput.value) || 0;
         const quota = parseFloat(installmentInput.value) || 0;
@@ -675,6 +795,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Actualizar cálculos cuando el usuario introduce Tasa de interés (%) o hace clic en un preset
     function updateFromRate() {
+        if (isArticleMode) {
+            updateArticleCreditCalculations();
+            return;
+        }
         lastEditedMode = 'rate';
         const principal = parseFloat(principalInput.value) || 0;
         const rate = parseFloat(rateInput.value) || 0;
@@ -689,14 +813,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateDisplayValues(total, interest, rate, quota, periods) {
-        calcTotalDisplay.textContent = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        calcInterestDisplay.textContent = '$' + interest.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + rate.toFixed(2) + '%)';
+        if (calcTotalDisplay) {
+            calcTotalDisplay.textContent = formatCurrency(total);
+        }
+        calcInterestDisplay.textContent = formatCurrency(interest) + ' (' + rate.toFixed(2) + '%)';
         scheduleCountBadge.textContent = periods + ' pagos';
 
         renderSchedulePreview(periods, quota, total);
     }
 
     function onGeneralFinancialChange() {
+        if (isArticleMode) {
+            updateArticleCreditCalculations();
+            return;
+        }
         if (lastEditedMode === 'rate') {
             updateFromRate();
         } else {
@@ -739,7 +869,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 rateInput.value = option.dataset.rate;
                 updateFromRate();
             }
-            if (option.dataset.fee !== undefined) {
+            if (option.dataset.fee !== undefined && commissionInput) {
                 commissionInput.value = option.dataset.fee;
             }
             if (option.dataset.frequency) {
@@ -878,12 +1008,23 @@ document.addEventListener('DOMContentLoaded', function () {
         sync();
     }
 
+    function syncDownPaymentRequirement() {
+        if (!isArticleMode || !downPaymentInput || !downPaymentMethodSelect) return;
+        const down = Math.max(0, parseFloat(downPaymentInput.value) || 0);
+        const requiresMethod = down > 0;
+
+        downPaymentMethodSelect.required = requiresMethod;
+        if (downPaymentMethodRequiredMark) {
+            downPaymentMethodRequiredMark.classList.toggle('d-none', !requiresMethod);
+        }
+        if (downPaymentMixedBox) {
+            downPaymentMixedBox.classList.toggle('d-none', !(requiresMethod && downPaymentMethodSelect.value === 'mixto'));
+        }
+    }
+
     function recalculateArticleFinancedAmount() {
-        if (!articlePriceInput) return;
-        const price = parseFloat(articlePriceInput.value) || 0;
-        const down = downPaymentInput ? (parseFloat(downPaymentInput.value) || 0) : 0;
-        principalInput.value = Math.max(0, price - down).toFixed(2);
-        onGeneralFinancialChange();
+        syncDownPaymentRequirement();
+        updateArticleCreditCalculations();
     }
 
     $('#customerSelect').on('change', function () {
@@ -962,16 +1103,42 @@ document.addEventListener('DOMContentLoaded', function () {
         autoSuggestFirstPaymentDate();
         onGeneralFinancialChange();
     });
+    firstPaymentDateInput.addEventListener('input', onGeneralFinancialChange);
     firstPaymentDateInput.addEventListener('change', onGeneralFinancialChange);
+
+    if (downPaymentMethodSelect) {
+        downPaymentMethodSelect.addEventListener('change', syncDownPaymentRequirement);
+    }
+
+    if (loanForm && isArticleMode) {
+        loanForm.addEventListener('submit', function (e) {
+            const down = downPaymentInput ? Math.max(0, parseFloat(downPaymentInput.value) || 0) : 0;
+            if (down > 0 && downPaymentMethodSelect && !downPaymentMethodSelect.value) {
+                e.preventDefault();
+                alert('Selecciona el método de pago del enganche.');
+                downPaymentMethodSelect.focus();
+                return;
+            }
+            if (down > 0 && downPaymentMethodSelect && downPaymentMethodSelect.value === 'mixto') {
+                const cash = parseFloat(downPaymentCashInput?.value || 0) || 0;
+                const card = parseFloat(downPaymentCardInput?.value || 0) || 0;
+                const transfer = parseFloat(downPaymentTransferInput?.value || 0) || 0;
+                if (Math.abs((cash + card + transfer) - down) > 0.01) {
+                    e.preventDefault();
+                    alert('El desglose del pago mixto del enganche debe sumar exactamente ' + formatCurrency(down) + '.');
+                }
+            }
+        });
+    }
 
     // Pago mixto de comisión por apertura y enganche
     bindMixedMethodToggle(commMethodSelect, commMixedBox);
-    bindMixedMethodToggle(downPaymentMethodSelect, downPaymentMixedBox);
+    syncDownPaymentRequirement();
 
     // Inicialización al cargar la página
     handleFrequencyChange();
     autoSuggestFirstPaymentDate();
-    if (articlePriceInput) {
+    if (isArticleMode) {
         recalculateArticleFinancedAmount();
     } else {
         updateFromInstallment();
