@@ -314,6 +314,50 @@ class DateFilterService
         return Carbon::today()->toDateString();
     }
 
+    /**
+     * Ordena un listado por su fecha operativa más reciente usando created_at e id
+     * descendentes como desempate determinístico (compatible con MySQL y SQLite).
+     */
+    public static function applyRecentOrder($query, string $dateColumn = 'created_at', bool $dateOnlyPrimary = false)
+    {
+        if (!preg_match('/^[a-z_]+$/', $dateColumn)) {
+            throw new \InvalidArgumentException("Columna de fecha inválida para ordenamiento: {$dateColumn}");
+        }
+
+        $table = method_exists($query, 'getModel') ? $query->getModel()->getTable() : null;
+        $qualifiedDate = $table ? "{$table}.{$dateColumn}" : $dateColumn;
+        $qualifiedCreatedAt = $table ? "{$table}.created_at" : 'created_at';
+        $qualifiedId = $table ? "{$table}.id" : 'id';
+
+        if ($dateColumn === 'created_at') {
+            return $query->orderByDesc($qualifiedCreatedAt)->orderByDesc($qualifiedId);
+        }
+
+        $coalesceExpr = "COALESCE({$qualifiedDate}, {$qualifiedCreatedAt})";
+        $primaryExpr = $dateOnlyPrimary ? "DATE({$coalesceExpr})" : $coalesceExpr;
+
+        return $query->orderByRaw("{$primaryExpr} DESC")
+            ->orderByDesc($qualifiedCreatedAt)
+            ->orderByDesc($qualifiedId);
+    }
+
+    /**
+     * Formatea una fecha operativa (con respaldo en created_at) en formato d/m/Y o '-'.
+     */
+    public static function formatDisplayDate($primaryDate, $fallbackDate = null, string $format = 'd/m/Y'): string
+    {
+        $candidate = $primaryDate ?: $fallbackDate;
+        if (empty($candidate)) {
+            return '-';
+        }
+
+        try {
+            return Carbon::parse($candidate)->format($format);
+        } catch (\Throwable $e) {
+            return '-';
+        }
+    }
+
     protected static function safeDateString(?string $value, string $fallback): string
     {
         $trimmed = trim((string) $value);

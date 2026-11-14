@@ -4,7 +4,11 @@
 <style>
     .stat-card {
         border-radius: 12px;
+        margin-bottom: 0;
         transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card .card-body {
+        padding: 0.9rem 1.15rem;
     }
     .stat-card:hover {
         transform: translateY(-2px);
@@ -97,8 +101,8 @@
             @endif
 
             <!-- Banner Principal y Búsqueda Cruzada de IMEI -->
-            <div class="card shadow-sm border-0 mb-4 bg-primary text-white">
-                <div class="card-body p-4">
+            <div class="card shadow-sm border-0 mb-2 bg-primary text-white">
+                <div class="card-body py-3 px-4">
                     <div class="row align-items-center">
                         <div class="col-lg-6 col-12 mb-3 mb-lg-0">
                             <div class="d-flex align-items-center">
@@ -130,7 +134,7 @@
 
             <!-- Indicador de Sucursal Filtrada / Asignada -->
             @if (!empty($selectedBranch))
-                <div class="d-flex flex-wrap align-items-center justify-content-between alert alert-light border shadow-sm mb-3 py-2 px-3">
+                <div class="d-flex flex-wrap align-items-center justify-content-between alert alert-light border shadow-sm mb-2 py-2 px-3">
                     <div class="d-flex align-items-center">
                         <i class="fa-solid fa-store text-primary mr-2 font-size-18"></i>
                         <div>
@@ -156,9 +160,9 @@
             @endif
 
             <!-- Stats Bar -->
-            <div class="row mb-4">
-                <div class="col-xl-3 col-md-6 mb-3">
-                    <div class="card stat-card shadow-sm border-0 bg-white">
+            <div class="row mb-2">
+                <div class="col-xl-3 col-md-6 mb-2 mb-xl-0">
+                    <div class="card stat-card shadow-sm border-0 bg-white mb-0">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <span class="text-muted font-size-12 text-uppercase font-weight-bold">Ventas Activas</span>
@@ -171,8 +175,8 @@
                     </div>
                 </div>
 
-                <div class="col-xl-3 col-md-6 mb-3">
-                    <div class="card stat-card shadow-sm border-0 bg-white">
+                <div class="col-xl-3 col-md-6 mb-2 mb-xl-0">
+                    <div class="card stat-card shadow-sm border-0 bg-white mb-0">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <span class="text-muted font-size-12 text-uppercase font-weight-bold">Dispositivos Disponibles</span>
@@ -185,8 +189,8 @@
                     </div>
                 </div>
 
-                <div class="col-xl-3 col-md-6 mb-3">
-                    <div class="card stat-card shadow-sm border-0 bg-white">
+                <div class="col-xl-3 col-md-6 mb-2 mb-xl-0">
+                    <div class="card stat-card shadow-sm border-0 bg-white mb-0">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <span class="text-muted font-size-12 text-uppercase font-weight-bold">Garantías en Proceso</span>
@@ -199,8 +203,8 @@
                     </div>
                 </div>
 
-                <div class="col-xl-3 col-md-6 mb-3">
-                    <div class="card stat-card shadow-sm border-0 bg-white">
+                <div class="col-xl-3 col-md-6 mb-2 mb-xl-0">
+                    <div class="card stat-card shadow-sm border-0 bg-white mb-0">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <span class="text-muted font-size-12 text-uppercase font-weight-bold">Reportes de Robo</span>
@@ -215,7 +219,7 @@
             </div>
 
             <!-- Navegación por Tabs -->
-            <div class="card shadow-sm border-0 mb-4">
+            <div class="card shadow-sm border-0 mb-3">
                 <div class="card-body p-0">
                     <div class="d-flex flex-wrap justify-content-between align-items-center px-3 pt-2 border-bottom">
                         <ul class="nav nav-tabs nav-tabs-financieras border-0" id="financierasTabs" role="tablist">

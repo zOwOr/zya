@@ -128,12 +128,13 @@
     }
     .fin-filter-shell .select2-multi-sm + .select2-container .select2-selection--multiple,
     .fin-filter-shell .select2-container--default .select2-selection--multiple {
+        position: relative !important;
         height: auto !important;
         min-height: 38px !important;
         line-height: 1.4 !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
-        padding: 4px 10px !important;
+        padding: 4px 26px 4px 10px !important;
         background-color: #ffffff !important;
         display: flex !important;
         flex-wrap: wrap !important;
@@ -163,14 +164,18 @@
         display: none !important;
     }
     .fin-filter-shell .select2-container--default .select2-selection--multiple .select2-selection__clear {
+        position: absolute !important;
+        right: 8px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
         float: none !important;
-        order: 99 !important;
-        margin: 0 0 0 auto !important;
-        padding: 0 4px !important;
-        height: 24px !important;
-        line-height: 24px !important;
+        margin: 0 !important;
+        padding: 0 3px !important;
+        height: 20px !important;
+        line-height: 20px !important;
         color: #94a3b8 !important;
         font-size: 16px !important;
+        z-index: 2;
     }
     .fin-filter-shell .select2-container--default .select2-selection--multiple .select2-selection__clear:hover {
         color: #dc2626 !important;
@@ -206,14 +211,24 @@
         float: none !important;
         display: flex !important;
         align-items: center !important;
-        flex: 1 1 50px !important;
-        min-width: 0 !important;
+        flex: 1 1 32px !important;
+        min-width: 24px !important;
         margin: 0 !important;
         padding: 0 !important;
         height: 28px !important;
     }
     .fin-filter-shell .select2-container--default .select2-selection--multiple .select2-selection__rendered:not(:empty) ~ .select2-search--inline {
+        flex: 0 1 2px !important;
+        min-width: 2px !important;
+        width: 2px !important;
         height: 22px !important;
+    }
+    .fin-filter-shell .select2-container--default.select2-container--focus .select2-selection--multiple .select2-selection__rendered:not(:empty) ~ .select2-search--inline,
+    .fin-filter-shell .select2-container--default.select2-container--open .select2-selection--multiple .select2-selection__rendered:not(:empty) ~ .select2-search--inline,
+    .fin-filter-shell .select2-container--default .select2-selection--multiple:focus-within .select2-selection__rendered:not(:empty) ~ .select2-search--inline {
+        flex: 1 1 60px !important;
+        min-width: 60px !important;
+        width: auto !important;
     }
     .fin-filter-shell .select2-container--default .select2-selection--multiple .select2-selection__rendered:not(:empty) ~ .select2-search--inline .select2-search__field {
         height: 22px !important;
@@ -245,9 +260,34 @@
     .fin-filter-shell .form-control-sm + .select2-container .select2-selection--single,
     .fin-filter-shell .select2-container .select2-selection--single {
         height: 38px !important;
+        min-height: 38px !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
         padding: 0.375rem 0.75rem !important;
+        background-color: #ffffff !important;
+        display: flex !important;
+        align-items: center !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+    }
+    .fin-filter-shell .select2-container--default.select2-container--focus .select2-selection--single,
+    .fin-filter-shell .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #0266c8 !important;
+        box-shadow: 0 0 0 3px rgba(2, 102, 200, 0.12) !important;
+    }
+    .fin-filter-shell .select2-container--default .select2-selection--single .select2-selection__rendered {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        color: #1e293b !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        padding-left: 0 !important;
+        padding-right: 6px !important;
+    }
+    .fin-filter-shell .select2-container--default .select2-selection--single .select2-selection__clear {
+        order: 2 !important;
+        flex: 0 0 auto !important;
+        margin-left: auto !important;
+        margin-right: 16px !important;
     }
 
     /* Tarjeta blanca interior (Periodo de búsqueda y barras secundarias) */

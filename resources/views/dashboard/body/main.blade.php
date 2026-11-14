@@ -37,9 +37,29 @@
     font-size: .875rem !important;
   }
   .select2-container--default .select2-selection--single .select2-selection__rendered {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
     line-height: normal !important;
     padding-left: 0 !important;
+    padding-right: 6px !important;
     color: #495057 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__clear {
+    order: 2 !important;
+    flex: 0 0 auto !important;
+    position: relative;
+    z-index: 2;
+    margin-left: auto !important;
+    margin-right: 16px !important;
+    color: #94a3b8 !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    color: #dc2626 !important;
   }
   .select2-container--default .select2-selection--single .select2-selection__arrow {
     height: 100% !important;
@@ -62,47 +82,133 @@
   }
   .select2-search--dropdown .select2-search__field {
     border: 1px solid #ced4da !important;
-    border-radius: .2rem !important;
-    padding: .3rem .5rem !important;
+    border-radius: .25rem !important;
+    padding: .35rem .55rem !important;
+    outline: none !important;
+    font-size: .85rem !important;
+  }
+  .select2-search--dropdown .select2-search__field:focus {
+    border-color: #0266c8 !important;
+    box-shadow: 0 0 0 2px rgba(2, 102, 200, 0.12) !important;
   }
   .select2-container--default .select2-selection--multiple {
+    position: relative !important;
     min-height: calc(1.5em + .75rem + 2px) !important;
     border: 1px solid #ced4da !important;
     border-radius: .25rem !important;
-    padding: 2px 6px !important;
+    padding: 2px 22px 2px 6px !important;
     background-color: #fff !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 3px !important;
   }
   .select2-multi-sm + .select2-container .select2-selection--multiple {
     min-height: calc(1.5em + .5rem + 2px) !important;
-    padding: 1px 4px !important;
+    padding: 2px 22px 2px 6px !important;
     font-size: .82rem !important;
   }
+  .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    display: inline-flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 3px !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__rendered:empty {
+    display: none !important;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__clear {
+    position: absolute !important;
+    right: 6px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    float: none !important;
+    margin: 0 !important;
+    padding: 0 3px !important;
+    line-height: 1 !important;
+    color: #94a3b8 !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__clear:hover {
+    color: #dc2626 !important;
+  }
   .select2-container--default .select2-selection--multiple .select2-selection__choice {
-    background-color: #007bff !important;
-    border: 1px solid #006fe6 !important;
+    float: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    background-color: #0266c8 !important;
+    border: 1px solid #0266c8 !important;
     color: #fff !important;
-    border-radius: .2rem !important;
+    border-radius: .25rem !important;
     padding: 1px 6px !important;
-    margin-top: 2px !important;
-    margin-right: 4px !important;
-    font-size: .78rem !important;
+    margin: 0 !important;
+    font-size: .76rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
   }
   .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    position: static !important;
+    border: none !important;
     color: rgba(255, 255, 255, 0.85) !important;
     margin-right: 4px !important;
-    border-right: none !important;
+    padding: 0 2px 0 0 !important;
+    background: transparent !important;
   }
   .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
     color: #fff !important;
     background: transparent !important;
   }
-  .select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
-    margin-top: 3px !important;
-    font-size: .82rem !important;
+  .select2-container--default .select2-selection--multiple .select2-search--inline {
+    float: none !important;
+    display: flex !important;
+    align-items: center !important;
+    flex: 1 1 32px !important;
+    min-width: 24px !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-    border-radius: .25rem !important;
-    padding: .375rem .75rem !important;
+  .select2-container--default .select2-selection--multiple .select2-selection__rendered:not(:empty) ~ .select2-search--inline {
+    flex: 0 1 2px !important;
+    min-width: 2px !important;
+    width: 2px !important;
+  }
+  .select2-container--default.select2-container--focus .select2-selection--multiple .select2-selection__rendered:not(:empty) ~ .select2-search--inline,
+  .select2-container--default.select2-container--open .select2-selection--multiple .select2-selection__rendered:not(:empty) ~ .select2-search--inline,
+  .select2-container--default .select2-selection--multiple:focus-within .select2-selection__rendered:not(:empty) ~ .select2-search--inline {
+    flex: 1 1 60px !important;
+    min-width: 60px !important;
+    width: auto !important;
+  }
+  .select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
+    width: 100% !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    line-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
     outline: none !important;
+    font-size: .82rem !important;
+    resize: none !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+  .fin-clear-select-btn {
+    font-size: 11px !important;
+    line-height: 1 !important;
+    color: #0266c8 !important;
+    text-decoration: none !important;
+  }
+  .fin-clear-select-btn:hover {
+    color: #dc2626 !important;
+    text-decoration: underline !important;
   }
 
   .iq-sidebar {
@@ -588,23 +694,81 @@
         });
 
         // ==========================================
-        // AUTOCOMPLETE GLOBAL PARA SELECTS (CLIENTES / PRODUCTOS / ETC)
+        // AUTOCOMPLETE GLOBAL PARA SELECTS (CLIENTES / PRODUCTOS / FINANCIERAS)
         // ==========================================
+        window.normalizeSelect2SearchText = function(value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+        };
+
+        window.accentInsensitiveSelect2Matcher = function(params, data) {
+            var term = window.normalizeSelect2SearchText(params && params.term);
+            if (!term) {
+                return data;
+            }
+            if (Array.isArray(data.children)) {
+                var matchedChildren = [];
+                for (var i = 0; i < data.children.length; i++) {
+                    var childMatch = window.accentInsensitiveSelect2Matcher(params, data.children[i]);
+                    if (childMatch !== null) {
+                        matchedChildren.push(childMatch);
+                    }
+                }
+                if (matchedChildren.length > 0) {
+                    var modifiedGroup = $.extend({}, data, true);
+                    modifiedGroup.children = matchedChildren;
+                    return modifiedGroup;
+                }
+                return null;
+            }
+            var haystack = window.normalizeSelect2SearchText(data.text);
+            if (!haystack) {
+                return null;
+            }
+            var tokens = term.split(/\s+/);
+            for (var t = 0; t < tokens.length; t++) {
+                if (tokens[t] && haystack.indexOf(tokens[t]) === -1) {
+                    return null;
+                }
+            }
+            return data;
+        };
+
+        window.syncSelect2ClearButton = function(selectEl) {
+            if (!selectEl || !selectEl.id) return;
+            var btn = document.querySelector('[data-clear-select="#' + selectEl.id + '"]');
+            if (!btn) return;
+            var val = $(selectEl).val();
+            var hasValue = Array.isArray(val) ? val.length > 0 : (val !== null && val !== undefined && String(val) !== '');
+            if (hasValue) {
+                btn.classList.remove('d-none');
+            } else {
+                btn.classList.add('d-none');
+            }
+        };
+
         window.initSelect2Autocompletes = function(container) {
             var $scope = container ? $(container) : $(document);
             $scope.find('.select2-autocomplete, select[data-autocomplete="true"]').each(function() {
                 var $select = $(this);
                 if ($select.hasClass('select2-hidden-accessible')) {
+                    window.syncSelect2ClearButton(this);
                     return;
                 }
                 var placeholder = $select.attr('placeholder') || $select.data('placeholder') || '-- Escribe para buscar o seleccionar --';
                 var $modal = $select.closest('.modal');
                 var isMultiple = $select.prop('multiple');
+                var allowClear = !$select.prop('required') || $select.data('allow-clear') === true || $select.data('allow-clear') === 'true';
                 var config = {
                     width: '100%',
                     placeholder: placeholder,
-                    allowClear: !$select.prop('required'),
+                    allowClear: allowClear,
                     closeOnSelect: isMultiple ? false : true,
+                    minimumResultsForSearch: 0,
+                    matcher: window.accentInsensitiveSelect2Matcher,
                     tags: $select.data('tags') === true || $select.data('tags') === 'true',
                     language: {
                         noResults: function() { return "No se encontraron coincidencias"; },
@@ -615,8 +779,51 @@
                     config.dropdownParent = $modal;
                 }
                 $select.select2(config);
+                window.syncSelect2ClearButton(this);
             });
         };
+
+        $(document).on('select2:open', function(e) {
+            var searchPlaceholder = $(e.target).data('search-placeholder');
+            setTimeout(function() {
+                var activeField = document.querySelector('.select2-container--open .select2-search__field');
+                if (activeField) {
+                    if (searchPlaceholder && !activeField.getAttribute('placeholder')) {
+                        activeField.setAttribute('placeholder', searchPlaceholder);
+                    }
+                    activeField.focus();
+                }
+            }, 0);
+        });
+
+        $(document).on('select2:select select2:unselect', '.select2-autocomplete[multiple], select[data-autocomplete="true"][multiple]', function(e) {
+            var $container = $(this).next('.select2-container');
+            var isSelect = e && e.type === 'select2:select';
+            setTimeout(function() {
+                var inlineField = $container.find('.select2-search--inline .select2-search__field')[0];
+                if (inlineField) {
+                    if (isSelect && inlineField.value) {
+                        inlineField.value = '';
+                        inlineField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    inlineField.focus();
+                }
+            }, 0);
+        });
+
+        $(document).on('change', '.select2-autocomplete, select[data-autocomplete="true"]', function() {
+            window.syncSelect2ClearButton(this);
+        });
+
+        $(document).on('click', '[data-clear-select]', function(e) {
+            e.preventDefault();
+            var selector = $(this).data('clear-select');
+            if (!selector) return;
+            var $target = $(selector);
+            if (!$target.length) return;
+            $target.val($target.prop('multiple') ? [] : '').trigger('change');
+            window.syncSelect2ClearButton($target[0]);
+        });
 
         $(document).ready(function() {
             window.initSelect2Autocompletes();

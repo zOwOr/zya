@@ -111,7 +111,7 @@ class FinSaleController extends Controller
         }
 
         $branches = Branch::all();
-        $financieras = FinFinanciera::where('is_active', true)->get();
+        $financieras = FinFinanciera::where('is_active', true)->orderBy('name')->get();
         $sellers = User::orderBy('name')->get();
         $canMultiFilterFinancieras = FinancieraFilterService::userCanFilterMultiple();
         $selectedFinancieraIds = FinancieraFilterService::resolveSelectedIds(
@@ -678,7 +678,7 @@ class FinSaleController extends Controller
         $this->checkSaleBranchAccess($sale);
 
         $branches = Branch::all();
-        $financieras = FinFinanciera::where('is_active', true)->get();
+        $financieras = FinFinanciera::where('is_active', true)->orderBy('name')->get();
         $sellers = User::orderBy('name')->get();
 
         return view('financieras.ventas.edit', compact('sale', 'branches', 'financieras', 'sellers'));

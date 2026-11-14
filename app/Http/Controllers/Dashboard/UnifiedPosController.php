@@ -28,6 +28,7 @@ use App\Models\Tanda;
 use App\Models\TandaClient;
 use App\Models\TandaPayment;
 use App\Services\CashFlowService;
+use App\Services\DateFilterService;
 use App\Services\GiftInventoryService;
 use Carbon\Carbon;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
@@ -197,10 +198,9 @@ class UnifiedPosController extends Controller
             ? ExternalCustomer::selectableInPos()->orderBy('tit_name')->get(['id', 'tit_name', 'tit_phone', 'tit_email', 'tit_city', 'tit_status'])
             : collect();
         $extCustomerStatusOptions = ExternalCustomer::TIT_STATUS_OPTIONS;
-        $tandas = Tanda::with(['participants', 'periods'])
-            ->when(!$this->canAccessAllBranches() && $branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->orderByDesc('created_at')
-            ->get();
+        $tandasQuery = Tanda::with(['participants.customer', 'periods'])
+            ->when(!$this->canAccessAllBranches() && $branchId, fn($q) => $q->where('branch_id', $branchId));
+        $tandas = DateFilterService::applyRecentOrder($tandasQuery, 'start_date', true)->get();
 
         $products = Product::orderBy('product_name')
             ->take(100)
@@ -259,7 +259,7 @@ class UnifiedPosController extends Controller
             return response()->json(['results' => []]);
         }
 
-        $sales = FinSale::with(['device.brand', 'financiera', 'branch', 'payments'])
+        $salesQuery = FinSale::with(['device.brand', 'financiera', 'branch', 'payments'])
             ->where('status', '!=', 'cancelada')
             ->where(function ($q) {
                 $q->whereNull('sale_type')
@@ -279,9 +279,10 @@ class UnifiedPosController extends Controller
                               ->orWhere('model', 'like', "%{$query}%");
                         });
                 });
-            })
-            ->orderByDesc('sale_date')
-            ->limit(15)
+            });
+
+        $sales = DateFilterService::applyRecentOrder($salesQuery, 'sale_date', false)
+            ->limit(30)
             ->get();
 
         $results = $sales->map(function (FinSale $sale) {
@@ -295,6 +296,8 @@ class UnifiedPosController extends Controller
             return [
                 'sale_id' => $sale->id,
                 'sale_code' => $sale->sale_code,
+                'sale_date' => $sale->sale_date ? $sale->sale_date->toIso8601String() : ($sale->created_at ? $sale->created_at->toIso8601String() : null),
+                'sale_date_formatted' => DateFilterService::formatDisplayDate($sale->sale_date, $sale->created_at),
                 'device_id' => $sale->device_id,
                 'imei' => $sale->device?->imei ?? 'N/A',
                 'device_model' => trim(($sale->device?->brand?->name ?? '') . ' ' . ($sale->device?->model ?? 'Equipo')),
@@ -336,13 +339,13 @@ class UnifiedPosController extends Controller
             return response()->json(['open_loans' => [], 'has_open_loans' => false]);
         }
 
-        $openLoans = Loan::with(['loanType', 'installments' => function ($q) {
+        $openLoansQuery = Loan::with(['loanType', 'installments' => function ($q) {
                 $q->orderBy('installment_number');
             }])
             ->where('customer_id', $customerId)
-            ->whereIn('status', ['activo', 'mora'])
-            ->orderByDesc('created_at')
-            ->get();
+            ->whereIn('status', ['activo', 'mora']);
+
+        $openLoans = DateFilterService::applyRecentOrder($openLoansQuery, 'start_date', true)->get();
 
         $formatted = $openLoans->map(function (Loan $loan) {
             $pendingInstallments = $loan->installments
@@ -363,6 +366,8 @@ class UnifiedPosController extends Controller
             return [
                 'id' => $loan->id,
                 'loan_code' => $loan->loan_code,
+                'start_date' => $loan->start_date ? $loan->start_date->format('Y-m-d') : ($loan->created_at ? $loan->created_at->format('Y-m-d') : null),
+                'sale_date_formatted' => DateFilterService::formatDisplayDate($loan->start_date, $loan->created_at),
                 'operation_type' => $loan->operation_type ?? 'prestamo',
                 'type_name' => $loan->isArticleCredit()
                     ? ('Crédito Artículo (' . $loan->article_summary_label . ')')
@@ -509,8 +514,7 @@ class UnifiedPosController extends Controller
             });
         }
 
-        $orders = $query->orderByDesc('order_date')
-            ->orderByDesc('id')
+        $orders = DateFilterService::applyRecentOrder($query, 'order_date', true)
             ->limit(20)
             ->get();
 
@@ -567,7 +571,11 @@ class UnifiedPosController extends Controller
     {
         $user = auth()->user();
         if (!$user->isSuperAdmin() && !$user->can('cobros.tandas') && !$user->can('tandas.read')) {
-            return response()->json(['tandas' => [], 'message' => 'Sin permisos para consultar tandas.'], 403);
+            return response()->json([
+                'tandas' => [],
+                'results' => [],
+                'message' => 'Sin permisos para consultar tandas.',
+            ], 403);
         }
 
         $branchId = $this->canAccessAllBranches() && $request->filled('branch_id')
@@ -575,13 +583,146 @@ class UnifiedPosController extends Controller
             : (auth()->user()->branch_id ?? Branch::value('id'));
 
         $q = trim((string) $request->input('q', ''));
-        $tandas = Tanda::with(['participants', 'periods'])
+        $tandasQuery = Tanda::with(['participants.customer', 'periods'])
             ->when(!$this->canAccessAllBranches() && $branchId, fn($query) => $query->where('branch_id', $branchId))
-            ->when($q !== '', fn($query) => $query->where('description', 'like', "%{$q}%"))
-            ->orderByDesc('created_at')
-            ->get();
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('description', 'like', "%{$q}%")
+                        ->orWhereHas('participants', function ($p) use ($q) {
+                            $p->where('customer_name', 'like', "%{$q}%")
+                                ->orWhere('customer_phone', 'like', "%{$q}%")
+                                ->orWhereHas('customer', function ($c) use ($q) {
+                                    $c->where('tit_name', 'like', "%{$q}%")
+                                        ->orWhere('tit_phone', 'like', "%{$q}%");
+                                });
+                        });
+                });
+            });
 
-        return response()->json(['tandas' => $tandas]);
+        $tandas = DateFilterService::applyRecentOrder($tandasQuery, 'start_date', true)->get();
+
+        $tandas->each(function (Tanda $tanda) {
+            $tanda->setAttribute(
+                'tanda_date_formatted',
+                DateFilterService::formatDisplayDate($tanda->start_date, $tanda->created_at)
+            );
+        });
+
+        return response()->json([
+            'tandas' => $tandas,
+            'results' => $this->buildTandaLookupResults($tandas, $q),
+        ]);
+    }
+
+    /**
+     * Construye filas planas de resultados de Tandas ordenadas por tanda más reciente primero.
+     */
+    protected function buildTandaLookupResults($tandas, string $query): array
+    {
+        $results = [];
+
+        foreach ($tandas as $tanda) {
+            $tandaDate = $tanda->start_date
+                ? $tanda->start_date->format('Y-m-d')
+                : ($tanda->created_at ? $tanda->created_at->format('Y-m-d') : null);
+            $tandaDateFormatted = DateFilterService::formatDisplayDate($tanda->start_date, $tanda->created_at);
+
+            $basePayload = [
+                'tanda_id' => $tanda->id,
+                'tanda_description' => $tanda->description,
+                'tanda_date' => $tandaDate,
+                'tanda_date_formatted' => $tandaDateFormatted,
+                'payment_amount' => (float) $tanda->payment_amount,
+                'duration' => (int) ($tanda->duration ?? 0),
+                'status' => $tanda->status,
+                'participants_count' => $tanda->participants->count(),
+            ];
+
+            $matchedParticipants = $query === ''
+                ? collect()
+                : $tanda->participants->filter(function (TandaClient $p) use ($query) {
+                    $candidates = [
+                        $p->display_name,
+                        $p->display_phone,
+                        $p->customer_name,
+                        $p->customer_phone,
+                        $p->customer?->tit_name,
+                        $p->customer?->tit_phone,
+                    ];
+                    foreach ($candidates as $val) {
+                        if (!empty($val) && mb_stripos((string) $val, $query) !== false) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })->values();
+
+            if ($matchedParticipants->isNotEmpty()) {
+                foreach ($matchedParticipants as $participant) {
+                    $periodStats = $this->computeTandaNextPeriod($tanda, $participant);
+                    $results[] = array_merge($basePayload, [
+                        'participant_id' => $participant->id,
+                        'participant_name' => $participant->display_name,
+                        'participant_phone' => $participant->display_phone ?: '',
+                        'position' => (int) $participant->position,
+                        'total_paid' => (float) ($participant->total_paid ?? 0),
+                        'paid_count' => $periodStats['paid_count'],
+                        'next_period' => $periodStats['next_period'],
+                        'matched_by' => 'participant',
+                    ]);
+                }
+                continue;
+            }
+
+            $results[] = array_merge($basePayload, [
+                'participant_id' => null,
+                'participant_name' => $tanda->participants->count() . ' participante(s) registrado(s)',
+                'participant_phone' => 'Elige participante al seleccionar',
+                'position' => null,
+                'total_paid' => null,
+                'paid_count' => null,
+                'next_period' => 1,
+                'matched_by' => 'tanda',
+            ]);
+        }
+
+        return $results;
+    }
+
+    /**
+     * Calcula periodos ya pagados y sugiere el siguiente número de pago pendiente de un participante.
+     *
+     * @return array{paid_count: int, next_period: int}
+     */
+    protected function computeTandaNextPeriod(Tanda $tanda, TandaClient $participant): array
+    {
+        $paymentsMap = is_array($participant->payments)
+            ? $participant->payments
+            : (json_decode($participant->payments ?? '{}', true) ?: []);
+
+        $paidPeriods = [];
+        foreach ($paymentsMap as $periodKey => $paidVal) {
+            if (is_numeric($periodKey) && is_numeric($paidVal) && (float) $paidVal > 0) {
+                $paidPeriods[] = (int) $periodKey;
+            }
+        }
+        sort($paidPeriods);
+
+        $paidCount = count($paidPeriods);
+        $maxPeriods = max((int) ($tanda->duration ?? 0), $tanda->periods->count(), $paidCount + 1);
+        $nextPeriod = $paidCount + 1;
+
+        for ($periodIdx = 1; $periodIdx <= $maxPeriods; $periodIdx++) {
+            if (!in_array($periodIdx, $paidPeriods, true)) {
+                $nextPeriod = $periodIdx;
+                break;
+            }
+        }
+
+        return [
+            'paid_count' => $paidCount,
+            'next_period' => $nextPeriod,
+        ];
     }
 
     /**
