@@ -73,6 +73,13 @@
             background: #e5e7eb !important;
             font-weight: bold;
         }
+        .seller-chart-section {
+            margin: 8px 0 10px 0;
+            page-break-inside: avoid;
+        }
+        .seller-chart-page-break {
+            page-break-after: always;
+        }
     </style>
 </head>
 <body>
@@ -110,6 +117,17 @@
             </td>
         </tr>
     </table>
+
+    @php
+        $sellerChart = $sellerChart ?? \App\Services\FinSaleSellerChartService::buildFromCollection(
+            $sales ?? collect(),
+            $dateFilter ?? [],
+            $periodLabel ?? null
+        );
+    @endphp
+    <div class="seller-chart-section {{ isset($sales) && $sales->isNotEmpty() ? 'seller-chart-page-break' : '' }}">
+        {!! \App\Services\FinSaleSellerChartService::renderCardHtml($sellerChart) !!}
+    </div>
 
     <table class="data">
         <thead>
