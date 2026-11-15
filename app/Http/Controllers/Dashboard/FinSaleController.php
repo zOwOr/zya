@@ -15,6 +15,7 @@ use App\Models\FinSalePayment;
 use App\Models\User;
 use App\Services\DateFilterService;
 use App\Services\FinancieraFilterService;
+use App\Services\FinSaleSellerChartService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1104,9 +1105,23 @@ class FinSaleController extends Controller
             $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
 
+        // Segunda hoja: gráfico por vendedora y matriz resumen por financiera
+        $chartData = FinSaleSellerChartService::buildFromCollection(
+            $sales,
+            $resolved['dateFilter'] ?? [],
+            $resolved['periodLabel'] ?? null
+        );
+        $chartPngPath = FinSaleSellerChartService::appendExcelChartSheet($spreadsheet, $chartData);
+
         $filename = "Financieras_Ventas_{$resolved['fileSuffix']}.xlsx";
         $tempFile = tempnam(sys_get_temp_dir(), 'fin_sales_xlsx_');
-        (new Xlsx($spreadsheet))->save($tempFile);
+        try {
+            (new Xlsx($spreadsheet))->save($tempFile);
+        } finally {
+            if ($chartPngPath && is_file($chartPngPath)) {
+                @unlink($chartPngPath);
+            }
+        }
 
         return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
     }
@@ -1118,7 +1133,7 @@ class FinSaleController extends Controller
     {
         $resolved = self::buildFilteredSalesQuery($request);
         $sales = $resolved['query']->get();
-        $activeSales = $sales->where('status', 'activa');
+        $activeSales = $sales->filter(fn ($s) => strtolower((string) ($s->status ?? 'activa')) !== 'cancelada');
 
         $totals = [
             'count' => $sales->count(),
@@ -1134,6 +1149,8 @@ class FinSaleController extends Controller
         ];
 
         $periodLabel = $resolved['periodLabel'];
+        $dateFilter = $resolved['dateFilter'] ?? [];
+        $sellerChart = FinSaleSellerChartService::buildFromCollection($sales, $dateFilter, $periodLabel);
         $branchName = $request->filled('branch_id')
             ? (Branch::find((int) $request->input('branch_id'))?->name ?? 'Sucursal')
             : (auth()->user()?->can('financieras.inventario.all_branches') ? 'Todas las Sucursales' : (auth()->user()?->branch?->name ?? 'Sucursal asignada'));
@@ -1144,7 +1161,7 @@ class FinSaleController extends Controller
 
         $pdf = Pdf::loadView(
             'financieras.ventas.list-pdf',
-            compact('sales', 'totals', 'periodLabel', 'branchName', 'financieraFilterLabel')
+            compact('sales', 'totals', 'periodLabel', 'dateFilter', 'sellerChart', 'branchName', 'financieraFilterLabel')
         )->setPaper('letter', 'landscape');
 
         return $pdf->download("Financieras_Ventas_{$resolved['fileSuffix']}.pdf");

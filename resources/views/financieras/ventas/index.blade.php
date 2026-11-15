@@ -11,12 +11,18 @@
             </div>
             <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
                 @if(auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.export_pdf'))
-                    <a href="{{ route('financieras.ventas.export.pdf', request()->query()) }}" class="btn btn-outline-danger btn-sm mr-2">
+                    <a id="btnExportFinSalesPdf"
+                       href="{{ route('financieras.ventas.export.pdf', request()->query()) }}"
+                       data-base-url="{{ route('financieras.ventas.export.pdf') }}"
+                       class="btn btn-outline-danger btn-sm mr-2">
                         <i class="fa-solid fa-file-pdf mr-1"></i>Exportar PDF
                     </a>
                 @endif
                 @if(auth()->user()->isSuperAdmin() || auth()->user()->can('financieras.ventas.export_excel'))
-                    <a href="{{ route('financieras.ventas.export.excel', request()->query()) }}" class="btn btn-outline-success btn-sm mr-2">
+                    <a id="btnExportFinSalesExcel"
+                       href="{{ route('financieras.ventas.export.excel', request()->query()) }}"
+                       data-base-url="{{ route('financieras.ventas.export.excel') }}"
+                       class="btn btn-outline-success btn-sm mr-2">
                         <i class="fa-solid fa-file-excel mr-1"></i>Exportar Excel
                     </a>
                 @endif
@@ -469,7 +475,43 @@
         }
         if (startInput) startInput.addEventListener('change', syncFinSalePresetActive);
         if (endInput) endInput.addEventListener('change', syncFinSalePresetActive);
+
+        var salesFilterForm = document.getElementById('filter-sales-form');
+        if (salesFilterForm) {
+            salesFilterForm.addEventListener('change', syncFinSalesExportLinks);
+            salesFilterForm.addEventListener('input', syncFinSalesExportLinks);
+        }
+        ['btnExportFinSalesPdf', 'btnExportFinSalesExcel'].forEach(function (btnId) {
+            var btn = document.getElementById(btnId);
+            if (btn) {
+                btn.addEventListener('mouseenter', syncFinSalesExportLinks);
+                btn.addEventListener('click', syncFinSalesExportLinks);
+            }
+        });
+        syncFinSalesExportLinks();
     });
+
+    function syncFinSalesExportLinks() {
+        var form = document.getElementById('filter-sales-form');
+        if (!form) return;
+
+        var params = new URLSearchParams();
+        var formData = new FormData(form);
+        formData.forEach(function (value, key) {
+            if (value !== null && String(value).trim() !== '') {
+                params.append(key, value);
+            }
+        });
+
+        var query = params.toString();
+        ['btnExportFinSalesPdf', 'btnExportFinSalesExcel'].forEach(function (btnId) {
+            var btn = document.getElementById(btnId);
+            if (!btn) return;
+            var baseUrl = btn.getAttribute('data-base-url') || (btn.getAttribute('href') || '').split('?')[0];
+            if (!baseUrl) return;
+            btn.setAttribute('href', query ? (baseUrl + '?' + query) : baseUrl);
+        });
+    }
 
     function setDateRange(type) {
         var sel = document.getElementById('filter_sale_type');
@@ -483,6 +525,7 @@
             if (sel && sel.querySelector('option[value="todos"]')) {
                 sel.value = 'todos';
                 syncFinSaleDateMode();
+                syncFinSalesExportLinks();
             }
             return;
         }
@@ -504,6 +547,7 @@
         }
 
         syncFinSaleDateMode();
+        syncFinSalesExportLinks();
     }
 
     function formatLocalDate(date) {
