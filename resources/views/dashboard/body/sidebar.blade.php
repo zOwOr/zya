@@ -155,12 +155,12 @@
                 @endif
 
                 {{-- ===================== 4. CATÁLOGO & STOCK ===================== --}}
-                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('category.menu') || auth()->user()->can('category.read') || auth()->user()->can('stock.menu') || auth()->user()->can('stock.read') || auth()->user()->can('gifts.menu') || auth()->user()->can('gifts.read'))
+                @if (auth()->user()->isSuperAdmin() || auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('product.import') || auth()->user()->can('category.menu') || auth()->user()->can('category.read') || auth()->user()->can('stock.menu') || auth()->user()->can('stock.read') || auth()->user()->can('gifts.menu') || auth()->user()->can('gifts.read'))
                     <li class="sidebar-section-title">
                         <span>Inventario</span>
                     </li>
 
-                    @if (auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('category.menu') || auth()->user()->can('category.read'))
+                    @if (auth()->user()->can('product.menu') || auth()->user()->can('product.read') || auth()->user()->can('product.create') || auth()->user()->can('product.import') || auth()->user()->can('category.menu') || auth()->user()->can('category.read'))
                         @php
                             $isProductsActive = Request::is('products*') || Request::is('categories*');
                         @endphp

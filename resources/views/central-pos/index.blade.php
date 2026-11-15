@@ -999,15 +999,16 @@
                                         </select>
                                     </div>
 
-                                    <div class="input-group input-group-sm mb-2">
-                                        <div class="input-group-prepend"><span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span></div>
-                                        <input type="text" id="posProductSearchInput" class="form-control" placeholder="Escanea código de barras, IMEI o escribe nombre...">
+                                    <div class="input-group input-group-sm mb-1">
+                                        <div class="input-group-prepend"><span class="input-group-text bg-white"><i class="fa-solid fa-barcode text-primary"></i></span></div>
+                                        <input type="text" id="posProductSearchInput" class="form-control" autocomplete="off" placeholder="Escanea código de barras, IMEI o escribe nombre (Enter para añadir)...">
                                         <div class="input-group-append">
-                                            <button type="button" id="btnSearchCatalogProduct" class="btn btn-primary font-weight-bold">
-                                                Buscar
+                                            <button type="button" id="btnSearchCatalogProduct" class="btn btn-primary font-weight-bold" title="Buscar o escanear código">
+                                                <i class="fa-solid fa-barcode mr-1"></i>Escanear / Buscar
                                             </button>
                                         </div>
                                     </div>
+                                    <div id="posScanStatus" class="small mb-2 d-none"></div>
 
                                     <div class="table-responsive border rounded" style="max-height: 220px; overflow-y: auto;">
                                         <table class="table table-sm table-hover mb-0 font-size-12">
@@ -1691,6 +1692,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const CAN_CREATE_CUSTOMERS = @json((bool) (auth()->user()->isSuperAdmin() || auth()->user()->can('customer.create') || auth()->user()->can('customer.menu')));
     const CUSTOMERS_CREATE_URL = @json(route('customers.create'));
     const CUSTOMERS_LOOKUP_URL = @json(route('central-pos.lookup-customers', [], false));
+    const PRODUCTS_LOOKUP_URL = @json(route('central-pos.lookup-products', [], false));
+    const ACTIVE_POS_BRANCH_ID = @json((int) $branchId);
+    const INITIAL_CATALOG_PRODUCTS = @json($products->values());
 
     function getCsrfToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
@@ -3486,54 +3490,225 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    function buildInventoryCartItem(p) {
+        const price = parseFloat(p.selling_price) || 0;
+        const code = p.product_code || '';
+        const imei = p.imei || '';
+        return {
+            section: 'producto_inventario',
+            product_id: p.id,
+            product_code: code,
+            imei: imei,
+            max_stock: parseInt(p.stock_quantity, 10) || 0,
+            title: p.product_name,
+            subtitle: `Impacto real en Inventario${code ? ' | Código: ' + code : ''}${imei ? ' | IMEI: ' + imei : ''}`,
+            quantity: 1,
+            amount: price,
+            original_amount: price,
+            commission: 0
+        };
+    }
+
     $('#posCatalogProductSelect').on('change', function () {
         const prodId = $(this).val();
         if (!prodId) return;
         const opt = this.options[this.selectedIndex];
         if (!opt) return;
 
-        addItemToCurrentTab({
-            section: 'producto_inventario',
-            product_id: opt.dataset.id,
+        addItemToCurrentTab(buildInventoryCartItem({
+            id: opt.dataset.id,
             product_code: opt.dataset.code || '',
             imei: opt.dataset.imei || '',
-            max_stock: parseInt(opt.dataset.stock) || 0,
-            title: opt.dataset.name,
-            subtitle: `Impacto real en Inventario | Código: ${opt.dataset.code || '-'}${opt.dataset.imei ? ' | IMEI: ' + opt.dataset.imei : ''}`,
-            quantity: 1,
-            amount: parseFloat(opt.dataset.price) || 0,
-            original_amount: parseFloat(opt.dataset.price) || 0,
-            commission: 0
-        });
+            stock_quantity: opt.dataset.stock || 0,
+            product_name: opt.dataset.name || '',
+            selling_price: opt.dataset.price || 0
+        }));
 
         $(this).val('').trigger('change.select2');
     });
 
-    function filterCatalogTable() {
-        const q = (document.getElementById('posProductSearchInput').value || '').toLowerCase().trim();
-        const rows = document.querySelectorAll('#posCatalogProductsBody tr');
-        rows.forEach(tr => {
-            const text = tr.innerText.toLowerCase();
-            tr.style.display = (!q || text.includes(q)) ? '' : 'none';
+    function setPosScanStatus(type, message) {
+        const statusEl = document.getElementById('posScanStatus');
+        if (!statusEl) return;
+        if (!message) {
+            statusEl.className = 'small mb-2 d-none';
+            statusEl.textContent = '';
+            return;
+        }
+        const tone = type === 'success'
+            ? 'text-success font-weight-bold'
+            : (type === 'warning' ? 'text-danger font-weight-bold' : 'text-info font-weight-bold');
+        statusEl.className = `small mb-2 ${tone}`;
+        statusEl.textContent = message;
+    }
+
+    function renderCatalogRows(items) {
+        const tbody = document.getElementById('posCatalogProductsBody');
+        if (!tbody) return;
+        if (!Array.isArray(items) || items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No se encontraron productos en esta sucursal.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = items.map(prod => {
+            const stock = parseInt(prod.stock_quantity, 10) || 0;
+            const price = (parseFloat(prod.selling_price) || 0).toFixed(2);
+            const code = escapeHtml(prod.product_code || '—');
+            const name = escapeHtml(prod.product_name || '');
+            const imeiHtml = prod.imei ? `<small class="d-block text-muted">IMEI: ${escapeHtml(prod.imei)}</small>` : '';
+            const badgeClass = stock > 0 ? 'success' : 'danger';
+            return `
+                <tr>
+                    <td><span class="badge badge-light border">${code}</span></td>
+                    <td><strong>${name}</strong>${imeiHtml}</td>
+                    <td class="text-center"><span class="badge badge-pill badge-${badgeClass}">${stock}</span></td>
+                    <td class="text-right font-weight-bold text-dark">$${price}</td>
+                    <td class="text-right">
+                        <button type="button"
+                            class="btn btn-xs btn-primary btn-add-stock-product"
+                            data-id="${escapeHtml(String(prod.id))}"
+                            data-name="${name}"
+                            data-code="${escapeHtml(prod.product_code || '')}"
+                            data-imei="${escapeHtml(prod.imei || '')}"
+                            data-price="${escapeHtml(String(prod.selling_price ?? 0))}"
+                            data-stock="${stock}"
+                            ${stock <= 0 ? 'disabled' : ''}>
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    let productSearchDebounce = null;
+    let productSearchSeq = 0;
+
+    async function fetchCatalogProducts(rawQuery) {
+        const url = `${PRODUCTS_LOOKUP_URL}?branch_id=${encodeURIComponent(ACTIVE_POS_BRANCH_ID)}&q=${encodeURIComponent(rawQuery)}`;
+        const data = await posFetchJson(url, { timeoutMs: 10000 });
+        return Array.isArray(data?.products) ? data.products : [];
+    }
+
+    function filterLocalCatalog(qLower) {
+        if (!qLower) return INITIAL_CATALOG_PRODUCTS;
+        return INITIAL_CATALOG_PRODUCTS.filter(p => {
+            return (p.product_name || '').toLowerCase().includes(qLower)
+                || (p.product_code || '').toLowerCase().includes(qLower)
+                || (p.imei || '').toLowerCase().includes(qLower)
+                || (p.brand || '').toLowerCase().includes(qLower)
+                || (p.model || '').toLowerCase().includes(qLower);
         });
     }
+
+    function filterCatalogTable() {
+        const searchInput = document.getElementById('posProductSearchInput');
+        if (!searchInput) return;
+        const q = (searchInput.value || '').trim();
+        const qLower = q.toLowerCase();
+
+        renderCatalogRows(filterLocalCatalog(qLower));
+
+        clearTimeout(productSearchDebounce);
+        if (!q) {
+            setPosScanStatus('', '');
+            return;
+        }
+
+        const seq = ++productSearchSeq;
+        productSearchDebounce = setTimeout(async () => {
+            try {
+                const remoteItems = await fetchCatalogProducts(q);
+                if (seq !== productSearchSeq) return;
+                renderCatalogRows(remoteItems);
+            } catch (err) {
+                // Mantiene resultados locales si falla la consulta remota
+            }
+        }, 180);
+    }
+
+    async function handleBarcodeScan(rawCode) {
+        const searchInput = document.getElementById('posProductSearchInput');
+        const q = (rawCode || '').trim();
+        if (!q) return;
+
+        clearTimeout(productSearchDebounce);
+        const seq = ++productSearchSeq;
+        const qLower = q.toLowerCase();
+
+        let matches = [];
+        try {
+            matches = await fetchCatalogProducts(q);
+            if (seq !== productSearchSeq && searchInput && searchInput.value.trim() !== q) {
+                return;
+            }
+        } catch (err) {
+            matches = filterLocalCatalog(qLower);
+        }
+
+        const exactMatch = matches.find(p => {
+            const code = (p.product_code || '').trim().toLowerCase();
+            const imei = (p.imei || '').trim().toLowerCase();
+            return code === qLower || imei === qLower || (`id-${p.id}` === qLower);
+        });
+
+        const selected = exactMatch || (matches.length === 1 ? matches[0] : null);
+
+        if (selected) {
+            const stock = parseInt(selected.stock_quantity, 10) || 0;
+            if (stock <= 0) {
+                renderCatalogRows([selected]);
+                setPosScanStatus('warning', `Sin stock disponible para "${selected.product_name}" (${selected.product_code || 'Sin SKU'}).`);
+                showCartFeedback('warning', `Stock insuficiente para "${selected.product_name}" (Disponible: 0).`);
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                return;
+            }
+
+            addItemToCurrentTab(buildInventoryCartItem(selected));
+            setPosScanStatus('success', `Escaneado y agregado: ${selected.product_name} [${selected.product_code || 'S/C'}]`);
+            if (searchInput) {
+                searchInput.value = '';
+                renderCatalogRows(INITIAL_CATALOG_PRODUCTS);
+                searchInput.focus();
+            }
+            return;
+        }
+
+        renderCatalogRows(matches);
+        if (matches.length > 1) {
+            setPosScanStatus('info', `Se encontraron ${matches.length} coincidencias para "${q}". Presiona (+) o escanea el código completo.`);
+        } else {
+            setPosScanStatus('warning', `No se encontró ningún producto con código o IMEI "${q}" en esta sucursal.`);
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+    }
+
     const searchInput = document.getElementById('posProductSearchInput');
     if (searchInput) {
         searchInput.addEventListener('input', filterCatalogTable);
         const searchBtn = document.getElementById('btnSearchCatalogProduct');
-        if (searchBtn) searchBtn.addEventListener('click', filterCatalogTable);
-        searchInput.addEventListener('keydown', function(e) {
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => handleBarcodeScan(searchInput.value));
+        }
+        searchInput.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                filterCatalogTable();
-                const visibleRows = Array.from(document.querySelectorAll('#posCatalogProductsBody tr')).filter(r => r.style.display !== 'none');
-                if (visibleRows.length === 1) {
-                    const addBtn = visibleRows[0].querySelector('.btn-add-stock-product');
-                    if (addBtn) addBtn.click();
-                    this.value = '';
-                    filterCatalogTable();
-                }
+                handleBarcodeScan(this.value);
             }
+        });
+
+        $(document).on('shown.bs.tab', 'a[href="#sec-productos"], #pills-stock-tab', function () {
+            setTimeout(() => {
+                if (searchInput && document.getElementById('subtab-stock')?.classList.contains('active')) {
+                    searchInput.focus();
+                }
+            }, 120);
         });
     }
 
@@ -4947,6 +5122,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (catalogBodyEl) {
             soldIds.forEach(pid => {
+                const memProd = INITIAL_CATALOG_PRODUCTS.find(p => String(p.id) === String(pid));
+                if (memProd) {
+                    memProd.stock_quantity = Math.max(0, (parseInt(memProd.stock_quantity || '0', 10) || 0) - qtyByProductId[pid]);
+                }
+
                 const addBtn = catalogBodyEl.querySelector(`.btn-add-stock-product[data-id="${CSS.escape(pid)}"]`);
                 if (!addBtn) return;
                 const prevStock = parseInt(addBtn.dataset.stock || '0', 10) || 0;
@@ -4972,9 +5152,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const prodSearchInp = document.getElementById('posProductSearchInput');
         if (prodSearchInp) {
             prodSearchInp.value = '';
-            if (typeof filterCatalogTable === 'function') {
-                filterCatalogTable();
-            }
+            renderCatalogRows(INITIAL_CATALOG_PRODUCTS);
+            setPosScanStatus('', '');
         }
 
         resetDynamicProductInputs();

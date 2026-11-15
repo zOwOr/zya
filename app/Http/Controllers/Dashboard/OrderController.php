@@ -290,12 +290,23 @@ class OrderController extends Controller
             abort(400, 'The per-page parameter must be an integer between 1 and 100000.');
         }
 
+        $user = auth()->user();
+        $canAllBranches = Product::userCanAccessAllBranches($user);
+        $branches = $canAllBranches
+            ? Branch::orderBy('name')->get()
+            : ($user?->branch_id ? Branch::where('id', $user->branch_id)->get() : collect());
+
         return view('stock.index', [
-            'products' => Product::with(['category', 'supplier'])
+            'products' => Product::with(['branch', 'category', 'supplier'])
+                ->forUserBranch($user, request('branch_id'))
                 ->filter(request(['search']))
                 ->sortable()
+                ->orderByDesc('id')
                 ->paginate($row)
                 ->appends(request()->query()),
+            'branches' => $branches,
+            'canAllBranches' => $canAllBranches,
+            'selectedBranchId' => $canAllBranches ? request('branch_id') : $user?->branch_id,
         ]);
     }
 
@@ -329,7 +340,14 @@ class OrderController extends Controller
         $validatedData['due'] = Cart::instance('default')->total() - $validatedData['pay'];
         $validatedData['created_at'] = Carbon::now();
 
-        // Verificar si el stock es suficiente (solo para productos reales, no dinámicos)
+        $branchId = (Product::userCanAccessAllBranches(auth()->user()) && $request->filled('branch_id'))
+            ? (int) $request->branch_id
+            : (auth()->user()->branch_id ?? null);
+        if (!$branchId) {
+            return redirect()->back()->with('error', 'No se especificó la sucursal.');
+        }
+
+        // Verificar sucursal y stock suficiente (solo para productos reales, no dinámicos)
         $contents = Cart::instance('default')->content();
         foreach ($contents as $content) {
             // Los productos dinámicos tienen is_dynamic = true en options y no tienen ID numérico
@@ -337,15 +355,13 @@ class OrderController extends Controller
                 continue;
             }
             $product = Product::find($content->id);
+            if ($product && $product->branch_id && (int) $product->branch_id !== (int) $branchId) {
+                return redirect()->back()->with('error', 'El producto "' . $product->product_name . '" pertenece a otra sucursal.');
+            }
             if ($product && $product->stock_quantity < $content->qty) {
                 // Si el stock es insuficiente, redirige con un mensaje de error
                 return redirect()->back()->with('error', 'No hay suficiente stock para el producto: ' . $product->product_name);
             }
-        }
-
-        $branchId = $request->branch_id ?? auth()->user()->branch_id ?? null;
-        if (!$branchId) {
-            return redirect()->back()->with('error', 'No se especificó la sucursal.');
         }
 
         if (Schema::hasColumn('orders', 'branch_id')) {

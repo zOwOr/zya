@@ -42,14 +42,9 @@ class DatabaseSeeder extends Seeder
         Customer::factory(25)->create();
         Supplier::factory(10)->create();
 
-        for ($i=0; $i < 10; $i++) {
+        for ($i = 0; $i < 10; $i++) {
             Product::factory()->create([
-                'product_code' => IdGenerator::generate([
-                    'table' => 'products',
-                    'field' => 'product_code',
-                    'length' => 4,
-                    'prefix' => 'PC'
-                ])
+                'product_code' => Product::generateUniqueCode(),
             ]);
         }
         Category::factory(5)->create();
@@ -85,6 +80,13 @@ class DatabaseSeeder extends Seeder
                     ['group_name' => $group]
                 );
             }
+        }
+
+        foreach (['product.export', 'product.import', 'product.all_branches'] as $extraProductPermission) {
+            Permission::firstOrCreate(
+                ['name' => $extraProductPermission],
+                ['group_name' => 'product']
+            );
         }
 
         Role::create(['name' => 'SuperAdmin'])->givePermissionTo(Permission::all());

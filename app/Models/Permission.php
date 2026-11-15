@@ -44,6 +44,7 @@ class Permission extends SpatiePermission
             'create' => 'Crear / Registrar',
             'edit' => 'Editar / Modificar',
             'delete' => 'Eliminar / Cancelar',
+            'import' => 'Importar desde Excel / Plantilla',
             'transfer' => 'Transferir',
             'assign_seller' => 'Asignar Vendedor',
             'export' => 'Exportar Datos',

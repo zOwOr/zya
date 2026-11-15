@@ -19,6 +19,7 @@ class ProductFactory extends Factory
     {
 
         return [
+            'branch_id' => 1,
             'product_name' => fake()->word(),
             'category_id' => fake()->randomElement([1, 2, 3, 4, 5]),
             'supplier_id' => fake()->randomElement([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
@@ -26,8 +27,9 @@ class ProductFactory extends Factory
             'product_store' => fake()->randomNumber(3),
             'buying_price' => fake()->randomNumber(2),
             'selling_price' => fake()->randomNumber(2),
-            'buying_date' => Carbon::now(),
-            'expire_date' => Carbon::now()->addYears(2),
+            'stock_quantity' => 5,
+            'buying_date' => Carbon::now()->format('Y-m-d'),
+            'expire_date' => Carbon::now()->addYears(2)->format('Y-m-d'),
         ];
     }
 }

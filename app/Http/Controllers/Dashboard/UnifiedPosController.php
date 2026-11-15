@@ -202,9 +202,10 @@ class UnifiedPosController extends Controller
             ->when(!$this->canAccessAllBranches() && $branchId, fn($q) => $q->where('branch_id', $branchId));
         $tandas = DateFilterService::applyRecentOrder($tandasQuery, 'start_date', true)->get();
 
-        $products = Product::orderBy('product_name')
+        $products = Product::forBranch($branchId)
+            ->orderBy('product_name')
             ->take(100)
-            ->get(['id', 'product_name', 'product_code', 'selling_price', 'stock_quantity', 'brand', 'model', 'imei', 'category_status', 'warranty_time']);
+            ->get(['id', 'branch_id', 'product_name', 'product_code', 'selling_price', 'stock_quantity', 'brand', 'model', 'imei', 'category_status', 'warranty_time']);
 
         $gifts = Gift::with([
             'supplier',
@@ -735,17 +736,34 @@ class UnifiedPosController extends Controller
             return response()->json(['products' => [], 'message' => 'Sin permisos para consultar productos.'], 403);
         }
 
+        $branchId = ($this->canAccessAllBranches() && $request->filled('branch_id'))
+            ? (int) $request->input('branch_id')
+            : ($user->branch_id ?? Branch::value('id'));
+
         $q = trim((string) $request->input('q', ''));
-        $products = Product::when($q !== '', function ($query) use ($q) {
-                $query->where('product_name', 'like', "%{$q}%")
-                    ->orWhere('product_code', 'like', "%{$q}%")
-                    ->orWhere('imei', 'like', "%{$q}%")
-                    ->orWhere('brand', 'like', "%{$q}%")
-                    ->orWhere('model', 'like', "%{$q}%");
+        $qLower = mb_strtolower($q, 'UTF-8');
+        $legacyIdLookup = preg_match('/^ID-(\d+)$/i', $q, $idMatch) ? (int) $idMatch[1] : null;
+
+        $products = Product::forBranch($branchId)
+            ->when($q !== '', function ($query) use ($q, $qLower, $legacyIdLookup) {
+                $query->where(function ($sub) use ($q, $legacyIdLookup) {
+                    $sub->where('product_name', 'like', "%{$q}%")
+                        ->orWhere('product_code', 'like', "%{$q}%")
+                        ->orWhere('imei', 'like', "%{$q}%")
+                        ->orWhere('brand', 'like', "%{$q}%")
+                        ->orWhere('model', 'like', "%{$q}%");
+                    if ($legacyIdLookup) {
+                        $sub->orWhere('id', $legacyIdLookup);
+                    }
+                })
+                ->orderByRaw(
+                    'CASE WHEN LOWER(product_code) = ? OR LOWER(imei) = ? THEN 0 WHEN LOWER(product_code) LIKE ? THEN 1 ELSE 2 END',
+                    [$qLower, $qLower, "{$qLower}%"]
+                );
             })
             ->orderBy('product_name')
             ->limit(25)
-            ->get(['id', 'product_name', 'product_code', 'selling_price', 'stock_quantity', 'brand', 'model', 'imei', 'category_status', 'warranty_time']);
+            ->get(['id', 'branch_id', 'product_name', 'product_code', 'selling_price', 'stock_quantity', 'brand', 'model', 'imei', 'category_status', 'warranty_time']);
 
         return response()->json(['products' => $products]);
     }
@@ -1345,6 +1363,9 @@ class UnifiedPosController extends Controller
                         $product = Product::where('id', $productId)->lockForUpdate()->first();
                         if (!$product) {
                             throw new \RuntimeException("El producto con ID #{$productId} no existe en el inventario.");
+                        }
+                        if ($product->branch_id && (int) $product->branch_id !== (int) $branchId) {
+                            throw new \RuntimeException("El producto '{$product->product_name}' pertenece a otra sucursal y no puede venderse en la sucursal activa.");
                         }
                         if ($product->stock_quantity < $qty) {
                             throw new \RuntimeException("Stock insuficiente para '{$product->product_name}' (Disponible: {$product->stock_quantity}, Solicitado: {$qty}).");
