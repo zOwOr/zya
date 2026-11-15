@@ -199,10 +199,12 @@ Route::middleware(['permission:salary.menu|salary.read|salary.create'])->group(f
 });
 
 // ====== PRODUCTS ======
-Route::middleware(['permission:product.menu|product.read|product.create'])->group(function () {
+Route::middleware(['permission:product.menu|product.read|product.create|product.import'])->group(function () {
     Route::get('/products/import', [ProductController::class, 'importView'])->name('products.importView');
+    Route::get('/products/template', [ProductController::class, 'downloadTemplate'])->name('products.downloadTemplate');
     Route::post('/products/import', [ProductController::class, 'importStore'])->name('products.importStore');
     Route::get('/products/export', [ProductController::class, 'exportData'])->name('products.exportData');
+    Route::get('/products/{product}/barcode-labels', [ProductController::class, 'barcodeLabels'])->name('products.barcodeLabels');
     Route::resource('/products', ProductController::class);
 });
 

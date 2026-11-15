@@ -197,12 +197,18 @@ class DashboardController extends Controller
             $ordersQuery->where('branch_id', $branchId);
         }
 
+        $dashboardProductQuery = Product::query()->when(
+            $branchId,
+            fn($q) => $q->forBranch($branchId),
+            fn($q) => $q->forUserBranch(auth()->user())
+        );
+
         return view('dashboard.index', [
             'total_paid' => (clone $ordersQuery)->sum('pay'),
             'total_due' => (clone $ordersQuery)->sum('due'),
             'complete_orders' => (clone $ordersQuery)->where('order_status', 'complete')->get(),
-            'products' => Product::orderBy('product_store')->take(5)->get(),
-            'new_products' => Product::orderBy('buying_date')->take(2)->get(),
+            'products' => (clone $dashboardProductQuery)->orderBy('product_store')->take(5)->get(),
+            'new_products' => (clone $dashboardProductQuery)->orderBy('buying_date')->take(2)->get(),
             'financieraPayments' => $financieraPayments,
             'finTotals' => $finTotals,
             'finDateFilter' => $finDateFilter,

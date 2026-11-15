@@ -45,7 +45,9 @@ class PosController extends Controller
         return view('pos.index', [
             'customers' => Customer::all()->sortBy('name'),
             'productItem' => Cart::instance('default')->content(),
-            'products' => Product::where('expire_date', '>', $todayDate)->filter(request(['search']))
+            'products' => Product::forUserBranch(auth()->user(), request('branch_id'))
+                ->where('expire_date', '>', $todayDate)
+                ->filter(request(['search']))
                 ->sortable()
                 ->paginate($row)
                 ->appends(request()->query()),
@@ -177,13 +179,31 @@ class PosController extends Controller
             'barcode' => 'required|string',
         ]);
 
-        $barcode = $request->input('barcode');
+        $barcode = trim((string) $request->input('barcode'));
+        $barcodeLower = mb_strtolower($barcode, 'UTF-8');
 
-        // Buscar producto por código de barras (ajustar columna si es necesario)
-        $product = Product::where('product_code', $barcode)->first();
+        // Buscar producto por código de barras o IMEI respetando la sucursal del usuario
+        $product = Product::forUserBranch(auth()->user(), $request->input('branch_id'))
+            ->where(function ($q) use ($barcodeLower) {
+                $q->whereRaw('LOWER(product_code) = ?', [$barcodeLower])
+                    ->orWhereRaw('LOWER(imei) = ?', [$barcodeLower]);
+            })
+            ->first();
 
         if (!$product) {
-            return redirect()->back()->with('warning', 'Producto no encontrado.');
+            return redirect()->back()->with('warning', "Producto no encontrado para el código '{$barcode}' en tu sucursal.");
+        }
+
+        if ((int) $product->stock_quantity <= 0) {
+            return redirect()->back()->with('warning', "El producto '{$product->product_name}' no tiene stock disponible.");
+        }
+
+        $currentInCart = Cart::instance('default')->content()
+            ->where('id', $product->id)
+            ->sum('qty');
+
+        if (($currentInCart + 1) > (int) $product->stock_quantity) {
+            return redirect()->back()->with('warning', "Stock máximo alcanzado para '{$product->product_name}' (Disponible: {$product->stock_quantity}).");
         }
 
         // Añadir producto al carrito
