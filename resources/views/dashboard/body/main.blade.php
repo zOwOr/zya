@@ -622,7 +622,34 @@
         });
     </script>
     <!-- Controlador Unificado de Hardware POS / Cajón USB-COM (ZYA) -->
-    <script src="{{ asset('assets/js/pos-hardware.js') }}?v=20261113"></script>
+    <script src="{{ \App\Http\Controllers\Dashboard\UnifiedPosController::hardwareClientSrc() }}"></script>
+    <script>
+        window.zyaOpenCashDrawerManual = async function () {
+            if (!window.ZyaPosHardware) {
+                try {
+                    await new Promise(function (resolve, reject) {
+                        var s = document.createElement('script');
+                        s.src = @json(\App\Http\Controllers\Dashboard\UnifiedPosController::hardwareClientSrc());
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    });
+                } catch (loadErr) {}
+            }
+
+            if (!window.ZyaPosHardware || typeof window.ZyaPosHardware.manualOpenUsbDrawer !== 'function') {
+                var msg = 'No se pudo cargar el controlador de cajón USB (ZyaPosHardware). Recarga la página o verifica que la ruta del controlador esté disponible en el servidor.';
+                if (typeof window.Swal !== 'undefined') {
+                    window.Swal.fire({ icon: 'error', title: 'Error al abrir cajón', text: msg });
+                } else {
+                    alert(msg);
+                }
+                return false;
+            }
+
+            return await window.ZyaPosHardware.manualOpenUsbDrawer();
+        };
+    </script>
     <script>
         $(document).ready(function() {
             if ($('.datatable-export').length > 0) {
@@ -1031,7 +1058,7 @@
                 };
 
                 if (window.ZyaPosHardware && typeof window.ZyaPosHardware.waitUntilIdle === 'function') {
-                    Promise.resolve(window.ZyaPosHardware.waitUntilIdle(700)).then(invokePrint, invokePrint);
+                    Promise.resolve(window.ZyaPosHardware.waitUntilIdle(1200)).then(invokePrint, invokePrint);
                 } else {
                     invokePrint();
                 }

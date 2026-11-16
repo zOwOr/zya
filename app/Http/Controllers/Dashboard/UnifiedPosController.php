@@ -34,6 +34,7 @@ use Carbon\Carbon;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -126,7 +127,7 @@ class UnifiedPosController extends Controller
             }
 
             return $next($request);
-        });
+        })->except(['hardwareClientScript']);
     }
 
     protected function canAccessAllBranches(): bool
@@ -2515,6 +2516,74 @@ class UnifiedPosController extends Controller
             'tarjeta' => $effCard,
             'transferencia' => $effTransfer,
         ];
+    }
+
+    /**
+     * Localiza el script canónico del controlador de hardware POS sin depender de copias estáticas desfasadas en producción.
+     */
+    public static function resolveHardwareScriptPath(): ?string
+    {
+        foreach ([
+            public_path('assets/js/pos-hardware.js'),
+            base_path('public/assets/js/pos-hardware.js'),
+        ] as $candidate) {
+            if (is_string($candidate) && is_file($candidate) && is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Devuelve la ruta relativa al mismo origen para cargar pos-hardware.js sin 404 ni Mixed Content.
+     */
+    public static function hardwareClientSrc(): string
+    {
+        $scriptPath = self::resolveHardwareScriptPath();
+        $version = $scriptPath ? (string) (@filemtime($scriptPath) ?: '20261116') : '20261116';
+
+        if (Route::has('central-pos.hardware-client')) {
+            $url = route('central-pos.hardware-client', ['v' => $version]);
+            $path = parse_url($url, PHP_URL_PATH) ?: '/central-pos/hardware-client';
+            $query = parse_url($url, PHP_URL_QUERY);
+
+            return $query ? ($path . '?' . $query) : $path;
+        }
+
+        $fallbackPath = parse_url(asset('assets/js/pos-hardware.js'), PHP_URL_PATH) ?: '/assets/js/pos-hardware.js';
+
+        return $fallbackPath . '?v=' . $version;
+    }
+
+    /**
+     * Sirve el script ZyaPosHardware directamente desde Laravel (inmune a public_html desfasado o reglas Nginx de .js).
+     */
+    public function hardwareClientScript(Request $request)
+    {
+        $scriptPath = self::resolveHardwareScriptPath();
+        if (!$scriptPath) {
+            abort(404, 'Controlador pos-hardware.js no encontrado.');
+        }
+
+        $content = file_get_contents($scriptPath);
+        if ($content === false) {
+            abort(500, 'No se pudo leer pos-hardware.js.');
+        }
+
+        $etag = '"' . md5($content) . '"';
+        $headers = [
+            'Content-Type' => 'application/javascript; charset=UTF-8',
+            'ETag' => $etag,
+            'Cache-Control' => 'public, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+
+        if ($request->headers->get('If-None-Match') === $etag) {
+            return response('', 304, $headers);
+        }
+
+        return response($content, 200, $headers);
     }
 }
 

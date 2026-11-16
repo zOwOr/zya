@@ -253,7 +253,7 @@
     {{-- Margen inferior calibrado para el corte de guillotina térmica sin sobrante de papel --}}
     <div style="height: 8mm; line-height: 8mm; overflow: hidden; page-break-inside: avoid;">&nbsp;</div>
 
-    <script src="{{ asset('assets/js/pos-hardware.js') }}?v=20261113"></script>
+    <script src="{{ \App\Http\Controllers\Dashboard\UnifiedPosController::hardwareClientSrc() }}"></script>
     <script>
         function safeStorageGet(key) {
             try { return window.localStorage ? window.localStorage.getItem(key) : null; } catch (e) { return null; }
