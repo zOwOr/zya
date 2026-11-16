@@ -119,6 +119,10 @@
         _lastKickAt: 0,
         _lastError: null,
 
+        getLastError: function () {
+            return this._lastError || null;
+        },
+
         isWebSerialSupported: function () {
             return Boolean(global.navigator && 'serial' in global.navigator);
         },
@@ -369,7 +373,7 @@
          * Versión acotada en tiempo para esperar el pulso antes de imprimir o navegar sin bloquear la UI.
          */
         autoOpenUsbDrawerBounded: async function (timeoutMs, options) {
-            const limit = typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 650;
+            const limit = typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 1200;
             try {
                 return await Promise.race([
                     this.autoOpenUsbDrawer(options),
@@ -396,6 +400,7 @@
             }
 
             if (!this.isSecureSerialContext()) {
+                this._lastError = 'El control directo del cajón USB/COM requiere abrir el sistema con HTTPS (o localhost).';
                 alert(
                     'El control directo del cajón USB/COM requiere abrir el sistema con HTTPS (o localhost).\n' +
                     'Actualmente estás accediendo por HTTP no seguro y el navegador desactiva Web Serial.'
@@ -404,6 +409,7 @@
             }
 
             if (!this.isWebSerialSupported()) {
+                this._lastError = 'Este navegador no soporta Web Serial (usa Chrome o Edge en escritorio).';
                 alert(
                     'Este navegador no soporta comunicación directa USB-COM (Web Serial).\n' +
                     'Usa Google Chrome o Microsoft Edge en escritorio, o configura la apertura automática desde las Preferencias del driver de impresora en Windows.'
@@ -413,25 +419,45 @@
 
             const self = this;
             return this._runSerialized(async function () {
+                let priorCandidateErr = null;
                 try {
                     const candidates = await self.listAuthorizedPorts();
-                    let port = (!options.forceSelect && candidates.length > 0) ? candidates[0] : null;
-                    let selectedViaPrompt = false;
 
-                    if (!port) {
-                        port = await global.navigator.serial.requestPort();
-                        selectedViaPrompt = true;
+                    if (!options.forceSelect && candidates.length > 0) {
+                        for (let i = 0; i < candidates.length; i++) {
+                            try {
+                                await self._kickPort(candidates[i], options);
+                                self.savePreferredPort(candidates[i], i);
+                                self._lastKickAt = Date.now();
+                                self._lastError = null;
+                                self.recordCrossPageKick();
+
+                                if (!options.silentSuccess && typeof global.Swal !== 'undefined') {
+                                    global.Swal.fire({
+                                        icon: 'success',
+                                        title: '¡Cajón Abierto!',
+                                        text: 'Pulso físico enviado correctamente (' + self.getBaudRate() + ' bps).',
+                                        timer: 1600,
+                                        showConfirmButton: false,
+                                        toast: true,
+                                        position: 'top-end',
+                                    });
+                                }
+                                return true;
+                            } catch (candErr) {
+                                priorCandidateErr = candErr;
+                            }
+                        }
                     }
 
+                    const port = await global.navigator.serial.requestPort();
                     if (!port) {
                         return false;
                     }
 
                     const updatedPorts = await self.listAuthorizedPorts();
                     const chosenIdx = Math.max(0, updatedPorts.indexOf(port));
-                    if (selectedViaPrompt) {
-                        self.savePreferredPort(port, chosenIdx);
-                    }
+                    self.savePreferredPort(port, chosenIdx);
 
                     await self._kickPort(port, options);
                     self._lastKickAt = Date.now();
@@ -451,12 +477,13 @@
                     }
                     return true;
                 } catch (err) {
-                    if (err && err.name === 'NotFoundError') {
+                    const finalErr = (err && err.name === 'NotFoundError' && priorCandidateErr) ? priorCandidateErr : err;
+                    if (finalErr && finalErr.name === 'NotFoundError') {
                         return false;
                     }
-                    const friendly = formatHardwareError(err);
+                    const friendly = formatHardwareError(finalErr);
                     self._lastError = friendly;
-                    console.error('[ZyaPosHardware] Error al abrir cajón USB:', err);
+                    console.error('[ZyaPosHardware] Error al abrir cajón USB:', finalErr);
                     if (!options.silentError) {
                         alert(
                             'No se pudo abrir el cajón por USB-COM: ' + friendly + '\n\n' +

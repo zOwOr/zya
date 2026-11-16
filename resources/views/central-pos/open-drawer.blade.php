@@ -108,14 +108,19 @@
         </div>
     </div>
 
-    <script src="{{ asset('assets/js/pos-hardware.js') }}?v=20261113"></script>
+    <script src="{{ \App\Http\Controllers\Dashboard\UnifiedPosController::hardwareClientSrc() }}"></script>
     <script>
         const statusAlert = document.getElementById('statusAlert');
         const baudSelect = document.getElementById('baudRateSelect');
         const portInfoText = document.getElementById('portInfoText');
 
         async function refreshHardwareStatus() {
-            if (!window.ZyaPosHardware) return;
+            if (!window.ZyaPosHardware) {
+                statusAlert.className = 'alert alert-danger py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> No se pudo cargar el controlador <code>ZyaPosHardware</code>. Verifica rutas y recarga la ventana.';
+                portInfoText.innerHTML = 'Puerto asignado: <span class="text-danger font-weight-bold">Controlador no cargado</span>';
+                return;
+            }
 
             baudSelect.value = String(ZyaPosHardware.getBaudRate());
 
@@ -156,22 +161,34 @@
         });
 
         document.getElementById('btnKickUsb').addEventListener('click', async function () {
-            if (!window.ZyaPosHardware) return;
+            if (!window.ZyaPosHardware) {
+                alert('El controlador ZyaPosHardware no cargó correctamente.');
+                return;
+            }
             const ok = await ZyaPosHardware.manualOpenUsbDrawer({ silentSuccess: true });
             await refreshHardwareStatus();
             if (ok) {
                 statusAlert.className = 'alert alert-success py-2 px-3 mb-3 font-size-13';
                 statusAlert.innerHTML = '<i class="fa-solid fa-check-circle mr-1"></i> ¡Cajón Físico Abierto por USB-COM!';
+            } else if (typeof ZyaPosHardware.getLastError === 'function' && ZyaPosHardware.getLastError()) {
+                statusAlert.className = 'alert alert-danger py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> ' + ZyaPosHardware.getLastError();
             }
         });
 
         document.getElementById('btnSwitchUsbPort').addEventListener('click', async function () {
-            if (!window.ZyaPosHardware) return;
+            if (!window.ZyaPosHardware) {
+                alert('El controlador ZyaPosHardware no cargó correctamente.');
+                return;
+            }
             const ok = await ZyaPosHardware.manualOpenUsbDrawer({ forceSelect: true, silentSuccess: true });
             await refreshHardwareStatus();
             if (ok) {
                 statusAlert.className = 'alert alert-success py-2 px-3 mb-3 font-size-13';
                 statusAlert.innerHTML = '<i class="fa-solid fa-check-circle mr-1"></i> ¡Nuevo puerto guardado y cajón abierto!';
+            } else if (typeof ZyaPosHardware.getLastError === 'function' && ZyaPosHardware.getLastError()) {
+                statusAlert.className = 'alert alert-danger py-2 px-3 mb-3 font-size-13';
+                statusAlert.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> ' + ZyaPosHardware.getLastError();
             }
         });
 

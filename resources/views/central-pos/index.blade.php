@@ -499,7 +499,7 @@
                     <button type="button" id="btnOpenPhysicalDrawer" class="btn btn-warning font-weight-bold">
                         <i class="las la-lock-open mr-1"></i> Abrir Cajón Físico
                     </button>
-                    <button type="button" id="btnConfigurePhysicalDrawer" class="btn btn-outline-warning font-weight-bold" title="Configurar / cambiar puerto USB-COM y baudios" onclick="window.open('{{ route('central-pos.open-drawer') }}', 'zyaDrawerConfig', 'width=540,height=660,resizable=yes,scrollbars=yes')">
+                    <button type="button" id="btnConfigurePhysicalDrawer" class="btn btn-outline-warning font-weight-bold" title="Configurar / cambiar puerto USB-COM y baudios" onclick="window.open('{{ parse_url(route('central-pos.open-drawer'), PHP_URL_PATH) }}', 'zyaDrawerConfig', 'width=540,height=660,resizable=yes,scrollbars=yes')">
                         <i class="las la-cog"></i>
                     </button>
                 </div>
@@ -1681,9 +1681,14 @@
 <script>
 // Función global para el botón independiente de apertura física de cajón USB
 window.triggerPhysicalCashDrawer = async function () {
-    if (window.ZyaPosHardware) {
-        await ZyaPosHardware.manualOpenUsbDrawer();
+    if (typeof window.zyaOpenCashDrawerManual === 'function') {
+        return await window.zyaOpenCashDrawerManual();
     }
+    if (window.ZyaPosHardware && typeof window.ZyaPosHardware.manualOpenUsbDrawer === 'function') {
+        return await window.ZyaPosHardware.manualOpenUsbDrawer();
+    }
+    alert('Controlador de cajón USB (ZyaPosHardware) no disponible. Recarga la página.');
+    return false;
 };
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -5271,7 +5276,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 refs.transfer_ref = tab.transferRef || '';
             }
 
-            const shouldAutoOpenDrawer = !!document.getElementById('posOpenDrawerCheck')?.checked && (
+            const drawerChecked = !!document.getElementById('posOpenDrawerCheck')?.checked;
+            const shouldAutoOpenDrawer = drawerChecked && (
                 (payState.method === 'efectivo' && payState.cashAmt > 0) ||
                 (payState.method === 'mixto' && payState.cashAmt > 0)
             );
@@ -5313,15 +5319,29 @@ document.addEventListener('DOMContentLoaded', function () {
                 resetPosWorkspaceAfterSale(tab, soldItemsSnapshot);
 
                 // Apertura AUTOMÁTICA del cajón por USB esperando cierre limpio del puerto antes de mandar imprimir al spooler
-                if (shouldAutoOpenDrawer && window.ZyaPosHardware) {
-                    try {
-                        if (typeof window.ZyaPosHardware.autoOpenUsbDrawerBounded === 'function') {
-                            await window.ZyaPosHardware.autoOpenUsbDrawerBounded(700);
-                        } else if (typeof window.ZyaPosHardware.autoOpenUsbDrawer === 'function') {
-                            await window.ZyaPosHardware.autoOpenUsbDrawer();
+                const shouldAttemptUsbDrawer = shouldAutoOpenDrawer || (drawerChecked && Boolean(res.open_drawer));
+                if (shouldAttemptUsbDrawer) {
+                    if (window.ZyaPosHardware) {
+                        try {
+                            let drawerOpened = false;
+                            if (typeof window.ZyaPosHardware.autoOpenUsbDrawerBounded === 'function') {
+                                drawerOpened = await window.ZyaPosHardware.autoOpenUsbDrawerBounded(1200);
+                            } else if (typeof window.ZyaPosHardware.autoOpenUsbDrawer === 'function') {
+                                drawerOpened = await window.ZyaPosHardware.autoOpenUsbDrawer();
+                            }
+                            if (!drawerOpened) {
+                                const hwErr = typeof window.ZyaPosHardware.getLastError === 'function'
+                                    ? window.ZyaPosHardware.getLastError()
+                                    : null;
+                                if (hwErr && (!/no hay puerto usb-com emparejado/i.test(hwErr) || !shouldAutoPrint)) {
+                                    showCartFeedback('warning', 'Cobro guardado, pero no se abrió el cajón USB-COM: ' + hwErr);
+                                }
+                            }
+                        } catch (hwErr) {
+                            console.warn('Error al abrir cajón USB:', hwErr);
                         }
-                    } catch (hwErr) {
-                        console.warn('Error al abrir cajón USB:', hwErr);
+                    } else {
+                        showCartFeedback('warning', 'Cobro guardado, pero ZyaPosHardware no cargó para abrir el cajón.');
                     }
                 }
 

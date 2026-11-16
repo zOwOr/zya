@@ -42,6 +42,12 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Controlador cliente de hardware POS (cajón USB-COM): servido por Laravel para evitar 404 por assets estáticos no sincronizados en producción
+Route::get('/central-pos/hardware-client', [UnifiedPosController::class, 'hardwareClientScript'])
+    ->name('central-pos.hardware-client');
+Route::get('/assets/js/pos-hardware.js', [UnifiedPosController::class, 'hardwareClientScript'])
+    ->name('central-pos.hardware-client.legacy');
+
 // DEFAULT DASHBOARD & PROFILE
 Route::middleware('auth')->group(function () {
     Route::middleware(['permission:dashboard.menu|dashboard.read'])->group(function () {

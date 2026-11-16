@@ -101,10 +101,10 @@
         <div class="d-flex flex-wrap gap-2">
             @if (auth()->user()->isSuperAdmin() || auth()->user()->can('cash.open_drawer') || auth()->user()->can('cobros.open_drawer'))
                 <div class="btn-group mr-2" role="group" aria-label="Cajón de efectivo">
-                    <button type="button" class="btn btn-warning font-weight-bold" onclick="window.ZyaPosHardware && window.ZyaPosHardware.manualOpenUsbDrawer()">
+                    <button type="button" class="btn btn-warning font-weight-bold" onclick="window.zyaOpenCashDrawerManual ? window.zyaOpenCashDrawerManual() : alert('Controlador de cajón no disponible. Recarga la página.')">
                         <i class="las la-lock-open"></i> Abrir Cajón Físico
                     </button>
-                    <button type="button" class="btn btn-outline-warning font-weight-bold" title="Configurar / cambiar puerto USB-COM y baudios" onclick="window.open('{{ route('cash.openDrawer') }}', 'zyaDrawerConfig', 'width=540,height=660,resizable=yes,scrollbars=yes')">
+                    <button type="button" class="btn btn-outline-warning font-weight-bold" title="Configurar / cambiar puerto USB-COM y baudios" onclick="window.open('{{ parse_url(route('cash.openDrawer'), PHP_URL_PATH) }}', 'zyaDrawerConfig', 'width=540,height=660,resizable=yes,scrollbars=yes')">
                         <i class="las la-cog"></i>
                     </button>
                 </div>

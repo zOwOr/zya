@@ -27,6 +27,7 @@ class PosHardwareAndDrawerBugfixTest extends TestCase
         $this->assertStringContainsString('autoOpenUsbDrawerBounded', $js);
         $this->assertStringContainsString('manualOpenUsbDrawer', $js);
         $this->assertStringContainsString('wasRecentlyKickedAcrossPages', $js);
+        $this->assertStringContainsString('getLastError', $js);
     }
 
     public function test_views_use_canonical_pos_hardware_without_duplicate_inline_definitions_or_dead_escpos_spans(): void
@@ -43,7 +44,8 @@ class PosHardwareAndDrawerBugfixTest extends TestCase
             $source = file_get_contents(resource_path('views/' . $relativeView));
             $compiled = Blade::compileString($source);
             $this->assertNotEmpty($compiled, "Blade compilation failed for {$relativeView}");
-            $this->assertStringContainsString('assets/js/pos-hardware.js', $source, "{$relativeView} should load pos-hardware.js");
+            $this->assertStringContainsString('UnifiedPosController::hardwareClientSrc()', $source, "{$relativeView} should load pos-hardware via UnifiedPosController::hardwareClientSrc()");
+            $this->assertStringNotContainsString("asset('assets/js/pos-hardware.js')", $source, "{$relativeView} must not rely solely on static asset path that 404s when public assets lag behind");
             $this->assertStringNotContainsString('KICK_BYTES = new Uint8Array', $source, "{$relativeView} should not duplicate KICK_BYTES");
             $this->assertStringNotContainsString('&#27;&#112;', $source, "{$relativeView} should not contain broken HTML ESC/POS span");
         }
@@ -93,14 +95,15 @@ class PosHardwareAndDrawerBugfixTest extends TestCase
     public function test_pos_checkout_and_print_layout_coordinate_drawer_print_and_modal_focus(): void
     {
         $main = file_get_contents(resource_path('views/dashboard/body/main.blade.php'));
-        $this->assertStringContainsString('waitUntilIdle(700)', $main);
+        $this->assertStringContainsString('waitUntilIdle(1200)', $main);
         $this->assertStringContainsString('onPrintTriggered', $main);
+        $this->assertStringContainsString('zyaOpenCashDrawerManual', $main);
 
         $posIndex = file_get_contents(resource_path('views/central-pos/index.blade.php'));
         $this->assertNotEmpty(Blade::compileString($posIndex));
         $this->assertStringContainsString("route('central-pos.open-drawer')", $posIndex);
         $this->assertStringContainsString('btnOpenPhysicalDrawer', $posIndex);
-        $this->assertStringContainsString('autoOpenUsbDrawerBounded(700)', $posIndex);
+        $this->assertStringContainsString('autoOpenUsbDrawerBounded(1200)', $posIndex);
         $this->assertStringContainsString('onPrintTriggered', $posIndex);
         $this->assertStringContainsString("'skip_drawer' => 1", $posIndex);
     }
